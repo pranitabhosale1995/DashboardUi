@@ -1,0 +1,181 @@
+{
+  "years": {
+    "2026": {
+      "label": "FY 2026-27",
+      "circles": {
+        "Mumbai": {
+          "regions": {
+            "Mumbai": {
+              "branches": {
+                "Fort": {
+                  "production": 128,
+                  "deposits": 860,
+                  "advances": 640,
+                  "casa": 410,
+                  "npa": 2.8
+                },
+                "Bandra": {
+                  "production": 116,
+                  "deposits": 790,
+                  "advances": 590,
+                  "casa": 385,
+                  "npa": 3.1
+                },
+                "Andheri": {
+                  "production": 104,
+                  "deposits": 720,
+                  "advances": 540,
+                  "casa": 350,
+                  "npa": 2.6
+                }
+              }
+            },
+            "Navi Mumbai": {
+              "branches": {
+                "Vashi": {
+                  "production": 98,
+                  "deposits": 680,
+                  "advances": 510,
+                  "casa": 330,
+                  "npa": 2.4
+                },
+                "Thane": {
+                  "production": 112,
+                  "deposits": 750,
+                  "advances": 560,
+                  "casa": 360,
+                  "npa": 2.9
+                }
+              }
+            }
+          }
+        },
+        "Pune": {
+          "regions": {
+            "Pune": {
+              "branches": {
+                "Shivajinagar": {
+                  "production": 108,
+                  "deposits": 740,
+                  "advances": 570,
+                  "casa": 345,
+                  "npa": 3.0
+                },
+                "Hinjewadi": {
+                  "production": 94,
+                  "deposits": 630,
+                  "advances": 490,
+                  "casa": 315,
+                  "npa": 2.5
+                }
+              }
+            },
+            "Satara": {
+              "branches": {
+                "Satara": {
+                  "production": 72,
+                  "deposits": 510,
+                  "advances": 380,
+                  "casa": 240,
+                  "npa": 3.4
+                }
+              }
+            }
+          }
+        },
+        "Nagpur": {
+          "regions": {
+            "Nagpur": {
+              "branches": {
+                "Sitabuldi": {
+                  "production": 88,
+                  "deposits": 590,
+                  "advances": 450,
+                  "casa": 280,
+                  "npa": 3.2
+                },
+                "Wardha Road": {
+                  "production": 76,
+                  "deposits": 520,
+                  "advances": 395,
+                  "casa": 250,
+                  "npa": 3.5
+                }
+              }
+            }
+          }
+        }
+      },
+      "monthlyTrend": [
+        { "month": "Apr", "production": 82, "deposits": 610, "advances": 430 },
+        { "month": "May", "production": 91, "deposits": 650, "advances": 460 },
+        { "month": "Jun", "production": 96, "deposits": 690, "advances": 485 },
+        { "month": "Jul", "production": 103, "deposits": 720, "advances": 510 },
+        { "month": "Aug", "production": 108, "deposits": 755, "advances": 535 },
+        { "month": "Sep", "production": 114, "deposits": 790, "advances": 560 },
+        { "month": "Oct", "production": 119, "deposits": 825, "advances": 585 },
+        { "month": "Nov", "production": 123, "deposits": 850, "advances": 610 },
+        { "month": "Dec", "production": 128, "deposits": 880, "advances": 635 },
+        { "month": "Jan", "production": 134, "deposits": 915, "advances": 660 },
+        { "month": "Feb", "production": 141, "deposits": 950, "advances": 690 },
+        { "month": "Mar", "production": 149, "deposits": 990, "advances": 720 }
+      ]
+    },
+    "2025": {
+      "label": "FY 2025-26",
+      "circles": {
+        "Mumbai": {
+          "regions": {
+            "Mumbai": {
+              "branches": {
+                "Fort": {
+                  "production": 112,
+                  "deposits": 790,
+                  "advances": 580,
+                  "casa": 380,
+                  "npa": 3.2
+                },
+                "Bandra": {
+                  "production": 101,
+                  "deposits": 720,
+                  "advances": 530,
+                  "casa": 350,
+                  "npa": 3.5
+                }
+              }
+            }
+          }
+        },
+        "Pune": {
+          "regions": {
+            "Pune": {
+              "branches": {
+                "Shivajinagar": {
+                  "production": 95,
+                  "deposits": 680,
+                  "advances": 510,
+                  "casa": 320,
+                  "npa": 3.3
+                }
+              }
+            }
+          }
+        }
+      },
+      "monthlyTrend": [
+        { "month": "Apr", "production": 74, "deposits": 560, "advances": 400 },
+        { "month": "May", "production": 80, "deposits": 590, "advances": 420 },
+        { "month": "Jun", "production": 84, "deposits": 620, "advances": 440 },
+        { "month": "Jul", "production": 89, "deposits": 650, "advances": 460 },
+        { "month": "Aug", "production": 94, "deposits": 680, "advances": 480 },
+        { "month": "Sep", "production": 98, "deposits": 710, "advances": 500 },
+        { "month": "Oct", "production": 103, "deposits": 740, "advances": 525 },
+        { "month": "Nov", "production": 108, "deposits": 770, "advances": 545 },
+        { "month": "Dec", "production": 112, "deposits": 800, "advances": 570 },
+        { "month": "Jan", "production": 118, "deposits": 835, "advances": 595 },
+        { "month": "Feb", "production": 123, "deposits": 870, "advances": 620 },
+        { "month": "Mar", "production": 130, "deposits": 910, "advances": 650 }
+      ]
+    }
+  }
+}
