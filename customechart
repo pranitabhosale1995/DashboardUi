@@ -1,1 +1,1012 @@
-.
+import React, { useMemo, useState } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Stack,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Chip,
+  IconButton,
+  Tooltip,
+  Divider,
+} from "@mui/material";
+
+import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
+
+import ReactECharts from "echarts-for-react";
+
+import dashboardData from "../dashboard.json";
+
+
+const formatNumber = (value) => {
+  return new Intl.NumberFormat("en-IN", {
+    maximumFractionDigits: 1,
+  }).format(Number(value || 0));
+};
+
+
+const getBranches = (yearData) => {
+  const result = [];
+
+  Object.entries(yearData?.circles || {}).forEach(
+    ([circle, circleData]) => {
+      Object.entries(circleData?.regions || {}).forEach(
+        ([region, regionData]) => {
+          Object.entries(regionData?.branches || {}).forEach(
+            ([branch, branchData]) => {
+              result.push({
+                circle,
+                region,
+                branch,
+                ...branchData,
+              });
+            }
+          );
+        }
+      );
+    }
+  );
+
+  return result;
+};
+
+
+const getMetricValue = (items, metric) => {
+  if (!items.length) return 0;
+
+  if (metric === "npa") {
+    return (
+      items.reduce(
+        (total, item) =>
+          total + Number(item?.npa || 0),
+        0
+      ) / items.length
+    );
+  }
+
+  return items.reduce(
+    (total, item) =>
+      total + Number(item?.[metric] || 0),
+    0
+  );
+};
+
+
+const DashboardCustomChart = () => {
+  const years = useMemo(() => {
+    return Object.keys(
+      dashboardData?.years || {}
+    ).sort(
+      (a, b) => Number(b) - Number(a)
+    );
+  }, []);
+
+  const [selectedYear, setSelectedYear] =
+    useState(years[0] || "");
+
+  const [metric, setMetric] =
+    useState("production");
+
+  const [view, setView] =
+    useState("drilldown");
+
+  const [level, setLevel] =
+    useState("circle");
+
+  const [selectedCircle, setSelectedCircle] =
+    useState(null);
+
+  const [selectedRegion, setSelectedRegion] =
+    useState(null);
+
+  const [selectedBranch, setSelectedBranch] =
+    useState(null);
+
+
+  const currentYearData =
+    dashboardData?.years?.[selectedYear];
+
+
+  const currentYearIndex =
+    years.indexOf(selectedYear);
+
+
+  const previousYear =
+    years[currentYearIndex + 1];
+
+
+  const previousYearData =
+    dashboardData?.years?.[
+      previousYear
+    ];
+
+
+  const branches = useMemo(
+    () => getBranches(currentYearData),
+    [currentYearData]
+  );
+
+
+  const previousBranches = useMemo(
+    () => getBranches(previousYearData),
+    [previousYearData]
+  );
+
+
+  /*
+   * =========================================================
+   * CIRCLE DATA
+   * =========================================================
+   */
+
+  const circleData = useMemo(() => {
+    const map = {};
+
+    branches.forEach((item) => {
+      if (!map[item.circle]) {
+        map[item.circle] = [];
+      }
+
+      map[item.circle].push(item);
+    });
+
+    return Object.entries(map).map(
+      ([name, items]) => ({
+        name,
+        value: getMetricValue(
+          items,
+          metric
+        ),
+      })
+    );
+  }, [branches, metric]);
+
+
+  /*
+   * =========================================================
+   * REGION DATA
+   * =========================================================
+   */
+
+  const regionData = useMemo(() => {
+    if (!selectedCircle) {
+      return [];
+    }
+
+    const filtered = branches.filter(
+      (item) =>
+        item.circle === selectedCircle
+    );
+
+    const map = {};
+
+    filtered.forEach((item) => {
+      if (!map[item.region]) {
+        map[item.region] = [];
+      }
+
+      map[item.region].push(item);
+    });
+
+    return Object.entries(map).map(
+      ([name, items]) => ({
+        name,
+        value: getMetricValue(
+          items,
+          metric
+        ),
+      })
+    );
+  }, [
+    branches,
+    selectedCircle,
+    metric,
+  ]);
+
+
+  /*
+   * =========================================================
+   * BRANCH DATA
+   * =========================================================
+   */
+
+  const branchData = useMemo(() => {
+    if (!selectedCircle) {
+      return [];
+    }
+
+    let filtered = branches.filter(
+      (item) =>
+        item.circle === selectedCircle
+    );
+
+    if (selectedRegion) {
+      filtered = filtered.filter(
+        (item) =>
+          item.region === selectedRegion
+      );
+    }
+
+    return filtered.map((item) => ({
+      name: item.branch,
+      value: Number(
+        item?.[metric] || 0
+      ),
+    }));
+  }, [
+    branches,
+    selectedCircle,
+    selectedRegion,
+    metric,
+  ]);
+
+
+  /*
+   * =========================================================
+   * SELECTED BRANCH DETAILS
+   * =========================================================
+   */
+
+  const selectedBranchData = useMemo(() => {
+    if (!selectedBranch) {
+      return null;
+    }
+
+    return branches.find(
+      (item) =>
+        item.branch === selectedBranch &&
+        item.circle === selectedCircle &&
+        item.region === selectedRegion
+    );
+  }, [
+    branches,
+    selectedBranch,
+    selectedCircle,
+    selectedRegion,
+  ]);
+
+
+  /*
+   * =========================================================
+   * MONTHLY CURRENT / PREVIOUS DATA
+   * =========================================================
+   */
+
+  const currentMonthly =
+    currentYearData?.monthlyTrend || [];
+
+  const previousMonthly =
+    previousYearData?.monthlyTrend || [];
+
+
+  /*
+   * =========================================================
+   * METRIC LABEL
+   * =========================================================
+   */
+
+  const metricLabel = {
+    production: "Production",
+    deposits: "Deposits",
+    advances: "Advances",
+    casa: "CASA",
+    npa: "NPA",
+  };
+
+
+  /*
+   * =========================================================
+   * DRILLDOWN TITLE
+   * =========================================================
+   */
+
+  const chartTitle = useMemo(() => {
+    if (level === "circle") {
+      return "Circle Performance";
+    }
+
+    if (level === "region") {
+      return `${selectedCircle} — Region Performance`;
+    }
+
+    return selectedRegion
+      ? `${selectedRegion} — Branch Performance`
+      : `${selectedCircle} — Branch Performance`;
+  }, [
+    level,
+    selectedCircle,
+    selectedRegion,
+  ]);
+
+
+  /*
+   * =========================================================
+   * DRILLDOWN CHART DATA
+   * =========================================================
+   */
+
+  const drilldownData =
+    level === "circle"
+      ? circleData
+      : level === "region"
+      ? regionData
+      : branchData;
+
+
+  /*
+   * =========================================================
+   * ECHART OPTION
+   * =========================================================
+   */
+
+  const drilldownOption = useMemo(() => {
+    const names = drilldownData.map(
+      (item) => item.name
+    );
+
+    const values = drilldownData.map(
+      (item) => item.value
+    );
+
+
+    if (level === "circle") {
+      return {
+        animationDuration: 700,
+
+        tooltip: {
+          trigger: "item",
+
+          formatter: (params) => {
+            return `
+              <b>${params.name}</b><br/>
+              ${metricLabel[metric]}:
+              ${formatNumber(params.value)}
+              <br/>
+              Share: ${params.percent}%
+            `;
+          },
+        },
+
+        legend: {
+          bottom: 0,
+          type: "scroll",
+        },
+
+        series: [
+          {
+            name:
+              metricLabel[metric],
+
+            type: "pie",
+
+            radius: [
+              "42%",
+              "72%",
+            ],
+
+            center: [
+              "50%",
+              "45%",
+            ],
+
+            avoidLabelOverlap: true,
+
+            itemStyle: {
+              borderWidth: 3,
+              borderColor: "#fff",
+              borderRadius: 7,
+            },
+
+            label: {
+              show: true,
+              formatter:
+                "{b}\n{d}%",
+            },
+
+            emphasis: {
+              scale: true,
+              scaleSize: 8,
+
+              itemStyle: {
+                shadowBlur: 20,
+                shadowOffsetX: 0,
+                shadowColor:
+                  "rgba(0,0,0,0.18)",
+              },
+            },
+
+            data: drilldownData,
+          },
+        ],
+      };
+    }
+
+
+    return {
+      animationDuration: 600,
+
+      tooltip: {
+        trigger: "axis",
+
+        axisPointer: {
+          type: "shadow",
+        },
+
+        formatter: (params) => {
+          const item = params?.[0];
+
+          if (!item) return "";
+
+          return `
+            <b>${item.name}</b><br/>
+            ${metricLabel[metric]}:
+            ${formatNumber(item.value)}
+          `;
+        },
+      },
+
+      grid: {
+        left: 55,
+        right: 25,
+        top: 40,
+        bottom:
+          level === "branch"
+            ? 95
+            : 60,
+      },
+
+      xAxis: {
+        type: "category",
+
+        data: names,
+
+        axisLabel: {
+          interval: 0,
+
+          rotate:
+            level === "branch"
+              ? 35
+              : names.length > 4
+              ? 25
+              : 0,
+        },
+      },
+
+      yAxis: {
+        type: "value",
+
+        name:
+          metricLabel[metric],
+
+        nameTextStyle: {
+          padding: [0, 0, 0, 10],
+        },
+
+        splitLine: {
+          lineStyle: {
+            type: "dashed",
+            opacity: 0.5,
+          },
+        },
+      },
+
+      dataZoom:
+        level === "branch" &&
+        names.length > 7
+          ? [
+              {
+                type: "inside",
+              },
+              {
+                type: "slider",
+                bottom: 5,
+              },
+            ]
+          : [],
+
+      series: [
+        {
+          name:
+            metricLabel[metric],
+
+          type: "bar",
+
+          barMaxWidth: 55,
+
+          data: values,
+
+          label: {
+            show: true,
+            position: "top",
+
+            formatter: (params) =>
+              formatNumber(
+                params.value
+              ),
+          },
+
+          emphasis: {
+            focus: "series",
+
+            itemStyle: {
+              shadowBlur: 12,
+              shadowOffsetY: 4,
+            },
+          },
+        },
+      ],
+    };
+  }, [
+    drilldownData,
+    level,
+    metric,
+  ]);
+
+
+  /*
+   * =========================================================
+   * MONTHLY TREND CHART
+   * =========================================================
+   */
+
+  const monthlyOption = useMemo(() => {
+    return {
+      animationDuration: 700,
+
+      tooltip: {
+        trigger: "axis",
+      },
+
+      legend: {
+        top: 0,
+        right: 0,
+      },
+
+      grid: {
+        left: 50,
+        right: 25,
+        top: 50,
+        bottom: 40,
+      },
+
+      xAxis: {
+        type: "category",
+
+        boundaryGap: false,
+
+        data: currentMonthly.map(
+          (item) => item.month
+        ),
+      },
+
+      yAxis: {
+        type: "value",
+
+        name: "Production",
+
+        splitLine: {
+          lineStyle: {
+            type: "dashed",
+            opacity: 0.5,
+          },
+        },
+      },
+
+      series: [
+        {
+          name:
+            currentYearData?.label ||
+            selectedYear,
+
+          type: "line",
+
+          smooth: true,
+
+          symbol: "circle",
+
+          symbolSize: 7,
+
+          data: currentMonthly.map(
+            (item) =>
+              item.production
+          ),
+
+          areaStyle: {
+            opacity: 0.08,
+          },
+        },
+
+        {
+          name:
+            previousYearData?.label ||
+            previousYear ||
+            "Previous Year",
+
+          type: "line",
+
+          smooth: true,
+
+          symbol: "circle",
+
+          symbolSize: 5,
+
+          lineStyle: {
+            type: "dashed",
+          },
+
+          data: previousMonthly.map(
+            (item) =>
+              item.production
+          ),
+        },
+      ],
+    };
+  }, [
+    currentMonthly,
+    previousMonthly,
+    currentYearData,
+    previousYearData,
+    selectedYear,
+    previousYear,
+  ]);
+
+
+  /*
+   * =========================================================
+   * CLICK HANDLER
+   * =========================================================
+   */
+
+  const handleChartClick = (params) => {
+    if (level === "circle") {
+      setSelectedCircle(
+        params.name
+      );
+
+      setSelectedRegion(null);
+      setSelectedBranch(null);
+
+      setLevel("region");
+
+      return;
+    }
+
+    if (level === "region") {
+      setSelectedRegion(
+        params.name
+      );
+
+      setSelectedBranch(null);
+
+      setLevel("branch");
+
+      return;
+    }
+
+    if (level === "branch") {
+      setSelectedBranch(
+        params.name
+      );
+    }
+  };
+
+
+  /*
+   * =========================================================
+   * BACK
+   * =========================================================
+   */
+
+  const handleBack = () => {
+    if (level === "branch") {
+      setSelectedRegion(null);
+      setSelectedBranch(null);
+      setLevel("region");
+      return;
+    }
+
+    if (level === "region") {
+      setSelectedCircle(null);
+      setSelectedRegion(null);
+      setSelectedBranch(null);
+      setLevel("circle");
+    }
+  };
+
+
+  /*
+   * =========================================================
+   * HOME
+   * =========================================================
+   */
+
+  const handleHome = () => {
+    setSelectedCircle(null);
+    setSelectedRegion(null);
+    setSelectedBranch(null);
+    setLevel("circle");
+  };
+
+
+  /*
+   * =========================================================
+   * YEAR CHANGE
+   * =========================================================
+   */
+
+  const handleYearChange = (event) => {
+    setSelectedYear(
+      event.target.value
+    );
+
+    handleHome();
+  };
+
+
+  /*
+   * =========================================================
+   * RENDER
+   * =========================================================
+   */
+
+  return (
+    <Card
+      sx={{
+        borderRadius: 3,
+        border: "1px solid #e4e7ec",
+        boxShadow:
+          "0 4px 18px rgba(16,24,40,0.05)",
+      }}
+    >
+      <CardContent>
+
+        {/* HEADER */}
+
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent:
+              "space-between",
+            alignItems: "center",
+            gap: 2,
+            flexWrap: "wrap",
+          }}
+        >
+          <Box>
+            <Typography
+              sx={{
+                fontSize: 19,
+                fontWeight: 800,
+                color: "#101828",
+              }}
+            >
+              {view === "drilldown"
+                ? chartTitle
+                : "Production Trend"}
+            </Typography>
+
+            <Typography
+              sx={{
+                mt: 0.4,
+                fontSize: 12,
+                color: "#667085",
+              }}
+            >
+              {view === "drilldown"
+                ? "Interactive Circle → Region → Branch analysis"
+                : "Current year vs previous year"}
+            </Typography>
+          </Box>
+
+
+          {/* BREADCRUMB */}
+
+          {view === "drilldown" && (
+            <Stack
+              direction="row"
+              spacing={0.7}
+              alignItems="center"
+              flexWrap="wrap"
+            >
+              <Chip
+                size="small"
+                label="Circle"
+                variant={
+                  level === "circle"
+                    ? "filled"
+                    : "outlined"
+                }
+                onClick={
+                  handleHome
+                }
+              />
+
+              {selectedCircle && (
+                <>
+                  <Typography
+                    sx={{
+                      color:
+                        "#98A2B3",
+                    }}
+                  >
+                    →
+                  </Typography>
+
+                  <Chip
+                    size="small"
+                    label={
+                      selectedCircle
+                    }
+                    variant={
+                      level === "region"
+                        ? "filled"
+                        : "outlined"
+                    }
+                    onClick={() => {
+                      setSelectedRegion(
+                        null
+                      );
+                      setSelectedBranch(
+                        null
+                      );
+                      setLevel(
+                        "region"
+                      );
+                    }}
+                  />
+                </>
+              )}
+
+              {selectedRegion && (
+                <>
+                  <Typography
+                    sx={{
+                      color:
+                        "#98A2B3",
+                    }}
+                  >
+                    →
+                  </Typography>
+
+                  <Chip
+                    size="small"
+                    label={
+                      selectedRegion
+                    }
+                    variant={
+                      level === "branch"
+                        ? "filled"
+                        : "outlined"
+                    }
+                  />
+                </>
+              )}
+            </Stack>
+          )}
+        </Box>
+
+
+        <Divider
+          sx={{
+            my: 2,
+          }}
+        />
+
+
+        {/* CONTROLS */}
+
+        <Stack
+          direction={{
+            xs: "column",
+            sm: "row",
+          }}
+          spacing={1.2}
+          sx={{
+            mb: 2,
+          }}
+        >
+
+          {view === "drilldown" && (
+            <>
+              <Tooltip title="Go back">
+                <span>
+                  <IconButton
+                    size="small"
+                    disabled={
+                      level ===
+                      "circle"
+                    }
+                    onClick={
+                      handleBack
+                    }
+                    sx={{
+                      border:
+                        "1px solid #d0d5dd",
+                    }}
+                  >
+                    <ArrowBackRoundedIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+
+              <Tooltip title="Reset drill-down">
+                <IconButton
+                  size="small"
+                  onClick={
+                    handleHome
+                  }
+                  sx={{
+                    border:
+                      "1px solid #d0d5dd",
+                  }}
+                >
+                  <HomeRoundedIcon />
+                </IconButton>
+              </Tooltip>
+            </>
+          )}
+
+
+          {/* YEAR */}
+
+          <FormControl
+            size="small"
+            sx={{
+              minWidth: 170,
+            }}
+          >
+            <InputLabel>
+              Financial Year
+            </InputLabel>
+
+            <Select
+              value={selectedYear}
+              label="Financial Year"
+              onChange={
+                handleYearChange
+              }
+            >
+              {years.map((year) => (
+                <MenuItem
+                  key={year}
+                  value={year}
+                >
+                  {
+                    dashboardData
+                      .years[
+                        year
+                      ].label
+                  }
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+
+          {/* METRIC */}
+
+          {view === "drilldown" && (
+            <FormControl
+              size="small"
+              sx={{
+                minWidth: 150,
+              }}
+            >
+              <InputLabel>
+                Metric
+              </InputLabel>
+
+              <Select
+                value={metric}
+                label="Metric"
+                onChange={(event) =>
+                  setMetric(
+                    event.target.value
+                  )
+                }
+           
