@@ -1009,4 +1009,180 @@ const DashboardCustomChart = () => {
                     event.target.value
                   )
                 }
+
+
+              <MenuItem value="production">
+                Production
+              </MenuItem>
+
+              <MenuItem value="deposits">
+                Deposits
+              </MenuItem>
+
+              <MenuItem value="advances">
+                Advances
+              </MenuItem>
+
+              <MenuItem value="casa">
+                CASA
+              </MenuItem>
+
+              <MenuItem value="npa">
+                NPA
+              </MenuItem>
+            </Select>
+          </FormControl>
+        )}
+
+        {/* VIEW */}
+
+        <FormControl
+          size="small"
+          sx={{
+            minWidth: 160,
+          }}
+        >
+          <InputLabel>
+            Chart View
+          </InputLabel>
+
+          <Select
+            value={view}
+            label="Chart View"
+            onChange={(event) => {
+              setView(event.target.value);
+
+              if (
+                event.target.value ===
+                "drilldown"
+              ) {
+                handleHome();
+              }
+            }}
+          >
+            <MenuItem value="drilldown">
+              Drill Down
+            </MenuItem>
+
+            <MenuItem value="trend">
+              Yearly Trend
+            </MenuItem>
+          </Select>
+        </FormControl>
+      </Stack>
+
+      {/* CHART */}
+
+      {view === "drilldown" ? (
+        <>
+          <ReactECharts
+            option={drilldownOption}
+            style={{
+              width: "100%",
+              height: 430,
+            }}
+            notMerge
+            lazyUpdate
+            onEvents={{
+              click: handleChartClick,
+            }}
+          />
+
+          {/* SELECTED BRANCH DETAILS */}
+
+          {selectedBranchData && (
+            <Box
+              sx={{
+                mt: 1,
+                p: 2,
+                borderRadius: 2,
+                background: "#f8f9fc",
+                border: "1px solid #eaecf0",
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: 11,
+                  color: "#667085",
+                }}
+              >
+                Selected Branch
+              </Typography>
+
+              <Typography
+                sx={{
+                  mt: 0.4,
+                  fontSize: 16,
+                  fontWeight: 800,
+                  color: "#101828",
+                }}
+              >
+                {selectedBranchData.branch}
+              </Typography>
+
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                  mt: 1,
+                  flexWrap: "wrap",
+                  gap: 0.5,
+                }}
+              >
+                <Chip
+                  size="small"
+                  label={`Production: ${formatNumber(
+                    selectedBranchData.production
+                  )}`}
+                />
+
+                <Chip
+                  size="small"
+                  label={`Deposits: ${formatNumber(
+                    selectedBranchData.deposits
+                  )}`}
+                />
+
+                <Chip
+                  size="small"
+                  label={`Advances: ${formatNumber(
+                    selectedBranchData.advances
+                  )}`}
+                />
+
+                <Chip
+                  size="small"
+                  label={`CASA: ${formatNumber(
+                    selectedBranchData.casa
+                  )}`}
+                />
+
+                <Chip
+                  size="small"
+                  label={`NPA: ${formatNumber(
+                    selectedBranchData.npa
+                  )}%`}
+                />
+              </Stack>
+            </Box>
+          )}
+        </>
+      ) : (
+        <ReactECharts
+          option={monthlyOption}
+          style={{
+            width: "100%",
+            height: 410,
+          }}
+          notMerge
+          lazyUpdate
+        />
+      )}
+    </CardContent>
+  </Card>
+);
+
+};
+
+export default DashboardCustomChart;
            
