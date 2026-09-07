@@ -1,0 +1,25 @@
+import React from "react";
+
+import DashboardHead from "./components/DashboardHead";
+import DashboardCustomChart from "./components/DashboardCustomChart";
+import DashboardFrequencyStats from "./components/DashboardFrequencyStats";
+import DashboardAnnouncements from "./components/DashboardAnnouncements";
+import DashboardRecentActivity from "./components/DashboardRecentActivity";
+
+const DashboardPage = () => {
+  return (
+    <>
+      <DashboardHead />
+
+      <DashboardFrequencyStats />
+
+      <DashboardCustomChart />
+
+      <DashboardAnnouncements />
+
+      <DashboardRecentActivity />
+    </>
+  );
+};
+
+export default DashboardPage;
