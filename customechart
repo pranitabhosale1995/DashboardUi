@@ -22,13 +22,11 @@ import ReactECharts from "echarts-for-react";
 
 import dashboardData from "../dashboard.json";
 
-
 const formatNumber = (value) => {
   return new Intl.NumberFormat("en-IN", {
     maximumFractionDigits: 1,
   }).format(Number(value || 0));
 };
-
 
 const getBranches = (yearData) => {
   const result = [];
@@ -55,7 +53,6 @@ const getBranches = (yearData) => {
   return result;
 };
 
-
 const getMetricValue = (items, metric) => {
   if (!items.length) return 0;
 
@@ -75,7 +72,6 @@ const getMetricValue = (items, metric) => {
     0
   );
 };
-
 
 const DashboardCustomChart = () => {
   const years = useMemo(() => {
@@ -107,42 +103,24 @@ const DashboardCustomChart = () => {
   const [selectedBranch, setSelectedBranch] =
     useState(null);
 
-
   const currentYearData =
     dashboardData?.years?.[selectedYear];
-
 
   const currentYearIndex =
     years.indexOf(selectedYear);
 
-
   const previousYear =
     years[currentYearIndex + 1];
-
 
   const previousYearData =
     dashboardData?.years?.[
       previousYear
     ];
 
-
   const branches = useMemo(
     () => getBranches(currentYearData),
     [currentYearData]
   );
-
-
-  const previousBranches = useMemo(
-    () => getBranches(previousYearData),
-    [previousYearData]
-  );
-
-
-  /*
-   * =========================================================
-   * CIRCLE DATA
-   * =========================================================
-   */
 
   const circleData = useMemo(() => {
     const map = {};
@@ -165,13 +143,6 @@ const DashboardCustomChart = () => {
       })
     );
   }, [branches, metric]);
-
-
-  /*
-   * =========================================================
-   * REGION DATA
-   * =========================================================
-   */
 
   const regionData = useMemo(() => {
     if (!selectedCircle) {
@@ -208,13 +179,6 @@ const DashboardCustomChart = () => {
     metric,
   ]);
 
-
-  /*
-   * =========================================================
-   * BRANCH DATA
-   * =========================================================
-   */
-
   const branchData = useMemo(() => {
     if (!selectedCircle) {
       return [];
@@ -245,13 +209,6 @@ const DashboardCustomChart = () => {
     metric,
   ]);
 
-
-  /*
-   * =========================================================
-   * SELECTED BRANCH DETAILS
-   * =========================================================
-   */
-
   const selectedBranchData = useMemo(() => {
     if (!selectedBranch) {
       return null;
@@ -270,25 +227,11 @@ const DashboardCustomChart = () => {
     selectedRegion,
   ]);
 
-
-  /*
-   * =========================================================
-   * MONTHLY CURRENT / PREVIOUS DATA
-   * =========================================================
-   */
-
   const currentMonthly =
     currentYearData?.monthlyTrend || [];
 
   const previousMonthly =
     previousYearData?.monthlyTrend || [];
-
-
-  /*
-   * =========================================================
-   * METRIC LABEL
-   * =========================================================
-   */
 
   const metricLabel = {
     production: "Production",
@@ -297,13 +240,6 @@ const DashboardCustomChart = () => {
     casa: "CASA",
     npa: "NPA",
   };
-
-
-  /*
-   * =========================================================
-   * DRILLDOWN TITLE
-   * =========================================================
-   */
 
   const chartTitle = useMemo(() => {
     if (level === "circle") {
@@ -323,26 +259,12 @@ const DashboardCustomChart = () => {
     selectedRegion,
   ]);
 
-
-  /*
-   * =========================================================
-   * DRILLDOWN CHART DATA
-   * =========================================================
-   */
-
   const drilldownData =
     level === "circle"
       ? circleData
       : level === "region"
       ? regionData
       : branchData;
-
-
-  /*
-   * =========================================================
-   * ECHART OPTION
-   * =========================================================
-   */
 
   const drilldownOption = useMemo(() => {
     const names = drilldownData.map(
@@ -352,7 +274,6 @@ const DashboardCustomChart = () => {
     const values = drilldownData.map(
       (item) => item.value
     );
-
 
     if (level === "circle") {
       return {
@@ -379,9 +300,7 @@ const DashboardCustomChart = () => {
 
         series: [
           {
-            name:
-              metricLabel[metric],
-
+            name: metricLabel[metric],
             type: "pie",
 
             radius: [
@@ -404,8 +323,7 @@ const DashboardCustomChart = () => {
 
             label: {
               show: true,
-              formatter:
-                "{b}\n{d}%",
+              formatter: "{b}\n{d}%",
             },
 
             emphasis: {
@@ -425,7 +343,6 @@ const DashboardCustomChart = () => {
         ],
       };
     }
-
 
     return {
       animationDuration: 600,
@@ -462,7 +379,6 @@ const DashboardCustomChart = () => {
 
       xAxis: {
         type: "category",
-
         data: names,
 
         axisLabel: {
@@ -480,8 +396,7 @@ const DashboardCustomChart = () => {
       yAxis: {
         type: "value",
 
-        name:
-          metricLabel[metric],
+        name: metricLabel[metric],
 
         nameTextStyle: {
           padding: [0, 0, 0, 10],
@@ -511,8 +426,7 @@ const DashboardCustomChart = () => {
 
       series: [
         {
-          name:
-            metricLabel[metric],
+          name: metricLabel[metric],
 
           type: "bar",
 
@@ -525,9 +439,7 @@ const DashboardCustomChart = () => {
             position: "top",
 
             formatter: (params) =>
-              formatNumber(
-                params.value
-              ),
+              formatNumber(params.value),
           },
 
           emphasis: {
@@ -546,13 +458,6 @@ const DashboardCustomChart = () => {
     level,
     metric,
   ]);
-
-
-  /*
-   * =========================================================
-   * MONTHLY TREND CHART
-   * =========================================================
-   */
 
   const monthlyOption = useMemo(() => {
     return {
@@ -576,7 +481,6 @@ const DashboardCustomChart = () => {
 
       xAxis: {
         type: "category",
-
         boundaryGap: false,
 
         data: currentMonthly.map(
@@ -586,7 +490,6 @@ const DashboardCustomChart = () => {
 
       yAxis: {
         type: "value",
-
         name: "Production",
 
         splitLine: {
@@ -656,74 +559,44 @@ const DashboardCustomChart = () => {
   ]);
 
 
-  /*
-   * =========================================================
-   * CLICK HANDLER
-   * =========================================================
-   */
-
   const handleChartClick = (params) => {
-    if (level === "circle") {
-      setSelectedCircle(
-        params.name
-      );
+    if (!params?.name) return;
 
+    if (level === "circle") {
+      setSelectedCircle(params.name);
       setSelectedRegion(null);
       setSelectedBranch(null);
-
       setLevel("region");
-
       return;
     }
 
     if (level === "region") {
-      setSelectedRegion(
-        params.name
-      );
-
+      setSelectedRegion(params.name);
       setSelectedBranch(null);
-
       setLevel("branch");
-
       return;
     }
 
     if (level === "branch") {
-      setSelectedBranch(
-        params.name
-      );
+      setSelectedBranch(params.name);
     }
   };
 
 
-  /*
-   * =========================================================
-   * BACK
-   * =========================================================
-   */
-
   const handleBack = () => {
     if (level === "branch") {
-      setSelectedRegion(null);
       setSelectedBranch(null);
       setLevel("region");
       return;
     }
 
     if (level === "region") {
-      setSelectedCircle(null);
       setSelectedRegion(null);
-      setSelectedBranch(null);
+      setSelectedCircle(null);
       setLevel("circle");
     }
   };
 
-
-  /*
-   * =========================================================
-   * HOME
-   * =========================================================
-   */
 
   const handleHome = () => {
     setSelectedCircle(null);
@@ -733,456 +606,648 @@ const DashboardCustomChart = () => {
   };
 
 
-  /*
-   * =========================================================
-   * YEAR CHANGE
-   * =========================================================
-   */
-
   const handleYearChange = (event) => {
-    setSelectedYear(
-      event.target.value
-    );
+    const year = event.target.value;
 
-    handleHome();
+    setSelectedYear(year);
+
+    setSelectedCircle(null);
+    setSelectedRegion(null);
+    setSelectedBranch(null);
+    setLevel("circle");
   };
 
-
-  /*
-   * =========================================================
-   * RENDER
-   * =========================================================
-   */
 
   return (
     <Card
       sx={{
+        width: "100%",
         borderRadius: 3,
-        border: "1px solid #e4e7ec",
+        border: "1px solid #E4E7EC",
         boxShadow:
           "0 4px 18px rgba(16,24,40,0.05)",
       }}
     >
-      <CardContent>
+      <CardContent
+        sx={{
+          p: 0,
+          "&:last-child": {
+            pb: 0,
+          },
+        }}
+      >
 
         {/* HEADER */}
 
         <Box
           sx={{
-            display: "flex",
-            justifyContent:
-              "space-between",
-            alignItems: "center",
-            gap: 2,
-            flexWrap: "wrap",
+            px: 2.5,
+            py: 2,
           }}
         >
-          <Box>
-            <Typography
-              sx={{
-                fontSize: 19,
-                fontWeight: 800,
-                color: "#101828",
-              }}
-            >
-              {view === "drilldown"
-                ? chartTitle
-                : "Production Trend"}
-            </Typography>
-
-            <Typography
-              sx={{
-                mt: 0.4,
-                fontSize: 12,
-                color: "#667085",
-              }}
-            >
-              {view === "drilldown"
-                ? "Interactive Circle → Region → Branch analysis"
-                : "Current year vs previous year"}
-            </Typography>
-          </Box>
-
-
-          {/* BREADCRUMB */}
-
-          {view === "drilldown" && (
-            <Stack
-              direction="row"
-              spacing={0.7}
-              alignItems="center"
-              flexWrap="wrap"
-            >
-              <Chip
-                size="small"
-                label="Circle"
-                variant={
-                  level === "circle"
-                    ? "filled"
-                    : "outlined"
-                }
-                onClick={
-                  handleHome
-                }
-              />
-
-              {selectedCircle && (
-                <>
-                  <Typography
-                    sx={{
-                      color:
-                        "#98A2B3",
-                    }}
-                  >
-                    →
-                  </Typography>
-
-                  <Chip
-                    size="small"
-                    label={
-                      selectedCircle
-                    }
-                    variant={
-                      level === "region"
-                        ? "filled"
-                        : "outlined"
-                    }
-                    onClick={() => {
-                      setSelectedRegion(
-                        null
-                      );
-                      setSelectedBranch(
-                        null
-                      );
-                      setLevel(
-                        "region"
-                      );
-                    }}
-                  />
-                </>
-              )}
-
-              {selectedRegion && (
-                <>
-                  <Typography
-                    sx={{
-                      color:
-                        "#98A2B3",
-                    }}
-                  >
-                    →
-                  </Typography>
-
-                  <Chip
-                    size="small"
-                    label={
-                      selectedRegion
-                    }
-                    variant={
-                      level === "branch"
-                        ? "filled"
-                        : "outlined"
-                    }
-                  />
-                </>
-              )}
-            </Stack>
-          )}
-        </Box>
-
-
-        <Divider
-          sx={{
-            my: 2,
-          }}
-        />
-
-
-        {/* CONTROLS */}
-
-        <Stack
-          direction={{
-            xs: "column",
-            sm: "row",
-          }}
-          spacing={1.2}
-          sx={{
-            mb: 2,
-          }}
-        >
-
-          {view === "drilldown" && (
-            <>
-              <Tooltip title="Go back">
-                <span>
-                  <IconButton
-                    size="small"
-                    disabled={
-                      level ===
-                      "circle"
-                    }
-                    onClick={
-                      handleBack
-                    }
-                    sx={{
-                      border:
-                        "1px solid #d0d5dd",
-                    }}
-                  >
-                    <ArrowBackRoundedIcon />
-                  </IconButton>
-                </span>
-              </Tooltip>
-
-              <Tooltip title="Reset drill-down">
-                <IconButton
-                  size="small"
-                  onClick={
-                    handleHome
-                  }
-                  sx={{
-                    border:
-                      "1px solid #d0d5dd",
-                  }}
-                >
-                  <HomeRoundedIcon />
-                </IconButton>
-              </Tooltip>
-            </>
-          )}
-
-
-          {/* YEAR */}
-
-          <FormControl
-            size="small"
-            sx={{
-              minWidth: 170,
+          <Stack
+            direction={{
+              xs: "column",
+              md: "row",
             }}
+            justifyContent="space-between"
+            alignItems={{
+              xs: "flex-start",
+              md: "center",
+            }}
+            spacing={2}
           >
-            <InputLabel>
-              Financial Year
-            </InputLabel>
 
-            <Select
-              value={selectedYear}
-              label="Financial Year"
-              onChange={
-                handleYearChange
-              }
-            >
-              {years.map((year) => (
-                <MenuItem
-                  key={year}
-                  value={year}
-                >
-                  {
-                    dashboardData
-                      .years[
-                        year
-                      ].label
-                  }
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+            {/* TITLE */}
 
-
-          {/* METRIC */}
-
-          {view === "drilldown" && (
-            <FormControl
-              size="small"
-              sx={{
-                minWidth: 150,
-              }}
-            >
-              <InputLabel>
-                Metric
-              </InputLabel>
-
-              <Select
-                value={metric}
-                label="Metric"
-                onChange={(event) =>
-                  setMetric(
-                    event.target.value
-                  )
-                }
-
-
-              <MenuItem value="production">
-                Production
-              </MenuItem>
-
-              <MenuItem value="deposits">
-                Deposits
-              </MenuItem>
-
-              <MenuItem value="advances">
-                Advances
-              </MenuItem>
-
-              <MenuItem value="casa">
-                CASA
-              </MenuItem>
-
-              <MenuItem value="npa">
-                NPA
-              </MenuItem>
-            </Select>
-          </FormControl>
-        )}
-
-        {/* VIEW */}
-
-        <FormControl
-          size="small"
-          sx={{
-            minWidth: 160,
-          }}
-        >
-          <InputLabel>
-            Chart View
-          </InputLabel>
-
-          <Select
-            value={view}
-            label="Chart View"
-            onChange={(event) => {
-              setView(event.target.value);
-
-              if (
-                event.target.value ===
-                "drilldown"
-              ) {
-                handleHome();
-              }
-            }}
-          >
-            <MenuItem value="drilldown">
-              Drill Down
-            </MenuItem>
-
-            <MenuItem value="trend">
-              Yearly Trend
-            </MenuItem>
-          </Select>
-        </FormControl>
-      </Stack>
-
-      {/* CHART */}
-
-      {view === "drilldown" ? (
-        <>
-          <ReactECharts
-            option={drilldownOption}
-            style={{
-              width: "100%",
-              height: 430,
-            }}
-            notMerge
-            lazyUpdate
-            onEvents={{
-              click: handleChartClick,
-            }}
-          />
-
-          {/* SELECTED BRANCH DETAILS */}
-
-          {selectedBranchData && (
-            <Box
-              sx={{
-                mt: 1,
-                p: 2,
-                borderRadius: 2,
-                background: "#f8f9fc",
-                border: "1px solid #eaecf0",
-              }}
-            >
+            <Box>
               <Typography
                 sx={{
-                  fontSize: 11,
-                  color: "#667085",
-                }}
-              >
-                Selected Branch
-              </Typography>
-
-              <Typography
-                sx={{
-                  mt: 0.4,
-                  fontSize: 16,
+                  fontSize: 17,
                   fontWeight: 800,
                   color: "#101828",
                 }}
               >
-                {selectedBranchData.branch}
+                Banking Performance
               </Typography>
+
+              <Typography
+                sx={{
+                  mt: 0.3,
+                  fontSize: 11,
+                  color: "#667085",
+                }}
+              >
+                Interactive {metricLabel[metric]} analysis
+              </Typography>
+            </Box>
+
+
+            {/* CONTROLS */}
+
+            <Stack
+              direction={{
+                xs: "column",
+                sm: "row",
+              }}
+              spacing={1}
+              width={{
+                xs: "100%",
+                md: "auto",
+              }}
+            >
+
+              {/* YEAR */}
+
+              <FormControl
+                size="small"
+                sx={{
+                  minWidth: 125,
+                }}
+              >
+                <InputLabel>
+                  Year
+                </InputLabel>
+
+                <Select
+                  value={selectedYear}
+                  label="Year"
+                  onChange={handleYearChange}
+                >
+                  {years.map((year) => (
+                    <MenuItem
+                      key={year}
+                      value={year}
+                    >
+                      {year}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+
+              {/* METRIC */}
+
+              <FormControl
+                size="small"
+                sx={{
+                  minWidth: 145,
+                }}
+              >
+                <InputLabel>
+                  Metric
+                </InputLabel>
+
+                <Select
+                  value={metric}
+                  label="Metric"
+                  onChange={(event) => {
+                    setMetric(
+                      event.target.value
+                    );
+
+                    setSelectedBranch(null);
+                  }}
+                >
+                  <MenuItem value="production">
+                    Production
+                  </MenuItem>
+
+                  <MenuItem value="deposits">
+                    Deposits
+                  </MenuItem>
+
+                  <MenuItem value="advances">
+                    Advances
+                  </MenuItem>
+
+                  <MenuItem value="casa">
+                    CASA
+                  </MenuItem>
+
+                  <MenuItem value="npa">
+                    NPA
+                  </MenuItem>
+                </Select>
+              </FormControl>
+
+
+              {/* VIEW */}
+
+              <FormControl
+                size="small"
+                sx={{
+                  minWidth: 135,
+                }}
+              >
+                <InputLabel>
+                  View
+                </InputLabel>
+
+                <Select
+                  value={view}
+                  label="View"
+                  onChange={(event) => {
+                    setView(
+                      event.target.value
+                    );
+
+                    if (
+                      event.target.value ===
+                      "drilldown"
+                    ) {
+                      handleHome();
+                    }
+                  }}
+                >
+                  <MenuItem value="drilldown">
+                    Drill Down
+                  </MenuItem>
+
+                  <MenuItem value="trend">
+                    Yearly Trend
+                  </MenuItem>
+                </Select>
+              </FormControl>
+
+            </Stack>
+          </Stack>
+        </Box>
+
+
+        <Divider />
+
+
+        {/* DRILLDOWN TOOLBAR */}
+
+        {view === "drilldown" && (
+          <Box
+            sx={{
+              px: 2.5,
+              py: 1.2,
+              display: "flex",
+              alignItems: "center",
+              justifyContent:
+                "space-between",
+              gap: 1,
+              flexWrap: "wrap",
+            }}
+          >
+
+            <Stack
+              direction="row"
+              spacing={0.7}
+              alignItems="center"
+            >
+
+              {level !== "circle" && (
+                <Tooltip title="Go Back">
+                  <IconButton
+                    size="small"
+                    onClick={handleBack}
+                    sx={{
+                      border:
+                        "1px solid #EAECF0",
+                    }}
+                  >
+                    <ArrowBackRoundedIcon
+                      sx={{
+                        fontSize: 18,
+                      }}
+                    />
+                  </IconButton>
+                </Tooltip>
+              )}
+
+
+              {level !== "circle" && (
+                <Tooltip title="Go to Circles">
+                  <IconButton
+                    size="small"
+                    onClick={handleHome}
+                    sx={{
+                      border:
+                        "1px solid #EAECF0",
+                    }}
+                  >
+                    <HomeRoundedIcon
+                      sx={{
+                        fontSize: 18,
+                      }}
+                    />
+                  </IconButton>
+                </Tooltip>
+              )}
+
+              <Typography
+                sx={{
+                  ml: 0.5,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#344054",
+                }}
+              >
+                {chartTitle}
+              </Typography>
+
+            </Stack>
+
+
+            <Stack
+              direction="row"
+              spacing={0.7}
+              flexWrap="wrap"
+            >
+
+              <Chip
+                size="small"
+                label={selectedYear}
+                sx={{
+                  height: 24,
+                  fontSize: 10,
+                  fontWeight: 700,
+                }}
+              />
+
+              <Chip
+                size="small"
+                label={
+                  metricLabel[metric]
+                }
+                sx={{
+                  height: 24,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  background:
+                    "#EEF4FF",
+                  color: "#175CD3",
+                }}
+              />
+
+              <Chip
+                size="small"
+                label={
+                  level === "circle"
+                    ? "Circle"
+                    : level === "region"
+                    ? "Region"
+                    : "Branch"
+                }
+                sx={{
+                  height: 24,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  background:
+                    "#F2F4F7",
+                  color: "#475467",
+                }}
+              />
+
+            </Stack>
+          </Box>
+        )}
+
+
+        {/* BREADCRUMB */}
+
+        {view === "drilldown" &&
+          (selectedCircle ||
+            selectedRegion ||
+            selectedBranch) && (
+            <Box
+              sx={{
+                px: 2.5,
+                pb: 1,
+              }}
+            >
+              <Stack
+                direction="row"
+                spacing={0.7}
+                alignItems="center"
+                flexWrap="wrap"
+              >
+
+                <Chip
+                  size="small"
+                  clickable
+                  label="All Circles"
+                  onClick={handleHome}
+                  sx={{
+                    height: 23,
+                    fontSize: 9.5,
+                  }}
+                />
+
+                {selectedCircle && (
+                  <>
+                    <Typography
+                      sx={{
+                        fontSize: 11,
+                        color: "#98A2B3",
+                      }}
+                    >
+                      /
+                    </Typography>
+
+                    <Chip
+                      size="small"
+                      clickable
+                      label={selectedCircle}
+                      onClick={() => {
+                        setSelectedRegion(null);
+                        setSelectedBranch(null);
+                        setLevel("region");
+                      }}
+                      sx={{
+                        height: 23,
+                        fontSize: 9.5,
+                        fontWeight: 700,
+                      }}
+                    />
+                  </>
+                )}
+
+                {selectedRegion && (
+                  <>
+                    <Typography
+                      sx={{
+                        fontSize: 11,
+                        color: "#98A2B3",
+                      }}
+                    >
+                      /
+                    </Typography>
+
+                    <Chip
+                      size="small"
+                      clickable
+                      label={selectedRegion}
+                      onClick={() => {
+                        setSelectedBranch(null);
+                        setLevel("branch");
+                      }}
+                      sx={{
+                        height: 23,
+                        fontSize: 9.5,
+                        fontWeight: 700,
+                      }}
+                    />
+                  </>
+                )}
+
+                {selectedBranch && (
+                  <>
+                    <Typography
+                      sx={{
+                        fontSize: 11,
+                        color: "#98A2B3",
+                      }}
+                    >
+                      /
+                    </Typography>
+
+                    <Chip
+                      size="small"
+                      label={selectedBranch}
+                      sx={{
+                        height: 23,
+                        fontSize: 9.5,
+                        fontWeight: 700,
+                        background:
+                          "#EEF4FF",
+                        color: "#175CD3",
+                      }}
+                    />
+                  </>
+                )}
+
+              </Stack>
+            </Box>
+          )}
+
+
+        {/* CHART */}
+
+        <Box
+          sx={{
+            px: {
+              xs: 1,
+              sm: 2,
+            },
+            pb: 1,
+          }}
+        >
+
+          {view === "drilldown" ? (
+            <ReactECharts
+              option={drilldownOption}
+              style={{
+                width: "100%",
+                height: 430,
+              }}
+              notMerge
+              lazyUpdate
+              onEvents={{
+                click: handleChartClick,
+              }}
+            />
+          ) : (
+            <ReactECharts
+              option={monthlyOption}
+              style={{
+                width: "100%",
+                height: 410,
+              }}
+              notMerge
+              lazyUpdate
+            />
+          )}
+
+        </Box>
+
+
+        {/* SELECTED BRANCH */}
+
+        {view === "drilldown" &&
+          selectedBranchData && (
+            <Box
+              sx={{
+                mx: 2.5,
+                mb: 2,
+                p: 2,
+                borderRadius: 2,
+                background:
+                  "#F8F9FC",
+                border:
+                  "1px solid #EAECF0",
+              }}
+            >
+
+              <Stack
+                direction={{
+                  xs: "column",
+                  sm: "row",
+                }}
+                justifyContent="space-between"
+                spacing={1.5}
+              >
+
+                <Box>
+                  <Typography
+                    sx={{
+                      fontSize: 10,
+                      color: "#667085",
+                    }}
+                  >
+                    Selected Branch
+                  </Typography>
+
+                  <Typography
+                    sx={{
+                      mt: 0.3,
+                      fontSize: 15,
+                      fontWeight: 800,
+                      color: "#101828",
+                    }}
+                  >
+                    {
+                      selectedBranchData.branch
+                    }
+                  </Typography>
+                </Box>
+
+                <Chip
+                  size="small"
+                  label={
+                    selectedBranchData.circle
+                  }
+                  sx={{
+                    alignSelf: {
+                      xs: "flex-start",
+                      sm: "center",
+                    },
+                    fontSize: 10,
+                    fontWeight: 700,
+                  }}
+                />
+
+              </Stack>
+
 
               <Stack
                 direction="row"
                 spacing={1}
                 sx={{
-                  mt: 1,
+                  mt: 1.5,
                   flexWrap: "wrap",
-                  gap: 0.5,
+                  gap: 0.8,
                 }}
               >
+
                 <Chip
-                  size="small"
                   label={`Production: ${formatNumber(
                     selectedBranchData.production
                   )}`}
+                  size="small"
                 />
 
                 <Chip
-                  size="small"
                   label={`Deposits: ${formatNumber(
                     selectedBranchData.deposits
                   )}`}
+                  size="small"
                 />
 
                 <Chip
-                  size="small"
                   label={`Advances: ${formatNumber(
                     selectedBranchData.advances
                   )}`}
+                  size="small"
                 />
 
                 <Chip
-                  size="small"
                   label={`CASA: ${formatNumber(
                     selectedBranchData.casa
                   )}`}
+                  size="small"
                 />
 
                 <Chip
-                  size="small"
                   label={`NPA: ${formatNumber(
                     selectedBranchData.npa
                   )}%`}
+                  size="small"
                 />
+
               </Stack>
             </Box>
           )}
-        </>
-      ) : (
-        <ReactECharts
-          option={monthlyOption}
-          style={{
-            width: "100%",
-            height: 410,
-          }}
-          notMerge
-          lazyUpdate
-        />
-      )}
-    </CardContent>
-  </Card>
-);
 
+
+        {/* FOOTER */}
+
+        <Box
+          sx={{
+            px: 2.5,
+            py: 1.2,
+            borderTop:
+              "1px solid #F2F4F7",
+          }}
+        >
+          <Typography
+            sx={{
+              fontSize: 10,
+              color: "#98A2B3",
+            }}
+          >
+            Click a Circle → Region → Branch
+            to drill down into performance.
+          </Typography>
+        </Box>
+
+      </CardContent>
+    </Card>
+  );
 };
 
 export default DashboardCustomChart;
-           
