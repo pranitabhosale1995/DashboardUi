@@ -1,345 +1,505 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import {
-  Box, Card, CardContent, Typography, Grid, Stack, Chip,
-  FormControl, InputLabel, Select, MenuItem, IconButton
+  Box, Paper, Typography, Grid, Chip, IconButton,
+  Button, Select, MenuItem, FormControl, Divider
 } from "@mui/material";
 import {
-  TrendingUpRounded, AccountBalanceWalletRounded, CreditScoreRounded,
-  SavingsRounded, WarningAmberRounded, ArrowBackRounded,
-  ArrowForwardRounded, AutoGraphRounded
+  DashboardRounded, TrendingUpRounded, AccountBalanceRounded,
+  SavingsRounded, WarningAmberRounded, RefreshRounded,
+  ArrowUpwardRounded
 } from "@mui/icons-material";
+
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, AreaChart, Area
+  XAxis, YAxis, Tooltip, CartesianGrid
 } from "recharts";
-import dashboardData from "./dashboard.json";
 
-const num = v => Number(v || 0);
-const fmt = v => new Intl.NumberFormat("en-IN",{maximumFractionDigits:1}).format(num(v));
+const monthlyData = [
+  { month: "Apr", value: 72 },
+  { month: "May", value: 84 },
+  { month: "Jun", value: 82 },
+  { month: "Jul", value: 96 },
+  { month: "Aug", value: 108 },
+  { month: "Sep", value: 101 },
+  { month: "Oct", value: 116 },
+  { month: "Nov", value: 124 },
+  { month: "Dec", value: 120 },
+  { month: "Jan", value: 137 },
+  { month: "Feb", value: 148 },
+  { month: "Mar", value: 158 }
+];
 
-const branches = data => {
-  const out=[];
-  Object.entries(data?.circles||{}).forEach(([circle,c]) =>
-    Object.entries(c?.regions||{}).forEach(([region,r]) =>
-      Object.entries(r?.branches||{}).forEach(([branch,b]) =>
-        out.push({circle,region,branch,...b})
-      )
-    )
-  );
-  return out;
-};
+const portfolioData = [
+  { name: "Deposits", value: 7355 },
+  { name: "Advances", value: 5480 },
+  { name: "CASA", value: 3757 }
+];
 
-const growth = (a,b) => b ? ((a-b)/b)*100 : 0;
-
-function Stat({title,value,previous,icon,color,sub="Total"}) {
-  const g=growth(value,previous);
-  return (
-    <Card sx={{height:"100%",borderRadius:4,border:"1px solid #EAECF0",
-      boxShadow:"0 4px 18px rgba(16,24,40,.05)"}}>
-      <CardContent sx={{p:2.2}}>
-        <Stack direction="row" justifyContent="space-between">
-          <Box>
-            <Typography fontSize={12} fontWeight={700} color="#667085">{title}</Typography>
-            <Typography fontSize={{xs:24,sm:28}} fontWeight={800} color="#101828" mt={.5}>
-              {fmt(value)}{title==="Average NPA"?"%":""}
-            </Typography>
-            <Typography fontSize={11} color="#98A2B3">{sub}</Typography>
-          </Box>
-          <Box sx={{width:42,height:42,borderRadius:2.5,display:"grid",placeItems:"center",
-            bgcolor:`${color}12`,color}}>
-            {icon}
-          </Box>
-        </Stack>
-        <Chip size="small"
-          label={`${g>=0?"↑":"↓"} ${Math.abs(g).toFixed(1)}% vs previous year`}
-          sx={{mt:1.5,height:23,fontSize:10,fontWeight:700,
-            bgcolor:g>=0?"#ECFDF3":"#FEF3F2",color:g>=0?"#027A48":"#B42318"}}/>
-      </CardContent>
-    </Card>
-  );
-}
+const cards = [
+  {
+    title: "Production",
+    value: "306",
+    sub: "Total production",
+    growth: "+17.2%",
+    icon: <TrendingUpRounded />
+  },
+  {
+    title: "Deposits",
+    value: "7,355",
+    sub: "Total deposits",
+    growth: "+9.9%",
+    icon: <AccountBalanceRounded />
+  },
+  {
+    title: "Advances",
+    value: "5,480",
+    sub: "Total advances",
+    growth: "+10.9%",
+    icon: <SavingsRounded />
+  },
+  {
+    title: "CASA",
+    value: "3,757",
+    sub: "CASA portfolio",
+    growth: "+11.0%",
+    icon: <SavingsRounded />
+  },
+  {
+    title: "Average NPA",
+    value: "2%",
+    sub: "Lower is better",
+    growth: "-12.8%",
+    warning: true,
+    icon: <WarningAmberRounded />
+  }
+];
 
 export default function DashboardPage() {
-  const years=useMemo(()=>Object.keys(dashboardData?.years||{})
-    .sort((a,b)=>Number(b)-Number(a)),[]);
-  const [year,setYear]=useState(years[0]||"");
-  const [drill,setDrill]=useState(null);
-
-  const data=dashboardData?.years?.[year]||{};
-  const previous=dashboardData?.years?.[years[years.indexOf(year)+1]]||{};
-  const list=useMemo(()=>branches(data),[data]);
-  const prevList=useMemo(()=>branches(previous),[previous]);
-
-  const total=key=>list.reduce((s,x)=>s+num(x[key]),0);
-  const prevTotal=key=>prevList.reduce((s,x)=>s+num(x[key]),0);
-
-  const totals={
-    production:total("production"),
-    deposits:total("deposits"),
-    advances:total("advances"),
-    casa:total("casa"),
-    npa:list.length?list.reduce((s,x)=>s+num(x.npa),0)/list.length:0
-  };
-  const prevTotals={
-    production:prevTotal("production"),
-    deposits:prevTotal("deposits"),
-    advances:prevTotal("advances"),
-    casa:prevTotal("casa"),
-    npa:prevList.length?prevList.reduce((s,x)=>s+num(x.npa),0)/prevList.length:0
-  };
-
-  const monthly=data.monthlyTrend||[];
-  const target=monthly.reduce((s,x)=>s+num(x.production),0)*1.1;
-  const achievement=target?(totals.production/target)*100:0;
-
-  const productionData=monthly.map((x,i)=>({
-    name:x.month||x.label||`M${i+1}`,actual:num(x.production)
-  }));
-
-  const predictionData=productionData.map((x,i,arr)=>{
-    const last=arr[arr.length-1]?.actual||0;
-    return {...x,predicted:i>=Math.max(0,arr.length-3)
-      ?Math.round(last+(last/(arr.length||1))*(i-(arr.length-4))*.7):null};
-  });
-
-  const portfolio=[
-    {name:"Deposits",value:totals.deposits},
-    {name:"Advances",value:totals.advances},
-    {name:"CASA",value:totals.casa}
-  ];
-
-  const drillData=drill
-    ? list.map((x,i)=>({name:x.branch||`Branch ${i+1}`,value:num(x.production)}))
-    : [];
+  const [year, setYear] = useState("FY 2025-26");
 
   return (
-    <Box sx={{p:{xs:1.5,sm:2.5,md:3},maxWidth:1500,mx:"auto"}}>
-      <Stack direction={{xs:"column",sm:"row"}} justifyContent="space-between"
-        alignItems={{sm:"center"}} spacing={2} mb={2.5}>
-        <Box>
-          <Typography fontSize={{xs:24,md:30}} fontWeight={800} color="#101828">
-            Dashboard
-          </Typography>
-          <Typography fontSize={13} color="#667085">
-            Banking performance overview
-          </Typography>
-        </Box>
+    <Box sx={{
+      minHeight: "100vh",
+      background: "linear-gradient(135deg,#f4f1ff 0%,#ebe7fb 45%,#dcd5f3 100%)",
+      p: { xs: 1, sm: 2, md: 3 },
+      color: "#303047"
+    }}>
 
-        <FormControl size="small" sx={{minWidth:150}}>
-          <InputLabel>Financial Year</InputLabel>
-          <Select value={year} label="Financial Year"
-            onChange={e=>{setYear(e.target.value);setDrill(null)}}>
-            {years.map(y=><MenuItem key={y} value={y}>
-              {dashboardData.years[y]?.label||`FY ${y}`}
-            </MenuItem>)}
-          </Select>
-        </FormControl>
-      </Stack>
+      {/* MAIN CONTAINER */}
+      <Paper elevation={0} sx={{
+        maxWidth: 1500,
+        mx: "auto",
+        minHeight: "calc(100vh - 48px)",
+        borderRadius: 4,
+        overflow: "hidden",
+        background: "rgba(255,255,255,.88)",
+        border: "1px solid rgba(120,100,180,.12)",
+        boxShadow: "0 18px 55px rgba(70,55,120,.12)"
+      }}>
 
-      <Grid container spacing={2}>
-        <Grid item xs={12} sm={6} lg={2.4}>
-          <Stat title="Production" value={totals.production}
-            previous={prevTotals.production} color="#175CD3"
-            icon={<TrendingUpRounded/>} sub="Total production"/>
-        </Grid>
-        <Grid item xs={12} sm={6} lg={2.4}>
-          <Stat title="Deposits" value={totals.deposits}
-            previous={prevTotals.deposits} color="#6941C6"
-            icon={<AccountBalanceWalletRounded/>} sub="Total deposits"/>
-        </Grid>
-        <Grid item xs={12} sm={6} lg={2.4}>
-          <Stat title="Advances" value={totals.advances}
-            previous={prevTotals.advances} color="#027A48"
-            icon={<CreditScoreRounded/>} sub="Total advances"/>
-        </Grid>
-        <Grid item xs={12} sm={6} lg={2.4}>
-          <Stat title="CASA" value={totals.casa}
-            previous={prevTotals.casa} color="#B54708"
-            icon={<SavingsRounded/>} sub="CASA portfolio"/>
-        </Grid>
-        <Grid item xs={12} sm={6} lg={2.4}>
-          <Stat title="Average NPA" value={totals.npa}
-            previous={prevTotals.npa} color="#D92D20"
-            icon={<WarningAmberRounded/>} sub="Lower is better"/>
-        </Grid>
-      </Grid>
+        {/* TOP BAR */}
+        <Box sx={{
+          px: { xs: 2, md: 3 },
+          py: 2,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 2,
+          borderBottom: "1px solid #eeeaf7"
+        }}>
 
-      <Card sx={{mt:2,borderRadius:4,border:"1px solid #EAECF0",
-        boxShadow:"0 4px 18px rgba(16,24,40,.04)"}}>
-        <CardContent sx={{p:{xs:2,md:2.5}}}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Box sx={{
+              width: 42,
+              height: 42,
+              borderRadius: 2.5,
+              display: "grid",
+              placeItems: "center",
+              background: "linear-gradient(135deg,#6f63c5,#9185df)",
+              color: "#fff"
+            }}>
+              <DashboardRounded />
+            </Box>
+
             <Box>
-              <Typography fontWeight={800} color="#344054">
-                Production Target Achievement
+              <Typography fontWeight={800} fontSize={{ xs: 18, md: 21 }}>
+                Dashboard
               </Typography>
-              <Typography fontSize={11} color="#667085">
-                Current production vs annual target
+              <Typography color="#89869b" fontSize={12}>
+                Banking performance overview
               </Typography>
             </Box>
-            <Typography fontSize={20} fontWeight={800}>
-              {achievement.toFixed(1)}%
-            </Typography>
-          </Stack>
-
-          <Box sx={{height:9,bgcolor:"#F2F4F7",borderRadius:10,mt:2,overflow:"hidden"}}>
-            <Box sx={{height:"100%",width:`${Math.min(100,achievement)}%`,
-              bgcolor:"#4654B9",borderRadius:10}}/>
           </Box>
 
-          <Stack direction="row" justifyContent="space-between" mt={1}>
-            <Typography fontSize={11} color="#667085">
-              Actual: {fmt(totals.production)}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <FormControl size="small">
+              <Select
+                value={year}
+                onChange={e => setYear(e.target.value)}
+                sx={{
+                  minWidth: 125,
+                  borderRadius: 2,
+                  fontSize: 13,
+                  background: "#faf9ff"
+                }}
+              >
+                <MenuItem value="FY 2025-26">FY 2025-26</MenuItem>
+                <MenuItem value="FY 2024-25">FY 2024-25</MenuItem>
+                <MenuItem value="FY 2023-24">FY 2023-24</MenuItem>
+              </Select>
+            </FormControl>
+
+            <IconButton sx={{
+              border: "1px solid #e2deef",
+              borderRadius: 2
+            }}>
+              <RefreshRounded fontSize="small" />
+            </IconButton>
+          </Box>
+        </Box>
+
+        {/* CONTENT */}
+        <Box sx={{ p: { xs: 2, md: 3 } }}>
+
+          <Box sx={{ mb: 2.5 }}>
+            <Typography variant="h5" fontWeight={800}>
+              Banking Dashboard
             </Typography>
-            <Typography fontSize={11} color="#667085">
-              Target: {fmt(target)}
+            <Typography color="#8c899d" fontSize={13}>
+              Monitor production, portfolio and financial performance
             </Typography>
-          </Stack>
-        </CardContent>
-      </Card>
+          </Box>
 
+          {/* KPI CARDS */}
+          <Grid container spacing={1.8}>
+            {cards.map((card, index) => (
+              <Grid item xs={12} sm={6} md={2.4} key={card.title}>
+                <Paper elevation={0} sx={{
+                  p: 2,
+                  height: "100%",
+                  minHeight: 145,
+                  borderRadius: 3,
+                  background: "#fff",
+                  border: "1px solid #eeeaf5",
+                  position: "relative",
+                  overflow: "hidden",
+                  transition: ".2s",
+                  "&:hover": {
+                    transform: "translateY(-3px)",
+                    boxShadow: "0 12px 30px rgba(80,65,130,.10)"
+                  }
+                }}>
 
-      <Grid container spacing={2} mt={0.1}>
-        <Grid item xs={12} md={7}>
-          <Card sx={{height:"100%",borderRadius:4,border:"1px solid #EAECF0"}}>
-            <CardContent>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
-                <Box>
-                  <Typography fontWeight={800}>
-                    {drill ? "Branch Production" : "Monthly Production"}
+                  <Box sx={{
+                    position: "absolute",
+                    right: 14,
+                    top: 14,
+                    width: 36,
+                    height: 36,
+                    borderRadius: "50%",
+                    display: "grid",
+                    placeItems: "center",
+                    color: card.warning ? "#c57c49" : "#7468c9",
+                    background: card.warning ? "#fff5e9" : "#f1effc"
+                  }}>
+                    {React.cloneElement(card.icon, { fontSize: "small" })}
+                  </Box>
+
+                  <Typography color="#77738a" fontSize={13} fontWeight={600}>
+                    {card.title}
                   </Typography>
-                  <Typography fontSize={11} color="#667085">
-                    {drill ? `${drill} • click a branch to explore` : "Click a point to drill down"}
+
+                  <Typography sx={{
+                    mt: 1,
+                    fontSize: { xs: 27, md: 30 },
+                    lineHeight: 1,
+                    fontWeight: 800,
+                    color: "#36344a"
+                  }}>
+                    {card.value}
                   </Typography>
-                </Box>
-                {drill && <IconButton size="small" onClick={()=>setDrill(null)}>
-                  <ArrowBackRounded/>
-                </IconButton>}
-              </Stack>
 
-              <Box sx={{height:290}}>
-                <ResponsiveContainer width="100%" height="100%">
-                  {drill ? (
-                    <BarChart data={drillData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false}/>
-                      <XAxis dataKey="name" tick={{fontSize:10}}/>
-                      <YAxis tick={{fontSize:10}}/>
-                      <Tooltip/>
-                      <Bar dataKey="value" fill="#4654B9" radius={[6,6,0,0]}
-                        onClick={d=>d?.name&&setDrill(d.name)}/>
-                    </BarChart>
-                  ) : (
-                    <LineChart data={productionData}
-                      onClick={e=>{
-                        const p=e?.activePayload?.[0]?.payload;
-                        if(p) setDrill(p.name);
-                      }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false}/>
-                      <XAxis dataKey="name" tick={{fontSize:10}}/>
-                      <YAxis tick={{fontSize:10}}/>
-                      <Tooltip/>
-                      <Line type="monotone" dataKey="actual" stroke="#4654B9"
-                        strokeWidth={3} dot={{r:4}} activeDot={{r:7}}/>
-                    </LineChart>
-                  )}
-                </ResponsiveContainer>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} md={5}>
-          <Card sx={{height:"100%",borderRadius:4,border:"1px solid #EAECF0"}}>
-            <CardContent>
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <Box sx={{width:34,height:34,borderRadius:2,bgcolor:"#EEF4FF",
-                  color:"#175CD3",display:"grid",placeItems:"center"}}>
-                  <AutoGraphRounded fontSize="small"/>
-                </Box>
-                <Box>
-                  <Typography fontWeight={800}>Portfolio Comparison</Typography>
-                  <Typography fontSize={11} color="#667085">
-                    Deposits, advances and CASA
+                  <Typography sx={{
+                    mt: .8,
+                    fontSize: 11,
+                    color: "#aaa6b7"
+                  }}>
+                    {card.sub}
                   </Typography>
-                </Box>
-              </Stack>
 
-              <Box sx={{height:290,mt:1}}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={portfolio}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false}/>
-                    <XAxis dataKey="name" tick={{fontSize:10}}/>
-                    <YAxis tick={{fontSize:10}}/>
-                    <Tooltip formatter={v=>fmt(v)}/>
-                    <Bar dataKey="value" fill="#344054" radius={[6,6,0,0]}/>
-                  </BarChart>
-                </ResponsiveContainer>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12}>
-          <Card sx={{borderRadius:4,border:"1px solid #EAECF0"}}>
-            <CardContent>
-              <Stack direction={{xs:"column",sm:"row"}} justifyContent="space-between"
-                alignItems={{sm:"center"}} mb={1}>
-                <Box>
-                  <Typography fontWeight={800}>Production Prediction Trend</Typography>
-                  <Typography fontSize={11} color="#667085">
-                    Actual performance with projected trend
-                  </Typography>
-                </Box>
-                <Chip label="Prediction" size="small"
-                  sx={{fontSize:10,fontWeight:700,bgcolor:"#F4F3FF",color:"#6941C6"}}/>
-              </Stack>
-
-              <Box sx={{height:270}}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={predictionData}>
-                    <defs>
-                      <linearGradient id="predFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#4654B9" stopOpacity={.25}/>
-                        <stop offset="100%" stopColor="#4654B9" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false}/>
-                    <XAxis dataKey="name" tick={{fontSize:10}}/>
-                    <YAxis tick={{fontSize:10}}/>
-                    <Tooltip/>
-                    <Area type="monotone" dataKey="actual" stroke="#4654B9"
-                      fill="url(#predFill)" strokeWidth={2.5}/>
-                    <Line type="monotone" dataKey="predicted" stroke="#6941C6"
-                      strokeWidth={2} strokeDasharray="6 5" dot={false}/>
-                  </AreaChart>
-                </ResponsiveContainer>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      <Card sx={{mt:2,borderRadius:4,border:"1px solid #EAECF0"}}>
-        <CardContent>
-          <Typography fontWeight={800}>Key Performance Summary</Typography>
-          <Grid container spacing={2} mt={.2}>
-            {[
-              ["Production",totals.production,"#175CD3"],
-              ["Deposits",totals.deposits,"#6941C6"],
-              ["Advances",totals.advances,"#027A48"],
-              ["CASA",totals.casa,"#B54708"]
-            ].map(([label,value,color])=>(
-              <Grid item xs={6} md={3} key={label}>
-                <Box sx={{p:1.5,bgcolor:"#F9FAFB",borderRadius:3}}>
-                  <Typography fontSize={11} color="#667085">{label}</Typography>
-                  <Typography fontSize={20} fontWeight={800} color={color}>
-                    {fmt(value)}
-                  </Typography>
-                </Box>
+                  <Chip
+                    size="small"
+                    icon={<ArrowUpwardRounded />}
+                    label={`${card.growth} vs previous year`}
+                    sx={{
+                      mt: 1.2,
+                      height: 23,
+                      fontSize: 10,
+                      background: card.warning ? "#fff3e5" : "#eaf8ef",
+                      color: card.warning ? "#bd7740" : "#4b9b6a",
+                      "& .MuiChip-icon": { fontSize: 13 }
+                    }}
+                  />
+                </Paper>
               </Grid>
             ))}
           </Grid>
-        </CardContent>
-      </Card>
-    </Box>
+
+          {/* TARGET */}
+          <Paper elevation={0} sx={{
+            mt: 2,
+            p: { xs: 2, md: 2.5 },
+            borderRadius: 3,
+            border: "1px solid #eeeaf5",
+            background: "#fff"
+          }}>
+            <Box sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center"
+            }}>
+              <Box>
+                <Typography fontWeight={750}>
+                  Production Target Achievement
+                </Typography>
+                <Typography fontSize={11} color="#9692a4">
+                  Current production vs annual target
+                </Typography>
+              </Box>
+
+              <Typography fontWeight={800} color="#7165c4">
+                20.2%
+              </Typography>
+            </Box>
+
+            <Box sx={{
+              mt: 1.5,
+              height: 10,
+              borderRadius: 10,
+              background: "#eeeaf8",
+              overflow: "hidden"
+            }}>
+              <Box sx={{
+                width: "20.2%",
+                height: "100%",
+                borderRadius: 10,
+                background: "linear-gradient(90deg,#6255b7,#8d82dd)"
+              }} />
+            </Box>
+
+            <Box sx={{
+              mt: .7,
+              display: "flex",
+              justifyContent: "space-between"
+            }}>
+              <Typography fontSize={10} color="#9995a6">
+                Actual: 306
+              </Typography>
+              <Typography fontSize={10} color="#9995a6">
+                Target: 1,512
+              </Typography>
+            </Box>
+          </Paper>
+
+          {/* CHART AREA */}
+          <Grid container spacing={2} sx={{ mt: 0.2 }}>
+
+          {/* MONTHLY PRODUCTION */}
+          <Grid item xs={12} md={6}>
+            <Paper elevation={0} sx={{
+              p: { xs: 2, md: 2.5 },
+              height: 390,
+              borderRadius: 3,
+              border: "1px solid #eeeaf5",
+              background: "#fff"
+            }}>
+              <Box sx={{ mb: 2 }}>
+                <Typography fontWeight={750}>
+                  Monthly Production
+                </Typography>
+                <Typography fontSize={11} color="#9692a4">
+                  Production trend for {year}
+                </Typography>
+              </Box>
+
+              <ResponsiveContainer width="100%" height="82%">
+                <LineChart
+                  data={monthlyData}
+                  margin={{ top: 10, right: 10, left: -15, bottom: 5 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#eeeaf5"
+                  />
+
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fontSize: 11, fill: "#858197" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+
+                  <YAxis
+                    tick={{ fontSize: 10, fill: "#858197" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: 10,
+                      border: "1px solid #eeeaf5",
+                      boxShadow: "0 8px 25px rgba(70,55,120,.12)"
+                    }}
+                  />
+
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#7165c4"
+                    strokeWidth={3}
+                    dot={{
+                      r: 4,
+                      fill: "#fff",
+                      stroke: "#7165c4",
+                      strokeWidth: 2
+                    }}
+                    activeDot={{ r: 6 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </Paper>
+          </Grid>
+
+          {/* PORTFOLIO COMPARISON */}
+          <Grid item xs={12} md={6}>
+            <Paper elevation={0} sx={{
+              p: { xs: 2, md: 2.5 },
+              height: 390,
+              borderRadius: 3,
+              border: "1px solid #eeeaf5",
+              background: "#fff"
+            }}>
+              <Box sx={{ mb: 2 }}>
+                <Typography fontWeight={750}>
+                  Portfolio Comparison
+                </Typography>
+                <Typography fontSize={11} color="#9692a4">
+                  Deposits, advances and CASA
+                </Typography>
+              </Box>
+
+              <ResponsiveContainer width="100%" height="82%">
+                <BarChart
+                  data={portfolioData}
+                  margin={{ top: 15, right: 10, left: -15, bottom: 5 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#eeeaf5"
+                  />
+
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 11, fill: "#858197" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+
+                  <YAxis
+                    tick={{ fontSize: 10, fill: "#858197" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: 10,
+                      border: "1px solid #eeeaf5",
+                      boxShadow: "0 8px 25px rgba(70,55,120,.12)"
+                    }}
+                  />
+
+                  <Bar
+                    dataKey="value"
+                    fill="#7165c4"
+                    radius={[8, 8, 0, 0]}
+                    barSize={55}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </Paper>
+          </Grid>
+
+          {/* PERFORMANCE SUMMARY */}
+          <Grid item xs={12}>
+            <Paper elevation={0} sx={{
+              mt: 0,
+              p: { xs: 2, md: 2.5 },
+              borderRadius: 3,
+              border: "1px solid #eeeaf5",
+              background: "#fff"
+            }}>
+              <Typography fontWeight={750}>
+                Key Performance Summary
+              </Typography>
+
+              <Divider sx={{ my: 1.5 }} />
+
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={4}>
+                  <Box sx={{
+                    p: 1.5,
+                    borderRadius: 2,
+                    background: "#f7f5fd"
+                  }}>
+                    <Typography fontSize={11} color="#908ba2">
+                      Portfolio Growth
+                    </Typography>
+                    <Typography fontSize={22} fontWeight={800}>
+                      +10.6%
+                    </Typography>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12} sm={4}>
+                  <Box sx={{
+                    p: 1.5,
+                    borderRadius: 2,
+                    background: "#f7f5fd"
+                  }}>
+                    <Typography fontSize={11} color="#908ba2">
+                      Production Achievement
+                    </Typography>
+                    <Typography fontSize={22} fontWeight={800}>
+                      20.2%
+                    </Typography>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12} sm={4}>
+                  <Box sx={{
+                    p: 1.5,
+                    borderRadius: 2,
+                    background: "#f7f5fd"
+                  }}>
+                    <Typography fontSize={11} color="#908ba2">
+                      Average NPA
+                    </Typography>
+                    <Typography fontSize={22} fontWeight={800}>
+                      2.0%
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
+
+        </Grid>
+      </Box>
+    </Paper>
+  </Box>
   );
 }
