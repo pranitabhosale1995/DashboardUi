@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Box,
   Card,
@@ -7,120 +7,132 @@ import {
   Grid,
   Stack,
   Chip,
+  LinearProgress,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  Divider,
-  IconButton,
-  Tooltip,
 } from "@mui/material";
 
-import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
 import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceWalletRounded";
 import CreditScoreRoundedIcon from "@mui/icons-material/CreditScoreRounded";
+import SavingsRoundedIcon from "@mui/icons-material/SavingsRounded";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
-import AccountTreeRoundedIcon from "@mui/icons-material/AccountTreeRounded";
 
-import * as echarts from "echarts";
-import dashboardData from "../dashboard.json";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
 
+import dashboardData from "./dashboard.json";
 
-/* =========================================================
-   HELPERS
-========================================================= */
+const num = (value) => Number(value || 0);
 
-const num = (v) => Number(v || 0);
-
-const formatNumber = (v) =>
+const formatNumber = (value) =>
   new Intl.NumberFormat("en-IN", {
     maximumFractionDigits: 1,
-  }).format(num(v));
+  }).format(num(value));
 
-const formatCompact = (v) => {
-  const n = num(v);
-
-  if (n >= 10000000)
-    return `${(n / 10000000).toFixed(1)} Cr`;
-
-  if (n >= 100000)
-    return `${(n / 100000).toFixed(1)} L`;
-
-  if (n >= 1000)
-    return `${(n / 1000).toFixed(1)} K`;
-
-  return formatNumber(n);
-};
-
-const growth = (current, previous) => {
+const getGrowth = (current, previous) => {
   if (!previous) return 0;
   return ((current - previous) / previous) * 100;
 };
 
+const getBranches = (yearData) => {
+  const result = [];
 
-/* =========================================================
-   ECHART WRAPPER
-========================================================= */
-
-const EChart = ({ option, height = 330, onEvents }) => {
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (!ref.current) return;
-
-    const chart = echarts.init(ref.current);
-
-    chart.setOption(option, true);
-
-    if (onEvents) {
-      Object.entries(onEvents).forEach(([event, handler]) => {
-        chart.on(event, handler);
-      });
+  Object.entries(yearData?.circles || {}).forEach(
+    ([circle, circleData]) => {
+      Object.entries(circleData?.regions || {}).forEach(
+        ([region, regionData]) => {
+          Object.entries(regionData?.branches || {}).forEach(
+            ([branch, branchData]) => {
+              result.push({
+                circle,
+                region,
+                branch,
+                ...branchData,
+              });
+            }
+          );
+        }
+      );
     }
-
-    const resize = () => chart.resize();
-
-    window.addEventListener("resize", resize);
-
-    return () => {
-      window.removeEventListener("resize", resize);
-      chart.dispose();
-    };
-  }, [option, onEvents]);
-
-  return (
-    <Box
-      ref={ref}
-      sx={{
-        width: "100%",
-        height,
-      }}
-    />
   );
+
+  return result;
 };
 
+const getTotals = (branches) => {
+  if (!branches.length) {
+    return {
+      production: 0,
+      deposits: 0,
+      advances: 0,
+      casa: 0,
+      npa: 0,
+    };
+  }
 
-/* =========================================================
-   COMMON CARD
-========================================================= */
+  return {
+    production: branches.reduce(
+      (sum, item) => sum + num(item.production),
+      0
+    ),
 
-const ChartCard = ({
+    deposits: branches.reduce(
+      (sum, item) => sum + num(item.deposits),
+      0
+    ),
+
+    advances: branches.reduce(
+      (sum, item) => sum + num(item.advances),
+      0
+    ),
+
+    casa: branches.reduce(
+      (sum, item) => sum + num(item.casa),
+      0
+    ),
+
+    npa:
+      branches.reduce(
+        (sum, item) => sum + num(item.npa),
+        0
+      ) / branches.length,
+  };
+};
+
+const StatCard = ({
   title,
+  value,
+  previous,
+  icon,
+  suffix = "",
   subtitle,
-  children,
-  action,
 }) => {
+  const growth = getGrowth(value, previous);
+  const positive = growth >= 0;
+
   return (
     <Card
       sx={{
         height: "100%",
         borderRadius: 3,
         border: "1px solid #e4e7ec",
-        boxShadow: "0 3px 15px rgba(16,24,40,.05)",
+        boxShadow: "0 3px 14px rgba(16,24,40,0.04)",
       }}
     >
-      <CardContent sx={{ p: 2 }}>
+      <CardContent>
         <Stack
           direction="row"
           justifyContent="space-between"
@@ -129,42 +141,70 @@ const ChartCard = ({
           <Box>
             <Typography
               sx={{
-                fontSize: 14,
-                fontWeight: 800,
-                color: "#101828",
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#667085",
               }}
             >
               {title}
             </Typography>
 
-            {subtitle && (
-              <Typography
-                sx={{
-                  mt: 0.4,
-                  fontSize: 11,
-                  color: "#667085",
-                }}
-              >
-                {subtitle}
-              </Typography>
-            )}
+            <Typography
+              sx={{
+                mt: 0.7,
+                fontSize: { xs: 22, md: 27 },
+                fontWeight: 800,
+                color: "#101828",
+              }}
+            >
+              {formatNumber(value)}
+              {suffix}
+            </Typography>
+
+            <Typography
+              sx={{
+                mt: 0.3,
+                fontSize: 11,
+                color: "#98A2B3",
+              }}
+            >
+              {subtitle}
+            </Typography>
           </Box>
 
-          {action}
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: 2,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "#f2f4f7",
+            }}
+          >
+            {icon}
+          </Box>
         </Stack>
 
-        <Box sx={{ mt: 1.5 }}>
-          {children}
-        </Box>
+        <Chip
+          size="small"
+          label={`${positive ? "↑" : "↓"} ${Math.abs(
+            growth
+          ).toFixed(1)}% vs previous year`}
+          sx={{
+            mt: 1.5,
+            height: 23,
+            fontSize: 10.5,
+            fontWeight: 700,
+            background: positive ? "#ecfdf3" : "#fef3f2",
+            color: positive ? "#027a48" : "#b42318",
+          }}
+        />
       </CardContent>
     </Card>
   );
 };
-
-
-/* =========================================================
-   MAIN DASHBOARD
-========================================================= */
 
 const DashboardPage = () => {
   const years = useMemo(() => {
@@ -177,54 +217,17 @@ const DashboardPage = () => {
     years[0] || ""
   );
 
-  const [metric, setMetric] = useState("production");
-
-  const [geoLevel, setGeoLevel] = useState("circle");
-
   const currentYearData =
-    dashboardData?.years?.[selectedYear] || {};
+    dashboardData?.years?.[selectedYear];
 
-  const currentYearIndex =
-    years.indexOf(selectedYear);
+  const currentIndex = years.indexOf(selectedYear);
 
-  const previousYear =
-    years[currentYearIndex + 1] || "";
+  const previousYear = years[currentIndex + 1];
 
   const previousYearData =
-    dashboardData?.years?.[previousYear] || {};
+    dashboardData?.years?.[previousYear];
 
-
-  /* =======================================================
-     FLATTEN BRANCH DATA
-  ======================================================= */
-
-  const getBranches = (yearData) => {
-    const result = [];
-
-    Object.entries(yearData?.circles || {}).forEach(
-      ([circle, circleData]) => {
-        Object.entries(circleData?.regions || {}).forEach(
-          ([region, regionData]) => {
-            Object.entries(
-              regionData?.branches || {}
-            ).forEach(([branch, branchData]) => {
-              result.push({
-                circle,
-                region,
-                branch,
-                ...branchData,
-              });
-            });
-          }
-        );
-      }
-    );
-
-    return result;
-  };
-
-
-  const branches = useMemo(
+  const currentBranches = useMemo(
     () => getBranches(currentYearData),
     [currentYearData]
   );
@@ -234,649 +237,80 @@ const DashboardPage = () => {
     [previousYearData]
   );
 
-
-  /* =======================================================
-     TOTALS
-  ======================================================= */
-
-  const totals = useMemo(() => {
-    const total = (key) =>
-      branches.reduce(
-        (sum, item) => sum + num(item[key]),
-        0
-      );
-
-    return {
-      production: total("production"),
-      deposits: total("deposits"),
-      advances: total("advances"),
-      casa: total("casa"),
-      npa:
-        branches.length > 0
-          ? total("npa") / branches.length
-          : 0,
-    };
-  }, [branches]);
-
-
-  const previousTotals = useMemo(() => {
-    const total = (key) =>
-      previousBranches.reduce(
-        (sum, item) => sum + num(item[key]),
-        0
-      );
-
-    return {
-      production: total("production"),
-      deposits: total("deposits"),
-      advances: total("advances"),
-      casa: total("casa"),
-      npa:
-        previousBranches.length > 0
-          ? total("npa") /
-            previousBranches.length
-          : 0,
-    };
-  }, [previousBranches]);
-
-
-  /* =======================================================
-     MONTHLY DATA
-  ======================================================= */
-
-  const monthlyData = useMemo(() => {
-    return currentYearData?.monthlyTrend || [];
-  }, [currentYearData]);
-
-
-  const months = monthlyData.map(
-    (x) =>
-      x.month ||
-      x.label ||
-      x.name ||
-      ""
+  const currentTotals = useMemo(
+    () => getTotals(currentBranches),
+    [currentBranches]
   );
 
+  const previousTotals = useMemo(
+    () => getTotals(previousBranches),
+    [previousBranches]
+  );
 
-  /* =======================================================
-     CIRCLE DATA
-  ======================================================= */
+  const monthlyData = useMemo(() => {
+    const monthly = currentYearData?.monthlyTrend || [];
 
-  const circleData = useMemo(() => {
-    return Object.entries(
-      currentYearData?.circles || {}
-    ).map(([name, data]) => {
-      const rows = [];
-
-      Object.entries(data?.regions || {}).forEach(
-        ([region, regionData]) => {
-          Object.entries(
-            regionData?.branches || {}
-          ).forEach(([branch, branchData]) => {
-            rows.push({
-              region,
-              branch,
-              ...branchData,
-            });
-          });
-        }
-      );
-
-      return {
-        name,
-        production: rows.reduce(
-          (s, x) => s + num(x.production),
-          0
-        ),
-        deposits: rows.reduce(
-          (s, x) => s + num(x.deposits),
-          0
-        ),
-        advances: rows.reduce(
-          (s, x) => s + num(x.advances),
-          0
-        ),
-      };
-    });
+    return monthly.map((item, index) => ({
+      month:
+        item.month ||
+        item.label ||
+        `Month ${index + 1}`,
+      production: num(item.production),
+    }));
   }, [currentYearData]);
 
-
-  /* =======================================================
-     TOP BRANCHES
-  ======================================================= */
-
-  const topBranches = useMemo(() => {
-    return [...branches]
-      .sort(
-        (a, b) =>
-          num(b.production) -
-          num(a.production)
-      )
-      .slice(0, 10);
-  }, [branches]);
-
-
-  /* =======================================================
-     PRODUCTION TREND OPTION
-  ======================================================= */
-
-  const productionTrendOption = useMemo(() => {
-    return {
-      tooltip: {
-        trigger: "axis",
+  const comparisonData = useMemo(() => {
+    return [
+      {
+        name: "Deposits",
+        value: currentTotals.deposits,
       },
-
-      legend: {
-        top: 0,
-        right: 0,
-        textStyle: {
-          fontSize: 11,
-        },
+      {
+        name: "Advances",
+        value: currentTotals.advances,
       },
-
-      grid: {
-        left: 45,
-        right: 20,
-        top: 45,
-        bottom: 35,
+      {
+        name: "CASA",
+        value: currentTotals.casa,
       },
+    ];
+  }, [currentTotals]);
 
-      xAxis: {
-        type: "category",
-        data: months,
-        boundaryGap: false,
-      },
-
-      yAxis: {
-        type: "value",
-        splitLine: {
-          lineStyle: {
-            type: "dashed",
-          },
-        },
-      },
-
-      series: [
-        {
-          name: "Production",
-          type: "line",
-          smooth: true,
-          symbol: "circle",
-          symbolSize: 7,
-          data: monthlyData.map(
-            (x) => num(x.production)
-          ),
-
-          areaStyle: {
-            opacity: 0.08,
-          },
-        },
-
-        {
-          name: "Target",
-          type: "line",
-          smooth: true,
-          symbol: "none",
-          lineStyle: {
-            type: "dashed",
-          },
-          data: monthlyData.map(
-            (x) =>
-              num(x.production) * 1.1
-          ),
-        },
-      ],
-    };
-  }, [monthlyData, months]);
-
-
-  /* =======================================================
-     CIRCLE PIE OPTION
-  ======================================================= */
-
-  const circlePieOption = useMemo(() => {
-    return {
-      tooltip: {
-        trigger: "item",
-        formatter:
-          "{b}<br/>Production: {c}<br/>Share: {d}%",
-      },
-
-      legend: {
-        bottom: 0,
-        type: "scroll",
-        textStyle: {
-          fontSize: 10,
-        },
-      },
-
-      series: [
-        {
-          name: "Circle",
-          type: "pie",
-          radius: ["42%", "70%"],
-          center: ["50%", "45%"],
-
-          itemStyle: {
-            borderRadius: 6,
-            borderColor: "#fff",
-            borderWidth: 2,
-          },
-
-          label: {
-            show: false,
-          },
-
-          emphasis: {
-            label: {
-              show: true,
-              fontSize: 13,
-              fontWeight: 700,
-            },
-          },
-
-          data: circleData.map((x) => ({
-            name: x.name,
-            value: x.production,
-          })),
-        },
-      ],
-    };
-  }, [circleData]);
-
-
-  /* =======================================================
-     DEPOSIT / ADVANCE OPTION
-  ======================================================= */
-
-  const depositAdvanceOption = useMemo(() => {
-    return {
-      tooltip: {
-        trigger: "axis",
-      },
-
-      legend: {
-        top: 0,
-        textStyle: {
-          fontSize: 10,
-        },
-      },
-
-      grid: {
-        left: 45,
-        right: 15,
-        top: 40,
-        bottom: 60,
-      },
-
-      xAxis: {
-        type: "category",
-        data: circleData.map(
-          (x) => x.name
-        ),
-        axisLabel: {
-          rotate: 25,
-          fontSize: 9,
-        },
-      },
-
-      yAxis: {
-        type: "value",
-      },
-
-      series: [
-        {
-          name: "Deposits",
-          type: "bar",
-          barMaxWidth: 28,
-          data: circleData.map(
-            (x) => x.deposits
-          ),
-        },
-
-        {
-          name: "Advances",
-          type: "bar",
-          barMaxWidth: 28,
-          data: circleData.map(
-            (x) => x.advances
-          ),
-        },
-      ],
-    };
-  }, [circleData]);
-
-
-  /* =======================================================
-     NPA TREND
-  ======================================================= */
-
-  const npaOption = useMemo(() => {
-    return {
-      tooltip: {
-        trigger: "axis",
-      },
-
-      grid: {
-        left: 40,
-        right: 20,
-        top: 20,
-        bottom: 35,
-      },
-
-      xAxis: {
-        type: "category",
-        data: months,
-      },
-
-      yAxis: {
-        type: "value",
-        axisLabel: {
-          formatter: "{value}%",
-        },
-      },
-
-      series: [
-        {
-          name: "NPA",
-          type: "line",
-          smooth: true,
-          data: monthlyData.map(
-            (x) => num(x.npa)
-          ),
-
-          markLine: {
-            data: [
-              {
-                type: "average",
-                name: "Average",
-              },
-            ],
-          },
-        },
-      ],
-    };
-  }, [monthlyData, months]);
-
-
-  /* =======================================================
-     TOP BRANCH BAR
-  ======================================================= */
-
-  const topBranchOption = useMemo(() => {
-    const data = [...topBranches].reverse();
-
-    return {
-      tooltip: {
-        trigger: "axis",
-      },
-
-      grid: {
-        left: 95,
-        right: 25,
-        top: 20,
-        bottom: 25,
-      },
-
-      xAxis: {
-        type: "value",
-      },
-
-      yAxis: {
-        type: "category",
-        data: data.map(
-          (x) => x.branch
-        ),
-        axisLabel: {
-          fontSize: 10,
-        },
-      },
-
-      series: [
-        {
-          type: "bar",
-          data: data.map(
-            (x) => x.production
-          ),
-          barMaxWidth: 20,
-
-          label: {
-            show: true,
-            position: "right",
-            fontSize: 9,
-            formatter: (p) =>
-              formatCompact(p.value),
-          },
-        },
-      ],
-    };
-  }, [topBranches]);
-
-
-  /* =======================================================
-     NESTED GEO DATA
-  ======================================================= */
-
-  const geoTree = useMemo(() => {
-    return Object.entries(
-      currentYearData?.circles || {}
-    ).map(([circle, circleData]) => ({
-      name: circle,
-
-      children: Object.entries(
-        circleData?.regions || {}
-      ).map(([region, regionData]) => ({
-        name: region,
-
-        children: Object.entries(
-          regionData?.branches || {}
-        ).map(([branch, branchData]) => ({
-          name: branch,
-          value: num(
-            branchData?.[metric]
-          ),
-        })),
-      })),
-    }));
-  }, [currentYearData, metric]);
-
-
-  const geoOption = useMemo(() => {
-    return {
-      tooltip: {
-        formatter: (info) => {
-          const value =
-            info.value || 0;
-
-          return `
-            <b>${info.name}</b>
-            <br/>
-            ${metric}: ${formatNumber(value)}
-          `;
-        },
-      },
-
-      series: [
-        {
-          type: "sunburst",
-          data: geoTree,
-          radius: [0, "90%"],
-
-          sort: undefined,
-
-          emphasis: {
-            focus: "ancestor",
-          },
-
-          label: {
-            rotate: "radial",
-            fontSize: 10,
-          },
-
-          levels: [
-            {},
-
-            {
-              r0: "0%",
-              r: "32%",
-              label: {
-                rotate: 0,
-                fontSize: 11,
-                fontWeight: 700,
-              },
-            },
-
-            {
-              r0: "32%",
-              r: "62%",
-              label: {
-                fontSize: 9,
-              },
-            },
-
-            {
-              r0: "62%",
-              r: "90%",
-              label: {
-                fontSize: 8,
-              },
-            },
-          ],
-        },
-      ],
-    };
-  }, [geoTree, metric]);
-
-
-  /* =======================================================
-     KPI CARD
-  ======================================================= */
-
-  const Kpi = ({
-    title,
-    value,
-    previous,
-    icon,
-    suffix = "",
-  }) => {
-    const g = growth(
-      value,
-      previous
+  const target = useMemo(() => {
+    const total = monthlyData.reduce(
+      (sum, item) => sum + num(item.production),
+      0
     );
 
-    return (
-      <Card
-        sx={{
-          borderRadius: 3,
-          border: "1px solid #e4e7ec",
-          boxShadow:
-            "0 3px 15px rgba(16,24,40,.05)",
-          height: "100%",
-        }}
-      >
-        <CardContent>
-          <Stack
-            direction="row"
-            justifyContent="space-between"
-          >
-            <Box>
-              <Typography
-                sx={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: "#667085",
-                }}
-              >
-                {title}
-              </Typography>
+    return total * 1.1;
+  }, [monthlyData]);
 
-              <Typography
-                sx={{
-                  mt: 0.6,
-                  fontSize: 24,
-                  fontWeight: 800,
-                }}
-              >
-                {formatCompact(value)}
-                {suffix}
-              </Typography>
-
-              <Chip
-                size="small"
-                label={`${g >= 0 ? "↑" : "↓"} ${Math.abs(
-                  g
-                ).toFixed(1)}% YoY`}
-                sx={{
-                  mt: 1,
-                  height: 22,
-                  fontSize: 10,
-                  fontWeight: 700,
-                  background:
-                    g >= 0
-                      ? "#ecfdf3"
-                      : "#fef3f2",
-                  color:
-                    g >= 0
-                      ? "#027a48"
-                      : "#b42318",
-                }}
-              />
-            </Box>
-
-            <Box
-              sx={{
-                width: 42,
-                height: 42,
-                borderRadius: 2,
-                background: "#f2f4f7",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {icon}
-            </Box>
-          </Stack>
-        </CardContent>
-      </Card>
-    );
-  };
-
-
-
-  /* =======================================================
-     DASHBOARD UI
-  ======================================================= */
+  const achievement =
+    target > 0
+      ? Math.min(
+          100,
+          (currentTotals.production / target) * 100
+        )
+      : 0;
 
   return (
-    <Box
-      sx={{
-        p: { xs: 1.5, md: 2.5 },
-        background: "#f8f9fb",
-        minHeight: "100vh",
-      }}
-    >
-
-      {/* =================================================
-          HEADER
-      ================================================= */}
-
+    <Box sx={{ p: { xs: 1.5, md: 2.5 } }}>
       <Stack
         direction={{ xs: "column", md: "row" }}
         justifyContent="space-between"
         alignItems={{ xs: "flex-start", md: "center" }}
         spacing={2}
-        sx={{ mb: 2.5 }}
+        sx={{ mb: 2 }}
       >
         <Box>
           <Typography
             sx={{
-              fontSize: { xs: 21, md: 26 },
+              fontSize: 22,
               fontWeight: 800,
               color: "#101828",
             }}
           >
-            SBI Performance Dashboard
+            Dashboard
           </Typography>
 
           <Typography
@@ -886,73 +320,40 @@ const DashboardPage = () => {
               color: "#667085",
             }}
           >
-            Banking performance • Circle • Region • Branch
+            Banking performance overview
           </Typography>
         </Box>
 
-        <Stack direction="row" spacing={1}>
+        <FormControl
+          size="small"
+          sx={{ minWidth: 160 }}
+        >
+          <InputLabel>Financial Year</InputLabel>
 
-          <FormControl
-            size="small"
-            sx={{ minWidth: 145 }}
+          <Select
+            value={selectedYear}
+            label="Financial Year"
+            onChange={(event) =>
+              setSelectedYear(event.target.value)
+            }
           >
-            <InputLabel>Financial Year</InputLabel>
-
-            <Select
-              value={selectedYear}
-              label="Financial Year"
-              onChange={(e) =>
-                setSelectedYear(e.target.value)
-              }
-            >
-              {years.map((year) => (
-                <MenuItem
-                  key={year}
-                  value={year}
-                >
-                  {dashboardData?.years?.[year]?.label ||
-                    year}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <Tooltip title="Refresh dashboard">
-            <IconButton
-              onClick={() => {
-                setSelectedYear(
-                  years[0] || ""
-                );
-              }}
-              sx={{
-                border: "1px solid #d0d5dd",
-                background: "#fff",
-              }}
-            >
-              <RefreshRoundedIcon />
-            </IconButton>
-          </Tooltip>
-
-        </Stack>
+            {years.map((year) => (
+              <MenuItem key={year} value={year}>
+                {dashboardData?.years?.[year]?.label ||
+                  year}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       </Stack>
 
-
-      {/* =================================================
-          KPI CARDS
-      ================================================= */}
-
-      <Grid
-        container
-        spacing={2}
-      >
-
-        <Grid item xs={12} sm={6} lg={3}>
-          <Kpi
-            title="TOTAL PRODUCTION"
-            value={totals.production}
-            previous={
-              previousTotals.production
-            }
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6} lg={2.4}>
+          <StatCard
+            title="Production"
+            value={currentTotals.production}
+            previous={previousTotals.production}
+            subtitle="Total production"
             icon={
               <TrendingUpRoundedIcon
                 sx={{ color: "#175CD3" }}
@@ -961,13 +362,12 @@ const DashboardPage = () => {
           />
         </Grid>
 
-        <Grid item xs={12} sm={6} lg={3}>
-          <Kpi
-            title="TOTAL DEPOSITS"
-            value={totals.deposits}
-            previous={
-              previousTotals.deposits
-            }
+        <Grid item xs={12} sm={6} lg={2.4}>
+          <StatCard
+            title="Deposits"
+            value={currentTotals.deposits}
+            previous={previousTotals.deposits}
+            subtitle="Total deposits"
             icon={
               <AccountBalanceWalletRoundedIcon
                 sx={{ color: "#6941C6" }}
@@ -976,13 +376,12 @@ const DashboardPage = () => {
           />
         </Grid>
 
-        <Grid item xs={12} sm={6} lg={3}>
-          <Kpi
-            title="TOTAL ADVANCES"
-            value={totals.advances}
-            previous={
-              previousTotals.advances
-            }
+        <Grid item xs={12} sm={6} lg={2.4}>
+          <StatCard
+            title="Advances"
+            value={currentTotals.advances}
+            previous={previousTotals.advances}
+            subtitle="Total advances"
             icon={
               <CreditScoreRoundedIcon
                 sx={{ color: "#027A48" }}
@@ -991,12 +390,27 @@ const DashboardPage = () => {
           />
         </Grid>
 
-        <Grid item xs={12} sm={6} lg={3}>
-          <Kpi
-            title="AVERAGE NPA"
-            value={totals.npa}
+        <Grid item xs={12} sm={6} lg={2.4}>
+          <StatCard
+            title="CASA"
+            value={currentTotals.casa}
+            previous={previousTotals.casa}
+            subtitle="CASA portfolio"
+            icon={
+              <SavingsRoundedIcon
+                sx={{ color: "#B54708" }}
+              />
+            }
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6} lg={2.4}>
+          <StatCard
+            title="Average NPA"
+            value={currentTotals.npa}
             previous={previousTotals.npa}
             suffix="%"
+            subtitle="Lower is better"
             icon={
               <WarningAmberRoundedIcon
                 sx={{ color: "#D92D20" }}
@@ -1004,426 +418,342 @@ const DashboardPage = () => {
             }
           />
         </Grid>
-
       </Grid>
 
-
-      {/* =================================================
-          MAIN TREND + CIRCLE DISTRIBUTION
-      ================================================= */}
-
-      <Grid
-        container
-        spacing={2}
-        sx={{ mt: 0 }}
+      <Card
+        sx={{
+          mt: 2,
+          borderRadius: 3,
+          border: "1px solid #e4e7ec",
+          boxShadow: "0 3px 14px rgba(16,24,40,0.04)",
+        }}
       >
-
-        {/* PRODUCTION TREND */}
-
-        <Grid item xs={12} md={8}>
-          <ChartCard
-            title="Production Trend"
-            subtitle={`${selectedYear} monthly performance`}
-            action={
-              <Chip
-                size="small"
-                label="Live View"
+        <CardContent>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Box>
+              <Typography
                 sx={{
-                  fontSize: 10,
-                  fontWeight: 700,
+                  fontSize: 15,
+                  fontWeight: 800,
                 }}
-              />
-            }
-          >
-            <EChart
-              option={productionTrendOption}
-              height={330}
-            />
-          </ChartCard>
-        </Grid>
-
-
-        {/* CIRCLE DONUT */}
-
-        <Grid item xs={12} md={4}>
-          <ChartCard
-            title="Circle Contribution"
-            subtitle="Production distribution"
-          >
-            <EChart
-              option={circlePieOption}
-              height={330}
-            />
-          </ChartCard>
-        </Grid>
-
-      </Grid>
-
-
-      {/* =================================================
-          DEPOSIT / ADVANCES + NPA
-      ================================================= */}
-
-      <Grid
-        container
-        spacing={2}
-        sx={{ mt: 0 }}
-      >
-
-        <Grid item xs={12} md={7}>
-          <ChartCard
-            title="Deposits vs Advances"
-            subtitle="Circle-wise comparison"
-          >
-            <EChart
-              option={depositAdvanceOption}
-              height={320}
-            />
-          </ChartCard>
-        </Grid>
-
-
-        <Grid item xs={12} md={5}>
-          <ChartCard
-            title="NPA Trend"
-            subtitle="Monthly asset quality"
-          >
-            <EChart
-              option={npaOption}
-              height={320}
-            />
-          </ChartCard>
-        </Grid>
-
-      </Grid>
-
-
-      {/* =================================================
-          NESTED DRILL-DOWN
-      ================================================= */}
-
-      <Box sx={{ mt: 2 }}>
-
-        <ChartCard
-          title="Geographical Drill-down"
-          subtitle="Circle → Region → Branch"
-          action={
-            <Stack
-              direction="row"
-              spacing={1}
-              alignItems="center"
-            >
-
-              <Chip
-                icon={
-                  <AccountTreeRoundedIcon
-                    sx={{ fontSize: 16 }}
-                  />
-                }
-                label="Nested"
-                size="small"
-                sx={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                }}
-              />
-
-              <FormControl
-                size="small"
-                sx={{ minWidth: 125 }}
               >
-                <InputLabel>
-                  Metric
-                </InputLabel>
+                Production Target Achievement
+              </Typography>
 
-                <Select
-                  value={metric}
-                  label="Metric"
-                  onChange={(e) =>
-                    setMetric(e.target.value)
-                  }
-                >
-                  <MenuItem value="production">
-                    Production
-                  </MenuItem>
+              <Typography
+                sx={{
+                  mt: 0.3,
+                  fontSize: 11,
+                  color: "#667085",
+                }}
+              >
+                Current production vs annual target
+              </Typography>
+            </Box>
 
-                  <MenuItem value="deposits">
-                    Deposits
-                  </MenuItem>
+            <Typography
+              sx={{
+                fontSize: 20,
+                fontWeight: 800,
+              }}
+            >
+              {achievement.toFixed(1)}%
+            </Typography>
+          </Stack>
 
-                  <MenuItem value="advances">
-                    Advances
-                  </MenuItem>
-
-                  <MenuItem value="casa">
-                    CASA
-                  </MenuItem>
-                </Select>
-              </FormControl>
-
-            </Stack>
-          }
-        >
-
-          <Box
+          <LinearProgress
+            variant="determinate"
+            value={achievement}
             sx={{
-              display: "flex",
-              justifyContent: "center",
-              mb: 1,
+              mt: 2,
+              height: 9,
+              borderRadius: 10,
+              backgroundColor: "#eaecf0",
+            }}
+          />
+
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            sx={{ mt: 1 }}
+          >
+            <Typography
+              sx={{
+                fontSize: 11,
+                color: "#667085",
+              }}
+            >
+              Actual: {formatNumber(currentTotals.production)}
+            </Typography>
+
+            <Typography
+              sx={{
+                fontSize: 11,
+                color: "#667085",
+              }}
+            >
+              Target: {formatNumber(target)}
+            </Typography>
+          </Stack>
+        </CardContent>
+      </Card>
+
+
+      <Grid container spacing={2} sx={{ mt: 0 }}>
+        <Grid item xs={12} md={7}>
+          <Card
+            sx={{
+              mt: 2,
+              borderRadius: 3,
+              border: "1px solid #e4e7ec",
+              boxShadow:
+                "0 3px 14px rgba(16,24,40,0.04)",
             }}
           >
-            <Chip
-              size="small"
-              label="Click Circle → Region → Branch"
-              variant="outlined"
-              sx={{
-                fontSize: 10,
-              }}
-            />
-          </Box>
+            <CardContent>
+              <Typography
+                sx={{
+                  fontSize: 15,
+                  fontWeight: 800,
+                }}
+              >
+                Monthly Production
+              </Typography>
 
-          <EChart
-            option={geoOption}
-            height={500}
-          />
+              <Typography
+                sx={{
+                  mt: 0.3,
+                  mb: 2,
+                  fontSize: 11,
+                  color: "#667085",
+                }}
+              >
+                Production trend for{" "}
+                {dashboardData?.years?.[selectedYear]?.label ||
+                  selectedYear}
+              </Typography>
 
-        </ChartCard>
+              <Box sx={{ width: "100%", height: 300 }}>
+                <ResponsiveContainer>
+                  <LineChart data={monthlyData}>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                    />
 
-      </Box>
+                    <XAxis dataKey="month" />
 
+                    <YAxis
+                      tickFormatter={(value) =>
+                        formatNumber(value)
+                      }
+                    />
 
-      {/* =================================================
-          TOP PERFORMING BRANCHES
-      ================================================= */}
+                    <Tooltip
+                      formatter={(value) =>
+                        formatNumber(value)
+                      }
+                    />
 
-      <Box sx={{ mt: 2 }}>
+                    <Line
+                      type="monotone"
+                      dataKey="production"
+                      name="Production"
+                      strokeWidth={3}
+                      dot={{ r: 4 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
 
-        <ChartCard
-          title="Top Performing Branches"
-          subtitle="Top 10 branches by production"
-        >
-          <EChart
-            option={topBranchOption}
-            height={390}
-          />
-        </ChartCard>
+        <Grid item xs={12} md={5}>
+          <Card
+            sx={{
+              mt: 2,
+              borderRadius: 3,
+              border: "1px solid #e4e7ec",
+              boxShadow:
+                "0 3px 14px rgba(16,24,40,0.04)",
+            }}
+          >
+            <CardContent>
+              <Typography
+                sx={{
+                  fontSize: 15,
+                  fontWeight: 800,
+                }}
+              >
+                Portfolio Comparison
+              </Typography>
 
-      </Box>
+              <Typography
+                sx={{
+                  mt: 0.3,
+                  mb: 2,
+                  fontSize: 11,
+                  color: "#667085",
+                }}
+              >
+                Deposits, advances and CASA
+              </Typography>
 
+              <Box sx={{ width: "100%", height: 300 }}>
+                <ResponsiveContainer>
+                  <BarChart data={comparisonData}>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                    />
 
-      {/* =================================================
-          BRANCH SUMMARY
-      ================================================= */}
+                    <XAxis dataKey="name" />
 
-      <Box sx={{ mt: 2 }}>
+                    <YAxis
+                      tickFormatter={(value) =>
+                        formatNumber(value)
+                      }
+                    />
 
-        <Card
-          sx={{
-            borderRadius: 3,
-            border: "1px solid #e4e7ec",
-            boxShadow:
-              "0 3px 15px rgba(16,24,40,.05)",
-          }}
-        >
+                    <Tooltip
+                      formatter={(value) =>
+                        formatNumber(value)
+                      }
+                    />
 
-          <CardContent>
+                    <Legend />
 
-            <Stack
-              direction="row"
-              justifyContent="space-between"
-              alignItems="center"
-              sx={{ mb: 1.5 }}
-            >
+                    <Bar
+                      dataKey="value"
+                      name="Amount"
+                      radius={[6, 6, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
-              <Box>
-                <Typography
-                  sx={{
-                    fontSize: 14,
-                    fontWeight: 800,
-                  }}
-                >
-                  Branch Performance
-                </Typography>
+      <Card
+        sx={{
+          mt: 2,
+          borderRadius: 3,
+          border: "1px solid #e4e7ec",
+          boxShadow:
+            "0 3px 14px rgba(16,24,40,0.04)",
+        }}
+      >
+        <CardContent>
+          <Typography
+            sx={{
+              fontSize: 15,
+              fontWeight: 800,
+            }}
+          >
+            Key Performance Summary
+          </Typography>
 
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+            <Grid item xs={12} sm={4}>
+              <Box
+                sx={{
+                  p: 1.5,
+                  borderRadius: 2,
+                  background: "#f8f9fc",
+                }}
+              >
                 <Typography
                   sx={{
                     fontSize: 11,
                     color: "#667085",
-                    mt: 0.3,
                   }}
                 >
-                  Highest production branches
+                  Production
+                </Typography>
+
+                <Typography
+                  sx={{
+                    mt: 0.4,
+                    fontSize: 18,
+                    fontWeight: 800,
+                  }}
+                >
+                  {formatNumber(
+                    currentTotals.production
+                  )}
                 </Typography>
               </Box>
+            </Grid>
 
-              <Chip
-                label={`${branches.length} Branches`}
-                size="small"
+            <Grid item xs={12} sm={4}>
+              <Box
                 sx={{
-                  fontSize: 10,
-                  fontWeight: 700,
+                  p: 1.5,
+                  borderRadius: 2,
+                  background: "#f8f9fc",
                 }}
-              />
+              >
+                <Typography
+                  sx={{
+                    fontSize: 11,
+                    color: "#667085",
+                  }}
+                >
+                  Deposits
+                </Typography>
 
-            </Stack>
+                <Typography
+                  sx={{
+                    mt: 0.4,
+                    fontSize: 18,
+                    fontWeight: 800,
+                  }}
+                >
+                  {formatNumber(
+                    currentTotals.deposits
+                  )}
+                </Typography>
+              </Box>
+            </Grid>
 
-            <Divider />
+            <Grid item xs={12} sm={4}>
+              <Box
+                sx={{
+                  p: 1.5,
+                  borderRadius: 2,
+                  background: "#f8f9fc",
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: 11,
+                    color: "#667085",
+                  }}
+                >
+                  Average NPA
+                </Typography>
 
-            <Box
-              sx={{
-                mt: 1,
-                overflowX: "auto",
-              }}
-            >
-
-              {topBranches.map(
-                (branch, index) => {
-
-                  const maxProduction =
-                    topBranches[0]?.production ||
-                    1;
-
-                  const percentage =
-                    (num(
-                      branch.production
-                    ) /
-                      maxProduction) *
-                    100;
-
-                  return (
-                    <Box
-                      key={`${branch.branch}-${index}`}
-                      sx={{
-                        py: 1.3,
-                        minWidth: 600,
-                      }}
-                    >
-
-                      <Stack
-                        direction="row"
-                        alignItems="center"
-                        spacing={2}
-                      >
-
-                        <Typography
-                          sx={{
-                            width: 25,
-                            fontSize: 11,
-                            fontWeight: 800,
-                          }}
-                        >
-                          #{index + 1}
-                        </Typography>
-
-                        <Box
-                          sx={{
-                            width: 170,
-                          }}
-                        >
-                          <Typography
-                            sx={{
-                              fontSize: 12,
-                              fontWeight: 700,
-                            }}
-                          >
-                            {branch.branch}
-                          </Typography>
-
-                          <Typography
-                            sx={{
-                              fontSize: 10,
-                              color: "#667085",
-                            }}
-                          >
-                            {branch.circle}
-                            {" • "}
-                            {branch.region}
-                          </Typography>
-                        </Box>
-
-                        <Box
-                          sx={{
-                            flex: 1,
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              height: 7,
-                              background:
-                                "#eaecf0",
-                              borderRadius: 10,
-                              overflow: "hidden",
-                            }}
-                          >
-                            <Box
-                              sx={{
-                                width: `${Math.min(
-                                  percentage,
-                                  100
-                                )}%`,
-                                height: "100%",
-                                background:
-                                  "#175CD3",
-                                borderRadius: 10,
-                              }}
-                            />
-                          </Box>
-                        </Box>
-
-                        <Typography
-                          sx={{
-                            width: 90,
-                            textAlign: "right",
-                            fontSize: 12,
-                            fontWeight: 800,
-                          }}
-                        >
-                          {formatCompact(
-                            branch.production
-                          )}
-                        </Typography>
-
-                      </Stack>
-
-                    </Box>
-                  );
-                }
-              )}
-
-            </Box>
-
-          </CardContent>
-
-        </Card>
-
-      </Box>
-
-
-      {/* =================================================
-          FOOTER
-      ================================================= */}
-
-      <Box
-        sx={{
-          mt: 2,
-          pb: 1,
-          textAlign: "center",
-        }}
-      >
-        <Typography
-          sx={{
-            fontSize: 10,
-            color: "#98A2B3",
-          }}
-        >
-          SBI Performance Dashboard •
-          {selectedYear}
-        </Typography>
-      </Box>
-
+                <Typography
+                  sx={{
+                    mt: 0.4,
+                    fontSize: 18,
+                    fontWeight: 800,
+                  }}
+                >
+                  {formatNumber(currentTotals.npa)}%
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
     </Box>
   );
 };
-
 
 export default DashboardPage;
