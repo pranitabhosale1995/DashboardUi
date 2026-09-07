@@ -1,0 +1,688 @@
+import React, { useMemo, useState } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Stack,
+  Chip,
+  IconButton,
+  Tooltip,
+  Divider,
+  Collapse,
+} from "@mui/material";
+
+import CampaignRoundedIcon from "@mui/icons-material/CampaignRounded";
+import ArrowForwardIosRoundedIcon from "@mui/icons-material/ArrowForwardIosRounded";
+import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
+import KeyboardArrowUpRoundedIcon from "@mui/icons-material/KeyboardArrowUpRounded";
+import PriorityHighRoundedIcon from "@mui/icons-material/PriorityHighRounded";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
+
+import dashboardData from "../dashboard.json";
+
+
+const DashboardAnnouncements = () => {
+  const announcements =
+    dashboardData?.announcements || [];
+
+  const [showAll, setShowAll] =
+    useState(false);
+
+  const [expandedId, setExpandedId] =
+    useState(null);
+
+  const [readItems, setReadItems] =
+    useState({});
+
+
+  const sortedAnnouncements = useMemo(() => {
+    return [...announcements].sort(
+      (a, b) => {
+        const priority = {
+          high: 1,
+          medium: 2,
+          low: 3,
+        };
+
+        const priorityDiff =
+          (priority[a.priority] || 4) -
+          (priority[b.priority] || 4);
+
+        if (priorityDiff !== 0) {
+          return priorityDiff;
+        }
+
+        return (
+          new Date(
+            b.date || 0
+          ) -
+          new Date(
+            a.date || 0
+          )
+        );
+      }
+    );
+  }, [announcements]);
+
+
+  const visibleAnnouncements =
+    showAll
+      ? sortedAnnouncements
+      : sortedAnnouncements.slice(
+          0,
+          4
+        );
+
+
+  const getPriorityLabel = (
+    priority
+  ) => {
+    if (priority === "high") {
+      return "High Priority";
+    }
+
+    if (priority === "medium") {
+      return "Medium";
+    }
+
+    return "Normal";
+  };
+
+
+  const getPriorityIcon = (
+    priority
+  ) => {
+    if (priority === "high") {
+      return (
+        <PriorityHighRoundedIcon
+          sx={{
+            fontSize: 17,
+          }}
+        />
+      );
+    }
+
+    return (
+      <CampaignRoundedIcon
+        sx={{
+          fontSize: 17,
+        }}
+      />
+    );
+  };
+
+
+  const handleExpand = (id) => {
+    setExpandedId(
+      expandedId === id
+        ? null
+        : id
+    );
+
+    setReadItems((prev) => ({
+      ...prev,
+      [id]: true,
+    }));
+  };
+
+
+  const formatDate = (date) => {
+    if (!date) {
+      return "N/A";
+    }
+
+    return new Date(
+      date
+    ).toLocaleDateString(
+      "en-IN",
+      {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }
+    );
+  };
+
+
+  if (!announcements.length) {
+    return (
+      <Card
+        sx={{
+          borderRadius: 3,
+          border:
+            "1px solid #e4e7ec",
+          boxShadow:
+            "0 4px 18px rgba(16,24,40,0.05)",
+        }}
+      >
+        <CardContent>
+          <Stack
+            alignItems="center"
+            spacing={1}
+            sx={{
+              py: 4,
+            }}
+          >
+            <CampaignRoundedIcon
+              sx={{
+                fontSize: 38,
+                color: "#98A2B3",
+              }}
+            />
+
+            <Typography
+              sx={{
+                fontWeight: 700,
+                color: "#475467",
+              }}
+            >
+              No announcements
+            </Typography>
+
+            <Typography
+              sx={{
+                fontSize: 12,
+                color: "#98A2B3",
+              }}
+            >
+              There are no new announcements
+              at the moment.
+            </Typography>
+          </Stack>
+        </CardContent>
+      </Card>
+    );
+  }
+
+
+  return (
+    <Card
+      sx={{
+        borderRadius: 3,
+        border:
+          "1px solid #e4e7ec",
+        boxShadow:
+          "0 4px 18px rgba(16,24,40,0.05)",
+      }}
+    >
+      <CardContent
+        sx={{
+          p: 0,
+          "&:last-child": {
+            pb: 0,
+          },
+        }}
+      >
+
+        {/* HEADER */}
+
+        <Box
+          sx={{
+            px: 2.5,
+            py: 2,
+            display: "flex",
+            alignItems: "center",
+            justifyContent:
+              "space-between",
+            gap: 2,
+          }}
+        >
+          <Stack
+            direction="row"
+            spacing={1.2}
+            alignItems="center"
+          >
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: 2,
+                display: "flex",
+                alignItems: "center",
+                justifyContent:
+                  "center",
+                background:
+                  "#eef4ff",
+              }}
+            >
+              <CampaignRoundedIcon
+                sx={{
+                  color: "#175CD3",
+                }}
+              />
+            </Box>
+
+            <Box>
+              <Typography
+                sx={{
+                  fontSize: 17,
+                  fontWeight: 800,
+                  color: "#101828",
+                }}
+              >
+                Announcements
+              </Typography>
+
+              <Typography
+                sx={{
+                  fontSize: 11,
+                  color: "#667085",
+                  mt: 0.2,
+                }}
+              >
+                Latest banking updates
+              </Typography>
+            </Box>
+          </Stack>
+
+
+          <Chip
+            size="small"
+            label={`${announcements.length} Updates`}
+            sx={{
+              fontSize: 10.5,
+              fontWeight: 700,
+              background:
+                "#f2f4f7",
+              color: "#344054",
+            }}
+          />
+        </Box>
+
+
+        <Divider />
+
+
+        {/* ANNOUNCEMENTS */}
+
+        <Box>
+          {visibleAnnouncements.map(
+            (item, index) => {
+              const id =
+                item.id ||
+                `${item.title}-${index}`;
+
+              const isExpanded =
+                expandedId === id;
+
+              const isRead =
+                Boolean(
+                  readItems[id]
+                );
+
+              return (
+                <React.Fragment
+                  key={id}
+                >
+                  <Box
+                    sx={{
+                      px: 2.5,
+                      py: 1.7,
+                      cursor: "pointer",
+                      transition:
+                        "background 0.2s",
+                      background:
+                        isRead
+                          ? "#ffffff"
+                          : "#f8faff",
+                      "&:hover": {
+                        background:
+                          "#f8f9fc",
+                      },
+                    }}
+                    onClick={() =>
+                      handleExpand(id)
+                    }
+                  >
+
+                    <Stack
+                      direction="row"
+                      spacing={1.5}
+                      alignItems="flex-start"
+                    >
+
+                      {/* ICON */}
+
+                      <Box
+                        sx={{
+                          mt: 0.2,
+                          width: 34,
+                          height: 34,
+                          flexShrink: 0,
+                          borderRadius: 1.8,
+                          display:
+                            "flex",
+                          alignItems:
+                            "center",
+                          justifyContent:
+                            "center",
+                          background:
+                            item.priority ===
+                            "high"
+                              ? "#fef3f2"
+                              : "#f2f4f7",
+                        }}
+                      >
+                        {getPriorityIcon(
+                          item.priority
+                        )}
+                      </Box>
+
+
+                      {/* CONTENT */}
+
+                      <Box
+                        sx={{
+                          flex: 1,
+                          minWidth: 0,
+                        }}
+                      >
+
+                        <Stack
+                          direction="row"
+                          spacing={0.7}
+                          alignItems="center"
+                          flexWrap="wrap"
+                        >
+
+                          <Typography
+                            sx={{
+                              fontSize: 13,
+                              fontWeight:
+                                isRead
+                                  ? 600
+                                  : 800,
+                              color:
+                                "#101828",
+                            }}
+                          >
+                            {item.title}
+                          </Typography>
+
+                          {!isRead && (
+                            <Box
+                              sx={{
+                                width: 6,
+                                height: 6,
+                                borderRadius:
+                                  "50%",
+                                background:
+                                  "#175CD3",
+                              }}
+                            />
+                          )}
+                        </Stack>
+
+
+                        <Typography
+                          sx={{
+                            mt: 0.5,
+                            fontSize: 11.5,
+                            color:
+                              "#667085",
+                            display:
+                              "-webkit-box",
+                            WebkitLineClamp:
+                              isExpanded
+                                ? "unset"
+                                : 2,
+                            WebkitBoxOrient:
+                              "vertical",
+                            overflow:
+                              isExpanded
+                                ? "visible"
+                                : "hidden",
+                          }}
+                        >
+                          {item.description ||
+                            item.message ||
+                            ""}
+                        </Typography>
+
+
+                        <Stack
+                          direction="row"
+                          spacing={0.8}
+                          alignItems="center"
+                          sx={{
+                            mt: 1,
+                          }}
+                          flexWrap="wrap"
+                        >
+
+                          {item.category && (
+                            <Chip
+                              size="small"
+                              label={
+                                item.category
+                              }
+                              sx={{
+                                height: 21,
+                                fontSize: 9.5,
+                                fontWeight: 700,
+                                background:
+                                  "#f2f4f7",
+                                color:
+                                  "#475467",
+                              }}
+                            />
+                          )}
+
+
+                          <Chip
+                            size="small"
+                            icon={
+                              item.priority ===
+                              "high" ? (
+                                <PriorityHighRoundedIcon />
+                              ) : undefined
+                            }
+                            label={getPriorityLabel(
+                              item.priority
+                            )}
+                            sx={{
+                              height: 21,
+                              fontSize: 9.5,
+                              fontWeight: 700,
+                              background:
+                                item.priority ===
+                                "high"
+                                  ? "#fef3f2"
+                                  : item.priority ===
+                                    "medium"
+                                  ? "#fffaeb"
+                                  : "#f2f4f7",
+                              color:
+                                item.priority ===
+                                "high"
+                                  ? "#b42318"
+                                  : item.priority ===
+                                    "medium"
+                                  ? "#b54708"
+                                  : "#475467",
+                              "& .MuiChip-icon":
+                                {
+                                  fontSize: 13,
+                                  color:
+                                    "inherit",
+                                },
+                            }}
+                          />
+
+
+                          <Typography
+                            sx={{
+                              fontSize: 10,
+                              color:
+                                "#98A2B3",
+                            }}
+                          >
+                            {formatDate(
+                              item.date
+                            )}
+                          </Typography>
+
+                        </Stack>
+
+
+                        {/* EXPANDED */}
+
+                        <Collapse
+                          in={
+                            isExpanded
+                          }
+                          timeout="auto"
+                          unmountOnExit
+                        >
+                          <Box
+                            sx={{
+                              mt: 1.5,
+                              p: 1.3,
+                              borderRadius: 1.8,
+                              background:
+                                "#f8f9fc",
+                              border:
+                                "1px solid #eaecf0",
+                            }}
+                          >
+                            {item.details && (
+                              <Typography
+                                sx={{
+                                  fontSize: 11.5,
+                                  lineHeight: 1.6,
+                                  color:
+                                    "#475467",
+                                }}
+                              >
+                                {
+                                  item.details
+                                }
+                              </Typography>
+                            )}
+
+                            {item.action && (
+                              <Typography
+                                sx={{
+                                  mt: 0.8,
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  color:
+                                    "#175CD3",
+                                }}
+                              >
+                                Action:{" "}
+                                {
+                                  item.action
+                                }
+                              </Typography>
+                            )}
+                          </Box>
+                        </Collapse>
+
+                      </Box>
+
+
+                      {/* ARROW */}
+
+                      <IconButton
+                        size="small"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleExpand(id);
+                        }}
+                      >
+                        {isExpanded ? (
+                          <KeyboardArrowUpRoundedIcon
+                            sx={{
+                              fontSize: 19,
+                            }}
+                          />
+                        ) : (
+                          <KeyboardArrowDownRoundedIcon
+                            sx={{
+                              fontSize: 19,
+                            }}
+                          />
+                        )}
+                      </IconButton>
+
+                    </Stack>
+                  </Box>
+
+                  {index <
+                    visibleAnnouncements.length -
+                      1 && (
+                    <Divider
+                      sx={{
+                        mx: 2.5,
+                      }}
+                    />
+                  )}
+                </React.Fragment>
+              );
+            }
+          )}
+        </Box>
+
+
+        {/* FOOTER */}
+
+        {announcements.length >
+          4 && (
+          <>
+            <Divider />
+
+            <Box
+              sx={{
+                px: 2.5,
+                py: 1.4,
+                display: "flex",
+                justifyContent:
+                  "center",
+              }}
+            >
+              <Chip
+                clickable
+                label={
+                  showAll
+                    ? "Show Less"
+                    : `View All ${announcements.length} Announcements`
+                }
+                onClick={() =>
+                  setShowAll(
+                    !showAll
+                  )
+                }
+                deleteIcon={
+                  <ArrowForwardIosRoundedIcon />
+                }
+                onDelete={() =>
+                  setShowAll(
+                    !showAll
+                  )
+                }
+                sx={{
+                  fontWeight: 700,
+                  fontSize: 11,
+                  color: "#175CD3",
+                  background:
+                    "transparent",
+                  "& .MuiChip-deleteIcon":
+                    {
+                      fontSize: 13,
+                      color:
+                        "#175CD3",
+                    },
+                }}
+              />
+            </Box>
+          </>
+        )}
+
+      </CardContent>
+    </Card>
+  );
+};
+
+export default DashboardAnnouncements;
