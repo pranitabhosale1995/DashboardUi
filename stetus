@@ -1,0 +1,767 @@
+import React, { useMemo, useState } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Grid,
+  Stack,
+  Chip,
+  LinearProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+} from "@mui/material";
+
+import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
+import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceWalletRounded";
+import CreditScoreRoundedIcon from "@mui/icons-material/CreditScoreRounded";
+import SavingsRoundedIcon from "@mui/icons-material/SavingsRounded";
+import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
+
+import dashboardData from "../dashboard.json";
+
+const formatNumber = (value) =>
+  new Intl.NumberFormat("en-IN", {
+    maximumFractionDigits: 1,
+  }).format(Number(value || 0));
+
+const getBranches = (yearData) => {
+  const result = [];
+
+  Object.entries(yearData?.circles || {}).forEach(
+    ([circle, circleData]) => {
+      Object.entries(circleData?.regions || {}).forEach(
+        ([region, regionData]) => {
+          Object.entries(regionData?.branches || {}).forEach(
+            ([branch, branchData]) => {
+              result.push({
+                circle,
+                region,
+                branch,
+                ...branchData,
+              });
+            }
+          );
+        }
+      );
+    }
+  );
+
+  return result;
+};
+
+const getGrowth = (current, previous) => {
+  if (!previous) return 0;
+
+  return ((current - previous) / previous) * 100;
+};
+
+const StatCard = ({
+  title,
+  value,
+  previous,
+  icon,
+  suffix = "",
+  subtitle,
+}) => {
+  const growth = getGrowth(value, previous);
+
+  const isPositive = growth >= 0;
+
+  return (
+    <Card
+      sx={{
+        height: "100%",
+        borderRadius: 3,
+        border: "1px solid #e4e7ec",
+        boxShadow: "0 3px 14px rgba(16,24,40,0.04)",
+        transition: "0.2s",
+        "&:hover": {
+          transform: "translateY(-2px)",
+          boxShadow: "0 8px 24px rgba(16,24,40,0.08)",
+        },
+      }}
+    >
+      <CardContent>
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="flex-start"
+        >
+          <Box>
+            <Typography
+              sx={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#667085",
+              }}
+            >
+              {title}
+            </Typography>
+
+            <Typography
+              sx={{
+                mt: 0.8,
+                fontSize: {
+                  xs: 22,
+                  md: 27,
+                },
+                fontWeight: 800,
+                color: "#101828",
+              }}
+            >
+              {formatNumber(value)}
+              {suffix}
+            </Typography>
+
+            {subtitle && (
+              <Typography
+                sx={{
+                  mt: 0.3,
+                  fontSize: 11,
+                  color: "#98A2B3",
+                }}
+              >
+                {subtitle}
+              </Typography>
+            )}
+          </Box>
+
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: 2,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "#f2f4f7",
+            }}
+          >
+            {icon}
+          </Box>
+        </Stack>
+
+        <Box sx={{ mt: 1.5 }}>
+          <Chip
+            size="small"
+            label={`${isPositive ? "↑" : "↓"} ${Math.abs(
+              growth
+            ).toFixed(1)}% vs previous year`}
+            sx={{
+              height: 23,
+              fontSize: 10.5,
+              fontWeight: 700,
+              background: isPositive
+                ? "#ecfdf3"
+                : "#fef3f2",
+              color: isPositive
+                ? "#027a48"
+                : "#b42318",
+            }}
+          />
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
+
+const DashboardFrequencyStats = () => {
+  const years = useMemo(
+    () =>
+      Object.keys(
+        dashboardData?.years || {}
+      ).sort(
+        (a, b) => Number(b) - Number(a)
+      ),
+    []
+  );
+
+  const [selectedYear, setSelectedYear] =
+    useState(years[0] || "");
+
+  const [frequency, setFrequency] =
+    useState("yearly");
+
+  const currentYearData =
+    dashboardData?.years?.[selectedYear];
+
+  const currentIndex =
+    years.indexOf(selectedYear);
+
+  const previousYear =
+    years[currentIndex + 1];
+
+  const previousYearData =
+    dashboardData?.years?.[
+      previousYear
+    ];
+
+  const currentBranches = useMemo(
+    () => getBranches(currentYearData),
+    [currentYearData]
+  );
+
+  const previousBranches = useMemo(
+    () => getBranches(previousYearData),
+    [previousYearData]
+  );
+
+  const currentTotals = useMemo(() => {
+    if (!currentBranches.length) {
+      return {
+        production: 0,
+        deposits: 0,
+        advances: 0,
+        casa: 0,
+        npa: 0,
+      };
+    }
+
+    return {
+      production: currentBranches.reduce(
+        (sum, item) =>
+          sum + Number(item.production || 0),
+        0
+      ),
+
+      deposits: currentBranches.reduce(
+        (sum, item) =>
+          sum + Number(item.deposits || 0),
+        0
+      ),
+
+      advances: currentBranches.reduce(
+        (sum, item) =>
+          sum + Number(item.advances || 0),
+        0
+      ),
+
+      casa: currentBranches.reduce(
+        (sum, item) =>
+          sum + Number(item.casa || 0),
+        0
+      ),
+
+      npa:
+        currentBranches.reduce(
+          (sum, item) =>
+            sum + Number(item.npa || 0),
+          0
+        ) / currentBranches.length,
+    };
+  }, [currentBranches]);
+
+  const previousTotals = useMemo(() => {
+    if (!previousBranches.length) {
+      return {
+        production: 0,
+        deposits: 0,
+        advances: 0,
+        casa: 0,
+        npa: 0,
+      };
+    }
+
+    return {
+      production: previousBranches.reduce(
+        (sum, item) =>
+          sum + Number(item.production || 0),
+        0
+      ),
+
+      deposits: previousBranches.reduce(
+        (sum, item) =>
+          sum + Number(item.deposits || 0),
+        0
+      ),
+
+      advances: previousBranches.reduce(
+        (sum, item) =>
+          sum + Number(item.advances || 0),
+        0
+      ),
+
+      casa: previousBranches.reduce(
+        (sum, item) =>
+          sum + Number(item.casa || 0),
+        0
+      ),
+
+      npa:
+        previousBranches.reduce(
+          (sum, item) =>
+            sum + Number(item.npa || 0),
+          0
+        ) / previousBranches.length,
+    };
+  }, [previousBranches]);
+
+  const target = useMemo(() => {
+    const monthly =
+      currentYearData?.monthlyTrend || [];
+
+    if (!monthly.length) return 0;
+
+    const total = monthly.reduce(
+      (sum, item) =>
+        sum + Number(item.production || 0),
+      0
+    );
+
+    return total * 1.1;
+  }, [currentYearData]);
+
+  const achievement =
+    target > 0
+      ? Math.min(
+          100,
+          (currentTotals.production /
+            target) *
+            100
+        )
+      : 0;
+
+  const frequencyData = useMemo(() => {
+    const monthly =
+      currentYearData?.monthlyTrend || [];
+
+    if (frequency === "monthly") {
+      return monthly;
+    }
+
+    if (frequency === "quarterly") {
+      const quarters = [
+        {
+          label: "Q1",
+          months: [0, 1, 2],
+        },
+        {
+          label: "Q2",
+          months: [3, 4, 5],
+        },
+        {
+          label: "Q3",
+          months: [6, 7, 8],
+        },
+        {
+          label: "Q4",
+          months: [9, 10, 11],
+        },
+      ];
+
+      return quarters.map((quarter) => ({
+        month: quarter.label,
+        production:
+          quarter.months.reduce(
+            (sum, index) =>
+              sum +
+              Number(
+                monthly[index]
+                  ?.production || 0
+              ),
+            0
+          ),
+      }));
+    }
+
+    return [
+      {
+        month: selectedYear,
+        production:
+          currentTotals.production,
+      },
+    ];
+  }, [
+    currentYearData,
+    currentTotals,
+    frequency,
+    selectedYear,
+  ]);
+
+  return (
+    <Box>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 2,
+          mb: 2,
+        }}
+      >
+        <Box>
+          <Typography
+            sx={{
+              fontSize: 19,
+              fontWeight: 800,
+              color: "#101828",
+            }}
+          >
+            Performance Overview
+          </Typography>
+
+          <Typography
+            sx={{
+              mt: 0.3,
+              fontSize: 12,
+              color: "#667085",
+            }}
+          >
+            Key banking performance indicators
+          </Typography>
+        </Box>
+
+        <Stack
+          direction="row"
+          spacing={1}
+        >
+          <FormControl
+            size="small"
+            sx={{
+              minWidth: 150,
+            }}
+          >
+            <InputLabel>
+              Financial Year
+            </InputLabel>
+
+            <Select
+              value={selectedYear}
+              label="Financial Year"
+              onChange={(event) =>
+                setSelectedYear(
+                  event.target.value
+                )
+              }
+            >
+              {years.map((year) => (
+                <MenuItem
+                  key={year}
+                  value={year}
+                >
+                  {
+                    dashboardData.years[
+                      year
+                    ].label
+                  }
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl
+            size="small"
+            sx={{
+              minWidth: 125,
+            }}
+          >
+            <InputLabel>
+              Frequency
+            </InputLabel>
+
+            <Select
+              value={frequency}
+              label="Frequency"
+              onChange={(event) =>
+                setFrequency(
+                  event.target.value
+                )
+              }
+            >
+              <MenuItem value="yearly">
+                Yearly
+              </MenuItem>
+
+              <MenuItem value="quarterly">
+                Quarterly
+              </MenuItem>
+
+              <MenuItem value="monthly">
+                Monthly
+              </MenuItem>
+            </Select>
+          </FormControl>
+        </Stack>
+      </Box>
+
+      <Grid
+        container
+        spacing={2}
+      >
+        <Grid
+          item
+          xs={12}
+          sm={6}
+          lg={2.4}
+        >
+          <StatCard
+            title="Production"
+            value={
+              currentTotals.production
+            }
+            previous={
+              previousTotals.production
+            }
+            subtitle="Total production"
+            icon={
+              <TrendingUpRoundedIcon
+                sx={{
+                  color: "#175CD3",
+                }}
+              />
+            }
+          />
+        </Grid>
+
+        <Grid
+          item
+          xs={12}
+          sm={6}
+          lg={2.4}
+        >
+          <StatCard
+            title="Deposits"
+            value={
+              currentTotals.deposits
+            }
+            previous={
+              previousTotals.deposits
+            }
+            subtitle="Total deposits"
+            icon={
+              <AccountBalanceWalletRoundedIcon
+                sx={{
+                  color: "#6941C6",
+                }}
+              />
+            />
+          }
+        </Grid>
+
+        <Grid
+          item
+          xs={12}
+          sm={6}
+          lg={2.4}
+        >
+          <StatCard
+            title="Advances"
+            value={
+              currentTotals.advances
+            }
+            previous={
+              previousTotals.advances
+            }
+            subtitle="Total advances"
+            icon={
+              <CreditScoreRoundedIcon
+                sx={{
+                  color: "#027A48",
+                }}
+              />
+            />
+          }
+        </Grid>
+
+        <Grid
+          item
+          xs={12}
+          sm={6}
+          lg={2.4}
+        >
+          <StatCard
+            title="CASA"
+            value={currentTotals.casa}
+            previous={
+              previousTotals.casa
+            }
+            subtitle="CASA portfolio"
+            icon={
+              <SavingsRoundedIcon
+                sx={{
+                  color: "#B54708",
+                }}
+              />
+            />
+          }
+        </Grid>
+
+        <Grid
+          item
+          xs={12}
+          sm={6}
+          lg={2.4}
+        >
+          <StatCard
+            title="Average NPA"
+            value={currentTotals.npa}
+            previous={
+              previousTotals.npa
+            }
+            suffix="%"
+            subtitle="Lower is better"
+            icon={
+              <WarningAmberRoundedIcon
+                sx={{
+                  color: "#D92D20",
+                }}
+              />
+            />
+          }
+        </Grid>
+      </Grid>
+
+      <Card
+        sx={{
+          mt: 2,
+          borderRadius: 3,
+          border: "1px solid #e4e7ec",
+          boxShadow:
+            "0 3px 14px rgba(16,24,40,0.04)",
+        }}
+      >
+        <CardContent>
+          <Stack
+            direction={{
+              xs: "column",
+              md: "row",
+            }}
+            spacing={2}
+            justifyContent="space-between"
+          >
+            <Box>
+              <Typography
+                sx={{
+                  fontSize: 14,
+                  fontWeight: 800,
+                }}
+              >
+                Production Target Achievement
+              </Typography>
+
+              <Typography
+                sx={{
+                  mt: 0.4,
+                  fontSize: 11,
+                  color: "#667085",
+                }}
+              >
+                Current production vs calculated
+                annual target
+              </Typography>
+            </Box>
+
+            <Typography
+              sx={{
+                fontSize: 20,
+                fontWeight: 800,
+              }}
+            >
+              {achievement.toFixed(1)}%
+            </Typography>
+          </Stack>
+
+          <LinearProgress
+            variant="determinate"
+            value={achievement}
+            sx={{
+              mt: 2,
+              height: 9,
+              borderRadius: 10,
+              backgroundColor: "#eaecf0",
+              "& .MuiLinearProgress-bar": {
+                borderRadius: 10,
+              },
+            }}
+          />
+
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            sx={{ mt: 1 }}
+          >
+            <Typography
+              sx={{
+                fontSize: 11,
+                color: "#667085",
+              }}
+            >
+              Actual:{" "}
+              {formatNumber(
+                currentTotals.production
+              )}
+            </Typography>
+
+            <Typography
+              sx={{
+                fontSize: 11,
+                color: "#667085",
+              }}
+            >
+              Target:{" "}
+              {formatNumber(target)}
+            </Typography>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      <Card
+        sx={{
+          mt: 2,
+          borderRadius: 3,
+          border: "1px solid #e4e7ec",
+          boxShadow:
+            "0 3px 14px rgba(16,24,40,0.04)",
+        }}
+      >
+        <CardContent>
+          <Typography
+            sx={{
+              fontSize: 14,
+              fontWeight: 800,
+            }}
+          >
+            {frequency === "monthly"
+              ? "Monthly Production"
+              : frequency === "quarterly"
+              ? "Quarterly Production"
+              : "Yearly Production"}
+          </Typography>
+
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{
+              mt: 1.5,
+              overflowX: "auto",
+              pb: 0.5,
+            }}
+          >
+            {frequencyData.map(
+              (item, index) => (
+                <Chip
+                  key={`${item.month}-${index}`}
+                  label={`${item.month}: ${formatNumber(
+                    item.production
+                  )}`}
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                  }}
+                />
+              )
+            )}
+          </Stack>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+};
+
+export default DashboardFrequencyStats;
