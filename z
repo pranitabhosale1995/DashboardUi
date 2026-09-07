@@ -1,614 +1,617 @@
-import React, { useState } from "react";
+import React from "react";
 import {
-  Box, Paper, Typography, Select, MenuItem, IconButton,
-  Button, Divider
-} from "@mui/material";
-import {
-  DashboardRounded, RefreshRounded, TrendingUpRounded,
-  AccountBalanceRounded, SavingsRounded, WarningAmberRounded,
-  ArrowBackRounded
-} from "@mui/icons-material";
-
-import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
-  CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
 
-const PURPLE = "#7165C4";
-const DARK = "#34324A";
-const MUTED = "#858197";
-const LIGHT = "#F5F2FD";
-const PINK = "#D94CB5";
-const BLUE = "#536FA8";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Grid,
+  Chip,
+  Divider,
+  LinearProgress,
+} from "@mui/material";
 
-const ageData = [
-  { name: "18-20", female: 92, male: 99 },
-  { name: "21-30", female: 185, male: 182 },
-  { name: "31-40", female: 180, male: 166 },
-  { name: "41-50", female: 189, male: 191 },
-  { name: "51-60", female: 156, male: 168 },
-  { name: "61-70", female: 105, male: 94 },
-  { name: ">71", female: 109, male: 84 }
+const purple = "#5B4B9A";
+const blue = "#496A9F";
+const pink = "#D94BB5";
+const green = "#67A77A";
+const orange = "#E7A64A";
+
+const monthlyData = [
+  { month: "Apr", production: 72 },
+  { month: "May", production: 81 },
+  { month: "Jun", production: 87 },
+  { month: "Jul", production: 84 },
+  { month: "Aug", production: 98 },
+  { month: "Sep", production: 108 },
+  { month: "Oct", production: 104 },
+  { month: "Nov", production: 116 },
+  { month: "Dec", production: 121 },
+  { month: "Jan", production: 130 },
+  { month: "Feb", production: 142 },
+  { month: "Mar", production: 157 },
 ];
 
-const incomeData = [
-  { name: "Low Income", value: 1000 },
-  { name: "Middle Income", value: 543 },
-  { name: "High Income", value: 52 }
+const portfolioData = [
+  { name: "Deposits", value: 7355 },
+  { name: "Advances", value: 5480 },
+  { name: "CASA", value: 3757 },
 ];
 
-const creditData = [
-  { name: "Excellent", value: 534 },
-  { name: "Good", value: 640 },
-  { name: "Fair", value: 492 },
-  { name: "Poor", value: 334 }
+const casaData = [
+  { name: "Savings", value: 2480 },
+  { name: "Current", value: 1277 },
 ];
 
-const dtiData = [
-  { name: "Severe Risk", female: 270, male: 277 },
-  { name: "High Risk", female: 188, male: 193 },
-  { name: "Risky Border", female: 337, male: 323 },
-  { name: "Manageable", female: 53, male: 56 },
-  { name: "Low Risk", female: 168, male: 135 }
+const riskData = [
+  { name: "Low Risk", value: 42 },
+  { name: "Moderate", value: 36 },
+  { name: "High Risk", value: 22 },
 ];
 
-const loanRiskData = [
-  { name: "High Risk", female: 224, male: 216 },
-  { name: "Moderate-Risk", female: 455, male: 424 },
-  { name: "Low Risk", female: 337, male: 344 }
-];
+const target = 1505;
+const production = 306;
+const achievement = ((production / target) * 100).toFixed(1);
 
-const pieColors = ["#BDB9C8", "#8175D0", "#67C56B", "#5B9BE8"];
+const money = (value) =>
+  new Intl.NumberFormat("en-IN", {
+    maximumFractionDigits: 0,
+  }).format(value);
 
-const stats = [
-  {
-    title: "Clients",
-    value: "2,000",
-    detail: "Male - 984",
-    detail2: "Female - 1,016",
-    icon: <DashboardRounded />
-  },
-  {
-    title: "Average Yearly Income",
-    value: "$45,715.9",
-    detail: "Max - $307,018",
-    detail2: "Min - $399",
-    icon: <TrendingUpRounded />
-  },
-  {
-    title: "Average Age",
-    value: "45",
-    detail: "Male - 45",
-    detail2: "Female - 46",
-    icon: <AccountBalanceRounded />
-  },
-  {
-    title: "Per Capital Income",
-    value: "$23,141.9",
-    detail: "Max - $163,145",
-    detail2: "Min - $6,201",
-    icon: <SavingsRounded />
-  }
-];
-
-function ChartCard({ title, children, large = false, onClick }) {
+function MetricCard({ title, value, subtitle, trend, icon }) {
   return (
-    <Paper
-      onClick={onClick}
-      elevation={0}
+    <Card
       sx={{
-        p: 2,
-        height: large ? 430 : 335,
-        borderRadius: 3,
-        background: "#fff",
-        border: "1px solid #ECE9F4",
-        cursor: onClick ? "pointer" : "default",
-        transition: ".2s",
-        "&:hover": onClick
-          ? {
-              transform: "translateY(-2px)",
-              boxShadow: "0 12px 30px rgba(70,55,120,.10)"
-            }
-          : {}
+        height: "100%",
+        borderRadius: 4,
+        border: "1px solid #eeeaf7",
+        boxShadow: "0 5px 20px rgba(80,65,130,.07)",
       }}
     >
-      <Typography fontWeight={750} fontSize={14}>
-        {title}
-      </Typography>
+      <CardContent sx={{ p: 2.2 }}>
+        <Box display="flex" justifyContent="space-between">
+          <Typography
+            sx={{ color: "#68627a", fontSize: 14, fontWeight: 600 }}
+          >
+            {title}
+          </Typography>
 
-      <Typography fontSize={11} color={MUTED} sx={{ mt: .3 }}>
-        {onClick ? "Click chart to view details" : " "}
-      </Typography>
+          <Box
+            sx={{
+              width: 38,
+              height: 38,
+              borderRadius: "50%",
+              background: "#f2effb",
+              display: "grid",
+              placeItems: "center",
+              color: purple,
+              fontSize: 18,
+            }}
+          >
+            {icon}
+          </Box>
+        </Box>
 
-      <Box sx={{ height: large ? 370 : 275, mt: 1 }}>
+        <Typography
+          sx={{
+            fontSize: 29,
+            fontWeight: 700,
+            color: "#303044",
+            mt: 1,
+          }}
+        >
+          {value}
+        </Typography>
+
+        <Typography sx={{ fontSize: 12, color: "#9691a4" }}>
+          {subtitle}
+        </Typography>
+
+        <Chip
+          size="small"
+          label={`↑ ${trend}% vs previous year`}
+          sx={{
+            mt: 1.4,
+            fontSize: 11,
+            height: 24,
+            background: "#e9f7ec",
+            color: "#4f9560",
+            fontWeight: 600,
+          }}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+function ChartCard({ title, subtitle, children, sx = {} }) {
+  return (
+    <Card
+      sx={{
+        borderRadius: 4,
+        border: "1px solid #eeeaf7",
+        boxShadow: "0 5px 20px rgba(80,65,130,.07)",
+        height: "100%",
+        ...sx,
+      }}
+    >
+      <CardContent sx={{ p: 2.2 }}>
+        <Typography
+          sx={{
+            fontWeight: 700,
+            fontSize: 16,
+            color: "#37334b",
+          }}
+        >
+          {title}
+        </Typography>
+
+        {subtitle && (
+          <Typography
+            sx={{
+              fontSize: 12,
+              color: "#9691a4",
+              mt: 0.3,
+              mb: 1,
+            }}
+          >
+            {subtitle}
+          </Typography>
+        )}
+
         {children}
-      </Box>
-    </Paper>
+      </CardContent>
+    </Card>
   );
 }
 
 export default function DashboardPage() {
-  const [year, setYear] = useState("FY 2025-26");
-  const [detail, setDetail] = useState(null);
-
-  if (detail) {
-    return (
-      <Box sx={{
-        minHeight: "100vh",
-        p: { xs: 1.5, md: 3 },
-        background:
-          "linear-gradient(135deg,#F5F2FD 0%,#EAE5F8 50%,#DCD5F3 100%)"
-      }}>
-        <Paper elevation={0} sx={{
-          maxWidth: 1500,
-          mx: "auto",
-          minHeight: "calc(100vh - 48px)",
-          p: { xs: 2, md: 3 },
-          borderRadius: 4,
-          background: "rgba(255,255,255,.92)"
-        }}>
-          <Button
-            startIcon={<ArrowBackRounded />}
-            onClick={() => setDetail(null)}
-            sx={{ color: PURPLE, mb: 2 }}
-          >
-            Back to Dashboard
-          </Button>
-
-          <Typography variant="h5" fontWeight={800}>
-            {detail} Details
-          </Typography>
-
-          <Typography color={MUTED} fontSize={13} sx={{ mb: 3 }}>
-            Detailed {detail.toLowerCase()} analysis
-          </Typography>
-
-          <Paper elevation={0} sx={{
-            p: 2,
-            borderRadius: 3,
-            border: "1px solid #ECE9F4"
-          }}>
-            <ResponsiveContainer width="100%" height={500}>
-              <BarChart data={ageData}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  stroke="#EEEAF5"
-                />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar
-                  dataKey="female"
-                  name="Female"
-                  fill={PINK}
-                  radius={[6, 6, 0, 0]}
-                />
-                <Bar
-                  dataKey="male"
-                  name="Male"
-                  fill={BLUE}
-                  radius={[6, 6, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </Paper>
-        </Paper>
-      </Box>
-    );
-  }
-
   return (
-    <Box sx={{
-      minHeight: "100vh",
-      background:
-        "linear-gradient(135deg,#F5F2FD 0%,#EAE5F8 50%,#DCD5F3 100%)",
-      p: { xs: 1, md: 2 }
-    }}>
-
-      <Box sx={{
-        maxWidth: 1550,
-        mx: "auto",
-        display: "flex",
-        minHeight: "calc(100vh - 32px)",
-        borderRadius: 4,
-        overflow: "hidden",
-        boxShadow: "0 18px 55px rgba(70,55,120,.14)"
-      }}>
-
-        {/* SIDEBAR */}
-        <Box sx={{
-          width: { xs: 70, md: 225 },
-          flexShrink: 0,
-          background:
-            "linear-gradient(180deg,#312C59 0%,#433B78 55%,#554A91 100%)",
-          color: "#fff",
-          p: { xs: 1, md: 2 },
+    <Box
+      sx={{
+        minHeight: "100vh",
+        background:
+          "linear-gradient(135deg,#f7f5fc 0%,#eeeafb 50%,#f8f7fc 100%)",
+        p: { xs: 1.5, sm: 2.5, md: 3.5 },
+      }}
+    >
+      {/* HEADER */}
+      <Box
+        sx={{
+          background: "rgba(255,255,255,.88)",
+          borderRadius: 4,
+          px: { xs: 2, md: 3 },
+          py: 2,
+          mb: 2.5,
+          boxShadow: "0 5px 25px rgba(70,55,120,.06)",
           display: "flex",
-          flexDirection: "column"
-        }}>
-          <Box sx={{
-            p: { xs: 1, md: 2 },
-            mb: 3,
-            display: "flex",
-            alignItems: "center",
-            gap: 1
-          }}>
-            <Box sx={{
-              width: 42,
-              height: 42,
-              borderRadius: 2,
-              background: "linear-gradient(135deg,#8E83DD,#C0B9F4)",
-              display: "grid",
-              placeItems: "center"
-            }}>
-              <DashboardRounded />
-            </Box>
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 1.5,
+        }}
+      >
+        <Box>
+          <Typography
+            sx={{
+              fontSize: { xs: 24, md: 30 },
+              fontWeight: 800,
+              color: "#302d40",
+            }}
+          >
+            Dashboard
+          </Typography>
 
-            <Box sx={{ display: { xs: "none", md: "block" } }}>
-              <Typography fontWeight={800}>AURORA</Typography>
-              <Typography fontSize={11} sx={{ opacity: .7 }}>
-                BANKING
-              </Typography>
-            </Box>
-          </Box>
-
-          {["Demographics", "Financial Health", "Transactions", "Card Details"]
-            .map((item, i) => (
-              <Box key={item} sx={{
-                px: { xs: .5, md: 1.5 },
-                py: 1.6,
-                mb: 1,
-                borderRadius: 1.5,
-                textAlign: { xs: "center", md: "left" },
-                background: i === 0 ? "#fff" : "rgba(255,255,255,.09)",
-                color: i === 0 ? DARK : "#fff",
-                fontWeight: i === 0 ? 750 : 500,
-                fontSize: 13
-              }}>
-                <Box sx={{ display: { xs: "none", md: "block" } }}>
-                  {item}
-                </Box>
-                <Box sx={{ display: { xs: "block", md: "none" } }}>
-                  {i + 1}
-                </Box>
-              </Box>
-            ))}
+          <Typography sx={{ color: "#898397", fontSize: 13 }}>
+            Banking performance overview
+          </Typography>
         </Box>
 
-        {/* CONTENT */}
-        <Box sx={{
-          flex: 1,
-          minWidth: 0,
-          background: "rgba(255,255,255,.82)"
-        }}>
-
-          {/* HEADER */}
-          <Box sx={{
-            px: { xs: 2, md: 3 },
-            py: 2,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            borderBottom: "1px solid #ECE9F4"
-          }}>
-            <Box>
-              <Typography variant="h5" fontWeight={850}>
-                DEMOGRAPHICS <Box component="span"
-                  sx={{ fontWeight: 400, color: PURPLE }}>
-                  DASHBOARD
-                </Box>
-              </Typography>
-              <Typography fontSize={12} color={MUTED}>
-                Evaluating our current clients demographics
-              </Typography>
-            </Box>
-
-            <Box sx={{ display: "flex", gap: 1 }}>
-              <Select
-                size="small"
-                value={year}
-                onChange={e => setYear(e.target.value)}
-                sx={{
-                  minWidth: 120,
-                  borderRadius: 2,
-                  fontSize: 12,
-                  background: "#fff"
-                }}
-              >
-                <MenuItem value="FY 2025-26">FY 2025-26</MenuItem>
-                <MenuItem value="FY 2024-25">FY 2024-25</MenuItem>
-              </Select>
-
-              <IconButton sx={{
-                border: "1px solid #E2DEEE",
-                borderRadius: 2
-              }}>
-                <RefreshRounded fontSize="small" />
-              </IconButton>
-            </Box>
-          </Box>
-
-          {/* BODY */}
-          <Box sx={{ p: { xs: 1.5, md: 2.5 } }}>
-
-            {/* TOP SECTION */}
-            <Box sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", lg: "38% 1fr" },
-              gap: 2
-            }}>
-
-              {/* LEFT STATS */}
-              <Paper elevation={0} sx={{
-                p: 1,
-                borderRadius: 3,
-                border: "1px solid #ECE9F4",
-                background: "#fff"
-              }}>
-                <Box sx={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr"
-                }}>
-                  {stats.map((s, i) => (
-                    <Box key={s.title} sx={{
-                      p: 1.5,
-                      minHeight: 170,
-                      borderRight: i % 2 === 0 ? "1px solid #E8E5EE" : 0,
-                      borderBottom: i < 2 ? "1px solid #E8E5EE" : 0
-                    }}>
-                      <Typography color="#566B98" fontSize={13}
-                        fontWeight={600}>
-                        {s.title}
-                      </Typography>
-
-                      <Typography sx={{
-                        mt: 2,
-                        fontSize: { xs: 25, md: 30 },
-                        color: "#405E91",
-                        fontWeight: 500
-                      }}>
-                        {s.value}
-                      </Typography>
-
-                      <Divider sx={{ my: 1 }} />
-
-                      <Typography fontSize={12} color="#566B98">
-                        {s.detail}
-                      </Typography>
-                      <Typography fontSize={12} color={PINK}>
-                        {s.detail2}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Box>
-              </Paper>
-
-              {/* AGE GRAPH */}
-              <ChartCard
-                title="Age Group, Credit Score, Yearly Income Demographics"
-                large
-                onClick={() => setDetail("Age Group")}
-              >
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={ageData}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      vertical={false}
-                      stroke="#EEEAF5"
-                    />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 10 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <Tooltip />
-                    <Legend />
-                    <Bar
-                      dataKey="female"
-                      name="Female"
-                      fill={PINK}
-                      radius={[5, 5, 0, 0]}
-                    />
-                    <Bar
-                      dataKey="male"
-                      name="Male"
-                      fill={BLUE}
-                      radius={[5, 5, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartCard>
-            </Box>
-
-            {/* BOTTOM CHARTS */}
-            <Box sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                md: "1fr 1fr",
-                xl: "1fr 1fr 1.35fr 1.35fr"
-              },
-              gap: 2,
-              mt: 2
-            }}>
-
-              {/* INCOME */}
-              <ChartCard
-                title="Client and Income Group"
-                onClick={() => setDetail("Income Group")}
-              >
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={incomeData}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={52}
-                      outerRadius={85}
-                      paddingAngle={2}
-                    >
-                      {incomeData.map((_, i) => (
-                        <Cell
-                          key={i}
-                          fill={pieColors[i]}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend
-                      verticalAlign="bottom"
-                      iconType="circle"
-                      wrapperStyle={{ fontSize: 10 }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </ChartCard>
-
-              {/* CREDIT */}
-              <ChartCard
-                title="Client and Credit Score Group"
-                onClick={() => setDetail("Credit Score")}
-              >
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={creditData}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={52}
-                      outerRadius={85}
-                      paddingAngle={2}
-                    >
-                      {creditData.map((_, i) => (
-                        <Cell
-                          key={i}
-                          fill={pieColors[i]}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend
-                      verticalAlign="bottom"
-                      iconType="circle"
-                      wrapperStyle={{ fontSize: 10 }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </ChartCard>
-
-              {/* DTI */}
-              <ChartCard
-                title="Total Clients within DTI Category"
-                onClick={() => setDetail("DTI Category")}
-              >
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={dtiData}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      vertical={false}
-                      stroke="#EEEAF5"
-                    />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fontSize: 9 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 9 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <Tooltip />
-                    <Bar
-                      dataKey="female"
-                      name="Female"
-                      fill={PINK}
-                      radius={[4, 4, 0, 0]}
-                    />
-                    <Bar
-                      dataKey="male"
-                      name="Male"
-                      fill={BLUE}
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartCard>
-
-              {/* LOAN RISK */}
-              <ChartCard
-                title="Total Clients by Overall Loan Risk Score Category"
-                onClick={() => setDetail("Loan Risk")}
-              >
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={loanRiskData}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      vertical={false}
-                      stroke="#EEEAF5"
-                    />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fontSize: 9 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 9 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <Tooltip />
-                    <Bar
-                      dataKey="female"
-                      name="Female"
-                      fill={PINK}
-                      radius={[4, 4, 0, 0]}
-                    />
-                    <Bar
-                      dataKey="male"
-                      name="Male"
-                      fill={BLUE}
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartCard>
-
-            </Box>
-
-            {/* FOOTER */}
-            <Box sx={{
-              mt: 2,
-              px: 1,
-              display: "flex",
-              justifyContent: "space-between",
-              color: "#9995A6"
-            }}>
-              <Typography fontSize={10}>
-                Data period: {year}
-              </Typography>
-              <Typography fontSize={10}>
-                Banking Analytics Dashboard
-              </Typography>
-            </Box>
-
-          </Box>
-        </Box>
+        <Chip
+          label="FY 2025-26"
+          sx={{
+            background: "#f0edf9",
+            color: purple,
+            fontWeight: 700,
+          }}
+        />
       </Box>
+
+      {/* METRICS */}
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6} md={2.4}>
+          <MetricCard
+            title="Production"
+            value={money(306)}
+            subtitle="Total production"
+            trend="17.2"
+            icon="↗"
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={2.4}>
+          <MetricCard
+            title="Deposits"
+            value={money(7355)}
+            subtitle="Total deposits"
+            trend="9.9"
+            icon="▣"
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={2.4}>
+          <MetricCard
+            title="Advances"
+            value={money(5480)}
+            subtitle="Total advances"
+            trend="10.9"
+            icon="▤"
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={2.4}>
+          <MetricCard
+            title="CASA"
+            value={money(3757)}
+            subtitle="CASA portfolio"
+            trend="11.0"
+            icon="●"
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={2.4}>
+          <MetricCard
+            title="Average NPA"
+            value="2.0%"
+            subtitle="Lower is better"
+            trend="12.8"
+            icon="!"
+          />
+        </Grid>
+      </Grid>
+
+      {/* TARGET */}
+      <Card
+        sx={{
+          mt: 2.5,
+          borderRadius: 4,
+          border: "1px solid #eeeaf7",
+          boxShadow: "0 5px 20px rgba(80,65,130,.07)",
+        }}
+      >
+        <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Box>
+              <Typography
+                sx={{ fontWeight: 700, color: "#403a59", fontSize: 17 }}
+              >
+                Production Target Achievement
+              </Typography>
+
+              <Typography sx={{ color: "#9993a8", fontSize: 12 }}>
+                Current production vs annual target
+              </Typography>
+            </Box>
+
+            <Typography
+              sx={{ fontWeight: 800, color: purple, fontSize: 20 }}
+            >
+              {achievement}%
+            </Typography>
+          </Box>
+
+          <LinearProgress
+            variant="determinate"
+            value={Number(achievement)}
+            sx={{
+              mt: 2,
+              height: 9,
+              borderRadius: 10,
+              background: "#eeeaf7",
+              "& .MuiLinearProgress-bar": {
+                borderRadius: 10,
+                background: purple,
+              },
+            }}
+          />
+
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            mt={0.8}
+          >
+            <Typography sx={{ fontSize: 11, color: "#8f899d" }}>
+              Actual: {production}
+            </Typography>
+
+            <Typography sx={{ fontSize: 11, color: "#8f899d" }}>
+              Target: {target}
+            </Typography>
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* GRAPHS */}
+      <Grid container spacing={2.5} mt={0.2}>
+
+        {/* MONTHLY PRODUCTION */}
+        <Grid item xs={12} md={6}>
+          <ChartCard
+            title="Monthly Production"
+            subtitle="Production trend for FY 2025-26"
+          >
+            <Box sx={{ height: 300 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={monthlyData}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#eeeaf2"
+                  />
+
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fontSize: 11, fill: "#777184" }}
+                  />
+
+                  <YAxis
+                    tick={{ fontSize: 11, fill: "#777184" }}
+                  />
+
+                  <Tooltip />
+
+                  <Line
+                    type="monotone"
+                    dataKey="production"
+                    stroke={blue}
+                    strokeWidth={3}
+                    dot={{
+                      r: 4,
+                      fill: "#fff",
+                      stroke: blue,
+                      strokeWidth: 2,
+                    }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </Box>
+          </ChartCard>
+        </Grid>
+
+        {/* PORTFOLIO */}
+        <Grid item xs={12} md={6}>
+          <ChartCard
+            title="Portfolio Comparison"
+            subtitle="Deposits, advances and CASA"
+          >
+            <Box sx={{ height: 300 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={portfolioData}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#eeeaf2"
+                  />
+
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 11 }}
+                  />
+
+                  <YAxis
+                    tick={{ fontSize: 11 }}
+                  />
+
+                  <Tooltip />
+
+                  <Bar
+                    dataKey="value"
+                    fill={purple}
+                    radius={[7, 7, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </Box>
+          </ChartCard>
+        </Grid>
+
+        {/* CASA DONUT */}
+        <Grid item xs={12} sm={6} md={4}>
+          <ChartCard
+            title="CASA Portfolio"
+            subtitle="Savings vs current account"
+          >
+            <Box sx={{ height: 280 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={casaData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="48%"
+                    innerRadius={65}
+                    outerRadius={100}
+                    paddingAngle={3}
+                  >
+                    {casaData.map((_, index) => (
+                      <Cell
+                        key={index}
+                        fill={[purple, pink][index]}
+                      />
+                    ))}
+                  </Pie>
+
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </Box>
+          </ChartCard>
+        </Grid>
+
+        {/* LOAN RISK DONUT */}
+        <Grid item xs={12} sm={6} md={4}>
+          <ChartCard
+            title="Loan Risk Distribution"
+            subtitle="Overall portfolio risk"
+          >
+            <Box sx={{ height: 280 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={riskData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="48%"
+                    innerRadius={65}
+                    outerRadius={100}
+                    paddingAngle={3}
+                  >
+                    {riskData.map((_, index) => (
+                      <Cell
+                        key={index}
+                        fill={[green, orange, pink][index]}
+                      />
+                    ))}
+                  </Pie>
+
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </Box>
+          </ChartCard>
+        </Grid>
+
+        {/* PERFORMANCE SUMMARY */}
+        <Grid item xs={12} md={4}>
+          <ChartCard
+            title="Key Performance Summary"
+            subtitle="Current banking indicators"
+          >
+            <Box sx={{ mt: 2 }}>
+              {[
+                ["Deposit Growth", "9.9%", green],
+                ["Advance Growth", "10.9%", green],
+                ["CASA Growth", "11.0%", green],
+                ["NPA", "2.0%", orange],
+              ].map(([label, value, color]) => (
+                <Box key={label} sx={{ mb: 2.3 }}>
+                  <Box
+                    display="flex"
+                    justifyContent="space-between"
+                    mb={0.6}
+                  >
+                    <Typography
+                      sx={{ fontSize: 13, color: "#696477" }}
+                    >
+                      {label}
+                    </Typography>
+
+                    <Typography
+                      sx={{
+                        fontWeight: 700,
+                        fontSize: 13,
+                        color,
+                      }}
+                    >
+                      {value}
+                    </Typography>
+                  </Box>
+
+                  <LinearProgress
+                    variant="determinate"
+                    value={parseFloat(value) * 7}
+                    sx={{
+                      height: 7,
+                      borderRadius: 10,
+                      background: "#f0edf5",
+                      "& .MuiLinearProgress-bar": {
+                        background: color,
+                        borderRadius: 10,
+                      },
+                    }}
+                  />
+                </Box>
+              ))}
+            </Box>
+          </ChartCard>
+        </Grid>
+
+        {/* YEARLY TREND */}
+        <Grid item xs={12}>
+          <ChartCard
+            title="Banking Growth Trend"
+            subtitle="Production and portfolio performance"
+          >
+            <Box sx={{ height: 300 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyData}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#eeeaf2"
+                  />
+
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fontSize: 11 }}
+                  />
+
+                  <YAxis
+                    tick={{ fontSize: 11 }}
+                  />
+
+                  <Tooltip />
+
+                  <Legend />
+
+                  <Bar
+                    dataKey="production"
+                    name="Production"
+                    fill={blue}
+                    radius={[6, 6, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </Box>
+          </ChartCard>
+        </Grid>
+      </Grid>
+
+      <Divider sx={{ mt: 3, mb: 1.5 }} />
+
+      <Typography
+        align="center"
+        sx={{
+          fontSize: 11,
+          color: "#aaa4b4",
+          pb: 1,
+        }}
+      >
+        Banking Performance Dashboard • FY 2025-26
+      </Typography>
     </Box>
   );
 }
