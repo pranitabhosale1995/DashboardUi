@@ -1,0 +1,2343 @@
+import React, { useMemo, useState } from "react";
+import {
+  Box,
+  Card,
+  Typography,
+  ToggleButton,
+  ToggleButtonGroup,
+  Button,
+  Chip,
+  IconButton
+} from "@mui/material";
+import {
+  Refresh,
+  AccountBalance,
+  Savings,
+  CreditCard,
+  TrendingUp,
+  PieChart as PieIcon,
+  ArrowBack,
+  AccountBalanceWallet,
+  ShowChart,
+  Percent,
+  BarChart as BarIcon
+} from "@mui/icons-material";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  AreaChart,
+  Area
+} from "recharts";
+import data from "./bankingData.json";
+
+const COLORS = [
+  "#1769E0",
+  "#31B77A",
+  "#F4B942",
+  "#EF8354",
+  "#7C4DFF",
+  "#20B8C5",
+  "#536D9F",
+  "#E85D75"
+];
+
+const formatT = (value) => {
+  if (value === undefined || value === null) return "₹0 T";
+  return `₹${(Number(value) / 1000000000000).toFixed(4)} T`;
+};
+
+const formatCompact = (value) => {
+  if (value === undefined || value === null) return "₹0";
+  const n = Number(value);
+
+  if (n >= 1000000000000) {
+    return `₹${(n / 1000000000000).toFixed(2)} T`;
+  }
+
+  if (n >= 1000000000) {
+    return `₹${(n / 1000000000).toFixed(2)} B`;
+  }
+
+  if (n >= 1000000) {
+    return `₹${(n / 1000000).toFixed(2)} M`;
+  }
+
+  return `₹${n.toLocaleString("en-IN")}`;
+};
+
+const formatPercent = (value) => {
+  return `${(Number(value || 0) * 100).toFixed(1)}%`;
+};
+
+const shortDate = (value) => {
+  if (!value) return "";
+  const parts = value.split("-");
+  if (parts.length !== 3) return value;
+  return `${parts[0]}-${parts[1].slice(0, 3)}`;
+};
+
+const CustomDateTick = ({ x, y, payload, selected, onSelect }) => {
+  return (
+    <g
+      transform={`translate(${x},${y})`}
+      onClick={() => onSelect(payload.index)}
+      style={{ cursor: "pointer" }}
+    >
+      <rect
+        x="-27"
+        y="2"
+        width="54"
+        height="22"
+        rx="6"
+        fill={selected ? "#173F7A" : "transparent"}
+      />
+      <text
+        x="0"
+        y="17"
+        textAnchor="middle"
+        fontSize="10"
+        fontWeight={selected ? 800 : 500}
+        fill={selected ? "#ffffff" : "#52627A"}
+      >
+        {shortDate(payload.value)}
+      </text>
+    </g>
+  );
+};
+
+const ChartTooltip = ({ active, payload, label, formatter }) => {
+  if (!active || !payload || !payload.length) return null;
+
+  return (
+    <Box
+      sx={{
+        background: "#ffffff",
+        border: "1px solid #DCE5F0",
+        borderRadius: 2,
+        boxShadow: "0 8px 25px rgba(23,63,122,.12)",
+        px: 1.5,
+        py: 1
+      }}
+    >
+      <Typography
+        sx={{
+          fontSize: 11,
+          fontWeight: 800,
+          color: "#173F7A",
+          mb: 0.5
+        }}
+      >
+        {label}
+      </Typography>
+
+      {payload.map((item, index) => (
+        <Typography
+          key={index}
+          sx={{
+            fontSize: 11,
+            color: "#506078"
+          }}
+        >
+          {item.name}:{" "}
+          <b>
+            {formatter
+              ? formatter(item.value)
+              : item.value}
+          </b>
+        </Typography>
+      ))}
+    </Box>
+  );
+};
+
+export default function Dashboard() {
+  const [type, setType] = useState("deposit");
+  const [selectedDate, setSelectedDate] = useState(4);
+  const [showMore, setShowMore] = useState(false);
+  const [demandPath, setDemandPath] = useState([]);
+  const [termPath, setTermPath] = useState([]);
+
+  const current = data[type];
+
+  const trendData = useMemo(() => {
+    if (!current?.dates) return [];
+
+    return current.dates.map((date, index) => ({
+      index,
+      date,
+      total:
+        type === "deposit"
+          ? current.totalDepositTrend?.[index] ?? 0
+          : current.loanTrend?.[index] ?? 0,
+      casa: current.casaRatioTrend?.[index] ?? 0
+    }));
+  }, [current, type]);
+
+  const selectedValue =
+    type === "deposit"
+      ? current?.totalDepositTrend?.[selectedDate] ?? 0
+      : current?.loanTrend?.[selectedDate] ?? 0;
+
+  const selectedCasa =
+    current?.casaRatioTrend?.[selectedDate] ?? 0;
+
+  const selectedDateLabel =
+    current?.dates?.[selectedDate] ?? "";
+
+  const demandRoot = current?.demandDeposits;
+
+  const termRoot = current?.termDeposits;
+
+  const getNodeAtPath = (root, path) => {
+    let node = root;
+
+    for (const index of path) {
+      if (!node?.children?.[index]) return node;
+      node = node.children[index];
+    }
+
+    return node;
+  };
+
+  const demandNode = getNodeAtPath(
+    demandRoot,
+    demandPath
+  );
+
+  const termNode = getNodeAtPath(
+    termRoot,
+    termPath
+  );
+
+  const demandChartData = useMemo(() => {
+    const children = demandNode?.children || [];
+
+    return children.map((item, index) => ({
+      index,
+      name: item.name,
+      value: item.value,
+      hasChildren: Boolean(
+        item.children && item.children.length
+      )
+    }));
+  }, [demandNode]);
+
+  const termChartData = useMemo(() => {
+    const children = termNode?.children || [];
+
+    return children.map((item, index) => ({
+      index,
+      name: item.name,
+      value: item.value,
+      hasChildren: Boolean(
+        item.children && item.children.length
+      )
+    }));
+  }, [termNode]);
+
+  const depositComposition = useMemo(() => {
+    const result = [];
+
+    const addChildren = (node, path = []) => {
+      if (!node) return;
+
+      if (node.children?.length) {
+        node.children.forEach((child, index) => {
+          addChildren(child, [...path, index]);
+        });
+      } else {
+        result.push({
+          name: node.name,
+          value: node.value,
+          path
+        });
+      }
+    };
+
+    addChildren(demandRoot);
+    addChildren(termRoot);
+
+    return result;
+  }, [demandRoot, termRoot]);
+
+  const handleType = (_, value) => {
+    if (!value) return;
+
+    setType(value);
+    setSelectedDate(4);
+    setShowMore(false);
+    setDemandPath([]);
+    setTermPath([]);
+  };
+
+  const handleReset = () => {
+    setSelectedDate(4);
+    setShowMore(false);
+    setDemandPath([]);
+    setTermPath([]);
+  };
+
+  const handleDemandClick = (entry) => {
+    const child =
+      demandNode?.children?.[entry.index];
+
+    if (child?.children?.length) {
+      setDemandPath((previous) => [
+        ...previous,
+        entry.index
+      ]);
+    }
+  };
+
+  const handleTermClick = (entry) => {
+    const child =
+      termNode?.children?.[entry.index];
+
+    if (child?.children?.length) {
+      setTermPath((previous) => [
+        ...previous,
+        entry.index
+      ]);
+    }
+  };
+
+  const goDemandBack = () => {
+    setDemandPath((previous) => previous.slice(0, -1));
+  };
+
+  const goTermBack = () => {
+    setTermPath((previous) => previous.slice(0, -1));
+  };
+
+  const demandTitle =
+    demandPath.length === 0
+      ? demandRoot?.name || "Demand Deposits"
+      : demandNode?.name || "Demand Deposits";
+
+  const termTitle =
+    termPath.length === 0
+      ? termRoot?.name || "Term Deposits"
+      : termNode?.name || "Term Deposits";
+
+  const kpiData = [
+    {
+      title:
+        type === "deposit"
+          ? "Total Deposits"
+          : "Total Loans",
+      value:
+        type === "deposit"
+          ? current?.summary?.totalDeposits
+          : current?.summary?.totalLoans,
+      icon: AccountBalanceWallet,
+      tone: "blue",
+      change:
+        type === "deposit"
+          ? "+2.4%"
+          : `${current?.summary?.loanGrowth ?? 0}%`
+    },
+    {
+      title:
+        type === "deposit"
+          ? "Demand Deposits"
+          : "Outstanding Loans",
+      value:
+        type === "deposit"
+          ? current?.summary?.demandDeposits
+          : current?.summary?.outstandingLoans,
+      icon: AccountBalance,
+      tone: "orange",
+      change:
+        type === "deposit"
+          ? "+3.1%"
+          : "+2.8%"
+    },
+    {
+      title:
+        type === "deposit"
+          ? "Term Deposits"
+          : "Loan Growth",
+      value:
+        type === "deposit"
+          ? current?.summary?.termDeposits
+          : `${current?.summary?.loanGrowth ?? 0}%`,
+      icon: Savings,
+      tone: "green",
+      change:
+        type === "deposit"
+          ? "+1.9%"
+          : "+8.7%"
+    },
+    {
+      title:
+        type === "deposit"
+          ? "CASA Ratio"
+          : "NPA Ratio",
+      value:
+        type === "deposit"
+          ? formatPercent(current?.summary?.casaRatio)
+          : `${current?.summary?.npaRatio ?? 0}%`,
+      icon: Percent,
+      tone: "purple",
+      change:
+        type === "deposit"
+          ? "+0.8%"
+          : "Current"
+    }
+  ];
+
+
+  const compositionTotal = depositComposition.reduce(
+    (sum, item) => sum + Number(item.value || 0),
+    0
+  );
+
+  const compositionData = depositComposition.map(
+    (item, index) => ({
+      ...item,
+      fill: COLORS[index % COLORS.length],
+      percentage:
+        compositionTotal > 0
+          ? (item.value / compositionTotal) * 100
+          : 0
+    })
+  );
+
+  const casaGaugeData = [
+    {
+      name: "CASA",
+      value: Math.min(
+        Number(selectedCasa) * 100,
+        100
+      )
+    },
+    {
+      name: "Remaining",
+      value: Math.max(
+        100 - Number(selectedCasa) * 100,
+        0
+      )
+    }
+  ];
+
+  const demandMax = Math.max(
+    ...demandChartData.map((item) => item.value),
+    1
+  );
+
+  const termMax = Math.max(
+    ...termChartData.map((item) => item.value),
+    1
+  );
+
+  return (
+    <Box
+      sx={{
+        minHeight: "100vh",
+        background:
+          "linear-gradient(180deg,#F3F7FC 0%,#EEF3F9 100%)",
+        color: "#17233C"
+      }}
+    >
+      <Box
+        sx={{
+          height: {
+            xs: "auto",
+            md: 72
+          },
+          minHeight: 72,
+          px: {
+            xs: 2,
+            md: 3
+          },
+          py: {
+            xs: 1.5,
+            md: 0
+          },
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 2,
+          flexWrap: "wrap",
+          background:
+            "linear-gradient(100deg,#123E76,#18549A)",
+          color: "#fff",
+          boxShadow:
+            "0 5px 18px rgba(18,62,118,.18)"
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5
+          }}
+        >
+          <AccountBalance
+            sx={{
+              fontSize: 38
+            }}
+          />
+
+          <Box
+            sx={{
+              pr: 2,
+              borderRight:
+                "1px solid rgba(255,255,255,.18)"
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: {
+                  xs: 18,
+                  md: 22
+                },
+                fontWeight: 800,
+                lineHeight: 1
+              }}
+            >
+              Banking Analytics
+            </Typography>
+          </Box>
+
+          <Box
+            sx={{
+              display: {
+                xs: "none",
+                sm: "block"
+              }
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: {
+                  sm: 19,
+                  md: 22
+                },
+                fontWeight: 800,
+                lineHeight: 1
+              }}
+            >
+              {type === "deposit"
+                ? "DEPOSITS DASHBOARD"
+                : "LOANS DASHBOARD"}
+            </Typography>
+
+            <Typography
+              sx={{
+                fontSize: 10.5,
+                opacity: 0.82,
+                mt: 0.5
+              }}
+            >
+              Deposit portfolio overview and trend analysis
+            </Typography>
+          </Box>
+        </Box>
+
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            flexWrap: "wrap"
+          }}
+        >
+          <Typography
+            sx={{
+              display: {
+                xs: "none",
+                md: "block"
+              },
+              fontSize: 12,
+              fontWeight: 600
+            }}
+          >
+            Financial Year
+          </Typography>
+
+          <Chip
+            label={data.financialYear?.replace(
+              "FY ",
+              ""
+            )}
+            sx={{
+              height: 38,
+              borderRadius: 2,
+              background: "#fff",
+              color: "#173F7A",
+              fontWeight: 800
+            }}
+          />
+
+          <ToggleButtonGroup
+            value={type}
+            exclusive
+            onChange={handleType}
+            size="small"
+            sx={{
+              background: "#fff",
+              borderRadius: 2,
+              overflow: "hidden",
+              "& .MuiToggleButton-root": {
+                px: {
+                  xs: 1.5,
+                  md: 2
+                },
+                height: 38,
+                border: 0,
+                color: "#173F7A",
+                fontWeight: 700,
+                textTransform: "none"
+              },
+              "& .Mui-selected": {
+                background:
+                  "#2384E8 !important",
+                color:
+                  "#fff !important"
+              }
+            }}
+          >
+            <ToggleButton value="deposit">
+              Deposits
+            </ToggleButton>
+
+            <ToggleButton value="loan">
+              Loans
+            </ToggleButton>
+          </ToggleButtonGroup>
+
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<Refresh />}
+            onClick={handleReset}
+            sx={{
+              height: 38,
+              px: 1.8,
+              borderRadius: 2,
+              borderColor:
+                "rgba(255,255,255,.8)",
+              color: "#fff",
+              textTransform: "none",
+              fontWeight: 700,
+              "&:hover": {
+                borderColor: "#fff",
+                background:
+                  "rgba(255,255,255,.08)"
+              }
+            }}
+          >
+            Reset
+          </Button>
+
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              background:
+                "rgba(255,255,255,.16)",
+              display: "grid",
+              placeItems: "center",
+              fontWeight: 800
+            }}
+          >
+            PB
+          </Box>
+        </Box>
+      </Box>
+
+      <Box
+        sx={{
+          p: {
+            xs: 1.5,
+            md: 2.2
+          },
+          maxWidth: 1700,
+          mx: "auto"
+        }}
+      >
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(2,1fr)",
+              lg: "repeat(4,1fr)"
+            },
+            gap: 1.5,
+            mb: 1.5
+          }}
+        >
+          {kpiData.map((item, index) => {
+            const Icon = item.icon;
+
+            const toneMap = {
+              blue: {
+                bg: "#EAF4FF",
+                icon: "#D4E9FF",
+                color: "#1769E0"
+              },
+              orange: {
+                bg: "#FFF5E8",
+                icon: "#FFE6C5",
+                color: "#D97919"
+              },
+              green: {
+                bg: "#EAF9F1",
+                icon: "#D5F3E3",
+                color: "#159768"
+              },
+              purple: {
+                bg: "#F4EDFF",
+                icon: "#E6D7FF",
+                color: "#7446D8"
+              }
+            };
+
+            const tone =
+              toneMap[item.tone];
+
+            return (
+              <Card
+                key={index}
+                elevation={0}
+                sx={{
+                  minHeight: 112,
+                  borderRadius: 3,
+                  border:
+                    "1px solid #E0E8F2",
+                  background:
+                    tone.bg,
+                  overflow: "hidden"
+                }}
+              >
+                <Box
+                  sx={{
+                    p: 1.7,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 54,
+                      height: 54,
+                      borderRadius: 2,
+                      background:
+                        tone.icon,
+                      color: tone.color,
+                      display: "grid",
+                      placeItems: "center",
+                      flexShrink: 0
+                    }}
+                  >
+                    <Icon
+                      sx={{
+                        fontSize: 30
+                      }}
+                    />
+                  </Box>
+
+                  <Box
+                    sx={{
+                      minWidth: 0,
+                      flex: 1
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        fontSize: 12,
+                        color: "#173F7A",
+                        fontWeight: 700
+                      }}
+                    >
+                      {item.title}
+                    </Typography>
+
+                    <Typography
+                      sx={{
+                        fontSize: {
+                          xs: 21,
+                          md: 25
+                        },
+                        fontWeight: 850,
+                        color: "#123E76",
+                        lineHeight: 1.25,
+                        mt: 0.25
+                      }}
+                    >
+                      {typeof item.value === "string"
+                        ? item.value
+                        : formatT(item.value)}
+                    </Typography>
+                  </Box>
+
+                  <Box
+                    sx={{
+                      textAlign: "right",
+                      alignSelf: "flex-end"
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        color: "#159768",
+                        fontWeight: 800,
+                        fontSize: 12
+                      }}
+                    >
+                      ▲ {item.change}
+                    </Typography>
+
+                    <Typography
+                      sx={{
+                        color: "#63738B",
+                        fontSize: 9.5,
+                        whiteSpace: "nowrap"
+                      }}
+                    >
+                      vs previous period
+                    </Typography>
+                  </Box>
+                </Box>
+              </Card>
+            );
+          })}
+        </Box>
+
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              lg: "1.15fr .8fr 1.15fr"
+            },
+            gap: 1.5,
+            mb: 1.5
+          }}
+        >
+          <Card
+            elevation={0}
+            sx={{
+              minHeight: 285,
+              borderRadius: 3,
+              border:
+                "1px solid #DDE6F1",
+              background: "#fff",
+              overflow: "hidden"
+            }}
+          >
+            <Box
+              sx={{
+                px: 2,
+                pt: 1.5,
+                display: "flex",
+                alignItems: "center",
+                gap: 1
+              }}
+            >
+              <Percent
+                sx={{
+                  color: "#173F7A",
+                  fontSize: 25
+                }}
+              />
+
+              <Box>
+                <Typography
+                  sx={{
+                    fontSize: 17,
+                    fontWeight: 850,
+                    color: "#173F7A"
+                  }}
+                >
+                  TREND IN CASA RATIO
+                </Typography>
+
+                <Typography
+                  sx={{
+                    fontSize: 10,
+                    color: "#8390A4"
+                  }}
+                >
+                  Daily CASA ratio movement
+                </Typography>
+              </Box>
+            </Box>
+
+            <Box
+              sx={{
+                height: 225,
+                px: 1
+              }}
+            >
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+              >
+                <AreaChart
+                  data={trendData}
+                  margin={{
+                    top: 12,
+                    right: 14,
+                    left: 0,
+                    bottom: 18
+                  }}
+                  onClick={(state) => {
+                    if (
+                      state?.activeTooltipIndex !==
+                      undefined
+                    ) {
+                      setSelectedDate(
+                        state.activeTooltipIndex
+                      );
+                    }
+                  }}
+                >
+                  <defs>
+                    <linearGradient
+                      id="casaFill"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop
+                        offset="0%"
+                        stopColor="#2DB98A"
+                        stopOpacity={0.25}
+                      />
+                      <stop
+                        offset="100%"
+                        stopColor="#2DB98A"
+                        stopOpacity={0.02}
+                      />
+                    </linearGradient>
+                  </defs>
+
+                  <CartesianGrid
+                    stroke="#E5EBF3"
+                    strokeDasharray="3 3"
+                    vertical
+                  />
+
+                  <XAxis
+                    dataKey="date"
+                    interval={0}
+                    height={40}
+                    tick={(props) => (
+                      <CustomDateTick
+                        {...props}
+                        selected={
+                          props.payload.index ===
+                          selectedDate
+                        }
+                        onSelect={setSelectedDate}
+                      />
+                    )}
+                  />
+
+                  <YAxis
+                    domain={[
+                      (min) =>
+                        Math.floor(
+                          min * 100 - 3
+                        ) / 100,
+                      (max) =>
+                        Math.ceil(
+                          max * 100 + 3
+                        ) / 100
+                    ]}
+                    tickFormatter={(v) =>
+                      `${Math.round(v * 100)}%`
+                    }
+                    tick={{
+                      fontSize: 10,
+                      fill: "#68778E"
+                    }}
+                    width={42}
+                  />
+
+                  <Tooltip
+                    content={
+                      <ChartTooltip
+                        formatter={formatPercent}
+                      />
+                    }
+                  />
+
+                  <Area
+                    type="monotone"
+                    dataKey="casa"
+                    name="CASA Ratio"
+                    stroke="#18A77B"
+                    strokeWidth={3}
+                    fill="url(#casaFill)"
+                    activeDot={{
+                      r: 7,
+                      strokeWidth: 4,
+                      stroke: "#fff"
+                    }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </Box>
+          </Card>
+
+
+          <Card
+            elevation={0}
+            sx={{
+              minHeight: 285,
+              borderRadius: 3,
+              border:
+                "1px solid #DDE6F1",
+              background: "#fff",
+              overflow: "hidden"
+            }}
+          >
+            <Box
+              sx={{
+                px: 2,
+                pt: 1.5,
+                display: "flex",
+                alignItems: "center",
+                gap: 1
+              }}
+            >
+              <PieIcon
+                sx={{
+                  color: "#173F7A",
+                  fontSize: 25
+                }}
+              />
+
+              <Box>
+                <Typography
+                  sx={{
+                    fontSize: 17,
+                    fontWeight: 850,
+                    color: "#173F7A"
+                  }}
+                >
+                  CASA Ratio
+                </Typography>
+
+                <Typography
+                  sx={{
+                    fontSize: 10,
+                    color: "#8390A4"
+                  }}
+                >
+                  Selected date performance
+                </Typography>
+              </Box>
+            </Box>
+
+            <Box
+              sx={{
+                height: 225,
+                position: "relative"
+              }}
+            >
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+              >
+                <PieChart>
+                  <Pie
+                    data={casaGaugeData}
+                    dataKey="value"
+                    startAngle={180}
+                    endAngle={0}
+                    cx="50%"
+                    cy="78%"
+                    innerRadius="52%"
+                    outerRadius="82%"
+                    paddingAngle={1}
+                    stroke="none"
+                  >
+                    <Cell fill="#2DB77D" />
+                    <Cell fill="#F1F4F8" />
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+
+              <Box
+                sx={{
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  top: 108,
+                  textAlign: "center"
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: 27,
+                    fontWeight: 900,
+                    color: "#173F7A",
+                    lineHeight: 1
+                  }}
+                >
+                  {formatPercent(selectedCasa)}
+                </Typography>
+
+                <Typography
+                  sx={{
+                    fontSize: 12,
+                    color: "#173F7A",
+                    fontWeight: 800,
+                    mt: 0.4
+                  }}
+                >
+                  CASA Ratio
+                </Typography>
+              </Box>
+
+              <Box
+                sx={{
+                  position: "absolute",
+                  bottom: 10,
+                  left: 0,
+                  right: 0,
+                  display: "flex",
+                  justifyContent: "center",
+                  gap: 2.5
+                }}
+              >
+                {[
+                  ["Current A/c", "#2DB77D"],
+                  ["Savings Bank A/c", "#F4C542"],
+                  ["Others", "#EF6259"]
+                ].map(
+                  ([label, color], index) => (
+                    <Box
+                      key={index}
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 0.6
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: "50%",
+                          background: color
+                        }}
+                      />
+
+                      <Typography
+                        sx={{
+                          fontSize: 9.5,
+                          color: "#506078"
+                        }}
+                      >
+                        {label}
+                      </Typography>
+                    </Box>
+                  )
+                )}
+              </Box>
+            </Box>
+          </Card>
+
+          <Card
+            elevation={0}
+            sx={{
+              minHeight: 285,
+              borderRadius: 3,
+              border:
+                "1px solid #DDE6F1",
+              background: "#fff",
+              overflow: "hidden"
+            }}
+          >
+            <Box
+              sx={{
+                px: 2,
+                pt: 1.5,
+                display: "flex",
+                alignItems: "center",
+                gap: 1
+              }}
+            >
+              <BarIcon
+                sx={{
+                  color: "#173F7A",
+                  fontSize: 25
+                }}
+              />
+
+              <Box>
+                <Typography
+                  sx={{
+                    fontSize: 17,
+                    fontWeight: 850,
+                    color: "#173F7A"
+                  }}
+                >
+                  Deposits Composition
+                </Typography>
+
+                <Typography
+                  sx={{
+                    fontSize: 10,
+                    color: "#8390A4"
+                  }}
+                >
+                  Portfolio composition
+                </Typography>
+              </Box>
+            </Box>
+
+            <Box
+              sx={{
+                height: 225,
+                px: 1.5,
+                pb: 1
+              }}
+            >
+              <Box
+                sx={{
+                  height: "100%",
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(12,1fr)",
+                  gridAutoRows: "1fr",
+                  gap: 0.7
+                }}
+              >
+                {compositionData.map(
+                  (item, index) => {
+                    const area =
+                      index === 0
+                        ? "span 7"
+                        : index === 1
+                        ? "span 5"
+                        : index === 2
+                        ? "span 5"
+                        : index === 3
+                        ? "span 4"
+                        : index === 4
+                        ? "span 3"
+                        : index === 5
+                        ? "span 3"
+                        : "span 3";
+
+                    return (
+                      <Box
+                        key={`${item.name}-${index}`}
+                        sx={{
+                          gridColumn: area,
+                          minHeight: 55,
+                          borderRadius: 1.5,
+                          background:
+                            item.fill,
+                          p: 1.1,
+                          color: "#fff",
+                          display: "flex",
+                          flexDirection:
+                            "column",
+                          justifyContent:
+                            "center",
+                          overflow: "hidden",
+                          boxShadow:
+                            "inset 0 0 0 1px rgba(255,255,255,.22)"
+                        }}
+                      >
+                        <Typography
+                          sx={{
+                            fontSize:
+                              index < 3
+                                ? 11
+                                : 9,
+                            fontWeight: 800,
+                            whiteSpace:
+                              "normal",
+                            lineHeight: 1.15
+                          }}
+                        >
+                          {item.name}
+                        </Typography>
+
+                        <Typography
+                          sx={{
+                            fontSize:
+                              index < 3
+                                ? 13
+                                : 10,
+                            fontWeight: 900,
+                            mt: 0.5
+                          }}
+                        >
+                          {formatT(item.value)}
+                        </Typography>
+
+                        <Typography
+                          sx={{
+                            fontSize: 8.5,
+                            opacity: 0.9
+                          }}
+                        >
+                          {item.percentage.toFixed(
+                            1
+                          )}
+                          %
+                        </Typography>
+                      </Box>
+                    );
+                  }
+                )}
+              </Box>
+            </Box>
+          </Card>
+        </Box>
+
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              lg: "1fr 1fr 1fr"
+            },
+            gap: 1.5,
+            mb: 1.5
+          }}
+        >
+          <Card
+            elevation={0}
+            sx={{
+              minHeight: 280,
+              borderRadius: 3,
+              border:
+                "1px solid #DDE6F1",
+              background: "#fff"
+            }}
+          >
+            <Box
+              sx={{
+                px: 2,
+                pt: 1.5,
+                display: "flex",
+                justifyContent:
+                  "space-between",
+                alignItems: "center"
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1
+                }}
+              >
+                <AccountBalance
+                  sx={{
+                    color: "#173F7A",
+                    fontSize: 24
+                  }}
+                />
+
+                <Box>
+                  <Typography
+                    sx={{
+                      fontSize: 17,
+                      fontWeight: 850,
+                      color: "#173F7A"
+                    }}
+                  >
+                    {demandTitle}
+                  </Typography>
+
+                  <Typography
+                    sx={{
+                      fontSize: 10,
+                      color: "#8390A4"
+                    }}
+                  >
+                    Click a category to drill down
+                  </Typography>
+                </Box>
+              </Box>
+
+              {demandPath.length > 0 && (
+                <Button
+                  size="small"
+                  startIcon={<ArrowBack />}
+                  onClick={goDemandBack}
+                  sx={{
+                    textTransform: "none",
+                    fontSize: 10,
+                    fontWeight: 800,
+                    color: "#1769E0"
+                  }}
+                >
+                  Back
+                </Button>
+              )}
+            </Box>
+
+            <Box
+              sx={{
+                height: 225,
+                px: 1
+              }}
+            >
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+              >
+                <BarChart
+                  data={demandChartData}
+                  margin={{
+                    top: 24,
+                    right: 12,
+                    left: 5,
+                    bottom: 35
+                  }}
+                  onClick={(state) => {
+                    if (
+                      state?.activeTooltipIndex !==
+                      undefined
+                    ) {
+                      handleDemandClick(
+                        demandChartData[
+                          state.activeTooltipIndex
+                        ]
+                      );
+                    }
+                  }}
+                >
+                  <CartesianGrid
+                    stroke="#E5EBF3"
+                    strokeDasharray="3 3"
+                  />
+
+                  <XAxis
+                    dataKey="name"
+                    interval={0}
+                    tick={{
+                      fontSize: 9,
+                      fill: "#53627A"
+                    }}
+                    angle={-12}
+                    textAnchor="end"
+                    height={48}
+                  />
+
+                  <YAxis
+                    tickFormatter={(v) =>
+                      `${(
+                        v / 1000000000000
+                      ).toFixed(0)}`
+                    }
+                    tick={{
+                      fontSize: 9,
+                      fill: "#718096"
+                    }}
+                    width={35}
+                    domain={[
+                      0,
+                      demandMax * 1.18
+                    ]}
+                  />
+
+                  <Tooltip
+                    content={
+                      <ChartTooltip
+                        formatter={formatT}
+                      />
+                    }
+                  />
+
+                  <Bar
+                    dataKey="value"
+                    name="Amount"
+                    radius={[
+                      5,
+                      5,
+                      0,
+                      0
+                    ]}
+                    cursor="pointer"
+                    maxBarSize={58}
+                  >
+                    {demandChartData.map(
+                      (_, index) => (
+                        <Cell
+                          key={index}
+                          fill={
+                            COLORS[
+                              index %
+                                COLORS.length
+                            ]
+                          }
+                        />
+                      )
+                    )}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </Box>
+          </Card>
+
+          <Card
+            elevation={0}
+            sx={{
+              minHeight: 280,
+              borderRadius: 3,
+              border:
+                "1px solid #DDE6F1",
+              background: "#fff"
+            }}
+          >
+            <Box
+              sx={{
+                px: 2,
+                pt: 1.5,
+                display: "flex",
+                justifyContent:
+                  "space-between",
+                alignItems: "center"
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1
+                }}
+              >
+                <Savings
+                  sx={{
+                    color: "#173F7A",
+                    fontSize: 24
+                  }}
+                />
+
+                <Box>
+                  <Typography
+                    sx={{
+                      fontSize: 17,
+                      fontWeight: 850,
+                      color: "#173F7A"
+                    }}
+                  >
+                    {termTitle}
+                  </Typography>
+
+                  <Typography
+                    sx={{
+                      fontSize: 10,
+                      color: "#8390A4"
+                    }}
+                  >
+                    Click a category to drill down
+                  </Typography>
+                </Box>
+              </Box>
+
+              {termPath.length > 0 && (
+                <Button
+                  size="small"
+                  startIcon={<ArrowBack />}
+                  onClick={goTermBack}
+                  sx={{
+                    textTransform: "none",
+                    fontSize: 10,
+                    fontWeight: 800,
+                    color: "#1769E0"
+                  }}
+                >
+                  Back
+                </Button>
+              )}
+            </Box>
+
+            <Box
+              sx={{
+                height: 225,
+                px: 1
+              }}
+            >
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+              >
+                <BarChart
+                  data={termChartData}
+                  margin={{
+                    top: 24,
+                    right: 12,
+                    left: 5,
+                    bottom: 35
+                  }}
+                  onClick={(state) => {
+                    if (
+                      state?.activeTooltipIndex !==
+                      undefined
+                    ) {
+                      handleTermClick(
+                        termChartData[
+                          state.activeTooltipIndex
+                        ]
+                      );
+                    }
+                  }}
+                >
+                  <CartesianGrid
+                    stroke="#E5EBF3"
+                    strokeDasharray="3 3"
+                  />
+
+                  <XAxis
+                    dataKey="name"
+                    interval={0}
+                    tick={{
+                      fontSize: 9,
+                      fill: "#53627A"
+                    }}
+                    angle={-12}
+                    textAnchor="end"
+                    height={48}
+                  />
+
+                  <YAxis
+                    tickFormatter={(v) =>
+                      `${(
+                        v / 1000000000000
+                      ).toFixed(0)}`
+                    }
+                    tick={{
+                      fontSize: 9,
+                      fill: "#718096"
+                    }}
+                    width={35}
+                    domain={[
+                      0,
+                      termMax * 1.18
+                    ]}
+                  />
+
+                  <Tooltip
+                    content={
+                      <ChartTooltip
+                        formatter={formatT}
+                      />
+                    }
+                  />
+
+                  <Bar
+                    dataKey="value"
+                    name="Amount"
+                    radius={[
+                      5,
+                      5,
+                      0,
+                      0
+                    ]}
+                    cursor="pointer"
+                    maxBarSize={58}
+                  >
+                    {termChartData.map(
+                      (_, index) => (
+                        <Cell
+                          key={index}
+                          fill={
+                            COLORS[
+                              (index + 2) %
+                                COLORS.length
+                            ]
+                          }
+                        />
+                      )
+                    )}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </Box>
+          </Card>
+
+          <Card
+            elevation={0}
+            sx={{
+              minHeight: 280,
+              borderRadius: 3,
+              border:
+                "1px solid #DDE6F1",
+              background:
+                "linear-gradient(145deg,#1E9C63,#2BB477)",
+              color: "#fff",
+              overflow: "hidden"
+            }}
+          >
+            <Box
+              sx={{
+                px: 2,
+                pt: 1.5,
+                display: "flex",
+                alignItems: "center",
+                justifyContent:
+                  "space-between"
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1
+                }}
+              >
+                <ShowChart
+                  sx={{
+                    fontSize: 25
+                  }}
+                />
+
+                <Box>
+                  <Typography
+                    sx={{
+                      fontSize: 17,
+                      fontWeight: 850
+                    }}
+                  >
+                    {type === "deposit"
+                      ? "TOTAL DEPOSITS"
+                      : "TOTAL LOANS"}
+                  </Typography>
+
+                  <Typography
+                    sx={{
+                      fontSize: 10,
+                      opacity: 0.78
+                    }}
+                  >
+                    Daily portfolio trend
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Chip
+                label={selectedDateLabel}
+                size="small"
+                sx={{
+                  background:
+                    "rgba(255,255,255,.15)",
+                  color: "#fff",
+                  fontSize: 9,
+                  fontWeight: 800
+                }}
+              />
+            </Box>
+
+            <Box
+              sx={{
+                height: 225,
+                px: 1
+              }}
+            >
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+              >
+                <AreaChart
+                  data={trendData}
+                  margin={{
+                    top: 15,
+                    right: 10,
+                    left: 2,
+                    bottom: 22
+                  }}
+                  onClick={(state) => {
+                    if (
+                      state?.activeTooltipIndex !==
+                      undefined
+                    ) {
+                      setSelectedDate(
+                        state.activeTooltipIndex
+                      );
+                    }
+                  }}
+                >
+                  <defs>
+                    <linearGradient
+                      id="totalFill"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop
+                        offset="0%"
+                        stopColor="#ffffff"
+                        stopOpacity={0.28}
+                      />
+
+                      <stop
+                        offset="100%"
+                        stopColor="#ffffff"
+                        stopOpacity={0.02}
+                      />
+                    </linearGradient>
+                  </defs>
+
+                  <CartesianGrid
+                    stroke="rgba(255,255,255,.20)"
+                    strokeDasharray="3 3"
+                  />
+
+                  <XAxis
+                    dataKey="date"
+                    interval={0}
+                    height={38}
+                    tick={(props) => (
+                      <CustomDateTick
+                        {...props}
+                        selected={
+                          props.payload.index ===
+                          selectedDate
+                        }
+                        onSelect={setSelectedDate}
+                      />
+                    )}
+                  />
+
+                  <YAxis
+                    tickFormatter={(v) =>
+                      (
+                        v /
+                        1000000000000
+                      ).toFixed(1)
+                    }
+                    tick={{
+                      fontSize: 9,
+                      fill: "#E9FFF5"
+                    }}
+                    width={38}
+                  />
+
+                  <Tooltip
+                    content={
+                      <ChartTooltip
+                        formatter={formatT}
+                      />
+                    }
+                  />
+
+                  <Area
+                    type="monotone"
+                    dataKey="total"
+                    name={
+                      type === "deposit"
+                        ? "Total Deposits"
+                        : "Total Loans"
+                    }
+                    stroke="#ffffff"
+                    strokeWidth={3}
+                    fill="url(#totalFill)"
+                    activeDot={{
+                      r: 8,
+                      fill: "#fff",
+                      stroke:
+                        "#168C5A",
+                      strokeWidth: 4
+                    }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </Box>
+
+            <Box
+              sx={{
+                position: "relative",
+                mt: -0.8,
+                px: 2,
+                pb: 1.2,
+                display: "flex",
+                justifyContent:
+                  "space-between",
+                alignItems: "center"
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: 10,
+                  opacity: 0.82
+                }}
+              >
+                Selected date
+              </Typography>
+
+              <Typography
+                sx={{
+                  fontSize: 19,
+                  fontWeight: 900
+                }}
+              >
+                {formatT(selectedValue)}
+              </Typography>
+            </Box>
+          </Card>
+        </Box>
+
+        <Card
+          elevation={0}
+          sx={{
+            borderRadius: 3,
+            border:
+              "1px solid #DDE6F1",
+            background: "#fff",
+            overflow: "hidden"
+          }}
+        >
+          <Box
+            sx={{
+              px: 2,
+              pt: 1.5,
+              display: "flex",
+              alignItems: "center",
+              gap: 1
+            }}
+          >
+            <TrendingUp
+              sx={{
+                color: "#173F7A",
+                fontSize: 25
+              }}
+            />
+
+            <Box>
+              <Typography
+                sx={{
+                  fontSize: 17,
+                  fontWeight: 850,
+                  color: "#173F7A"
+                }}
+              >
+                Special Term Deposit Forecast
+              </Typography>
+
+              <Typography
+                sx={{
+                  fontSize: 10,
+                  color: "#8390A4"
+                }}
+              >
+                Forecast section based on available API data
+              </Typography>
+            </Box>
+          </Box>
+
+          <Box
+            sx={{
+              p: 1.5,
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "2.1fr 1fr"
+              },
+              gap: 1.5
+            }}
+          >
+            <Box
+              sx={{
+                height: 205,
+                borderRadius: 2,
+                background:
+                  "#FBFCFE",
+                border:
+                  "1px solid #EDF1F6"
+              }}
+            >
+              {current?.termDeposits?.children?.find(
+                (item) =>
+                  item.name ===
+                  "Special Term Deposit"
+              ) ? (
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                >
+                  <BarChart
+                    data={[
+                      {
+                        name:
+                          "Special Term Deposit",
+                        value:
+                          current.termDeposits.children.find(
+                            (item) =>
+                              item.name ===
+                              "Special Term Deposit"
+                          )?.value ?? 0
+                      }
+                    ]}
+                    margin={{
+                      top: 30,
+                      right: 30,
+                      left: 15,
+                      bottom: 20
+                    }}
+                  >
+                    <CartesianGrid
+                      stroke="#E5EBF3"
+                      strokeDasharray="3 3"
+                    />
+
+                    <XAxis
+                      dataKey="name"
+                      tick={{
+                        fontSize: 10,
+                        fill: "#64748B"
+                      }}
+                    />
+
+                    <YAxis
+                      tickFormatter={(v) =>
+                        formatCompact(v)
+                      }
+                      tick={{
+                        fontSize: 9,
+                        fill: "#64748B"
+                      }}
+                      width={70}
+                    />
+
+                    <Tooltip
+                      content={
+                        <ChartTooltip
+                          formatter={formatCompact}
+                        />
+                      }
+                    />
+
+                    <Bar
+                      dataKey="value"
+                      name="Current Value"
+                      fill="#F4B942"
+                      radius={[
+                        7,
+                        7,
+                        0,
+                        0
+                      ]}
+                      maxBarSize={80}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <Box
+                  sx={{
+                    height: "100%",
+                    display: "grid",
+                    placeItems: "center"
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      color: "#7B8798",
+                      fontSize: 12
+                    }}
+                  >
+                    No forecast data available
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+
+            <Box
+              sx={{
+                minHeight: 205,
+                borderRadius: 2,
+                border:
+                  "1px solid #D8E5F3",
+                background:
+                  "linear-gradient(145deg,#F6FAFF,#EEF6FF)",
+                p: 2,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center"
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: 13,
+                  fontWeight: 850,
+                  color: "#173F7A",
+                  mb: 1
+                }}
+              >
+                Data availability
+              </Typography>
+
+              <Typography
+                sx={{
+                  fontSize: 11,
+                  color: "#607089",
+                  lineHeight: 1.7
+                }}
+              >
+                Forecast dates and confidence-bound
+                values are not present in the current
+                bankingData.json response.
+              </Typography>
+
+              <Typography
+                sx={{
+                  fontSize: 11,
+                  color: "#607089",
+                  lineHeight: 1.7,
+                  mt: 1
+                }}
+              >
+                Once the API provides forecast,
+                lower-confidence and upper-confidence
+                series, this panel can render them
+                automatically without changing the
+                dashboard layout.
+              </Typography>
+
+              <Box
+                sx={{
+                  mt: 1.5,
+                  p: 1.2,
+                  borderRadius: 1.5,
+                  background: "#fff",
+                  border:
+                    "1px solid #DCE8F5"
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: 10,
+                    color: "#49627F",
+                    fontWeight: 700
+                  }}
+                >
+                  Current Special Term Deposit
+                </Typography>
+
+                <Typography
+                  sx={{
+                    fontSize: 19,
+                    color: "#173F7A",
+                    fontWeight: 900,
+                    mt: 0.3
+                  }}
+                >
+                  {formatT(
+                    current?.termDeposits?.children?.find(
+                      (item) =>
+                        item.name ===
+                        "Special Term Deposit"
+                    )?.value
+                  )}
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+
+          <Box
+            sx={{
+              px: 2,
+              pb: 1.5,
+              pt: 0.3,
+              display: "flex",
+              justifyContent:
+                "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 1
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 2
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.6
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 22,
+                    height: 3,
+                    background: "#1769E0",
+                    borderRadius: 2
+                  }}
+                />
+
+                <Typography
+                  sx={{
+                    fontSize: 9,
+                    color: "#65738A"
+                  }}
+                >
+                  Actual
+                </Typography>
+              </Box>
+
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.6
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 22,
+                    borderTop:
+                      "2px dashed #EF6259"
+                  }}
+                />
+
+                <Typography
+                  sx={{
+                    fontSize: 9,
+                    color: "#65738A"
+                  }}
+                >
+                  Forecast
+                </Typography>
+              </Box>
+
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.6
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 22,
+                    borderTop:
+                      "2px dotted #718096"
+                  }}
+                />
+
+                <Typography
+                  sx={{
+                    fontSize: 9,
+                    color: "#65738A"
+                  }}
+                >
+                  Confidence Bound
+                </Typography>
+              </Box>
+            </Box>
+
+            <Typography
+              sx={{
+                fontSize: 9,
+                color: "#8793A5"
+              }}
+            >
+              Banking Analytics • {data.financialYear}
+            </Typography>
+          </Box>
+        </Card>
+
+        <Box
+          sx={{
+            mt: 1.5,
+            px: 1.5,
+            py: 1,
+            borderRadius: 2,
+            background: "#fff",
+            border:
+              "1px solid #E0E7F0",
+            display: "flex",
+            justifyContent:
+              "space-between",
+            alignItems: "center",
+            gap: 1,
+            flexWrap: "wrap"
+          }}
+        >
+          <Typography
+            sx={{
+              fontSize: 10,
+              color: "#66758A"
+            }}
+          >
+            Selected Date
+          </Typography>
+
+          <Chip
+            size="small"
+            label={selectedDateLabel}
+            sx={{
+              background: "#EAF3FF",
+              color: "#173F7A",
+              fontWeight: 800,
+              fontSize: 10
+            }}
+          />
+
+          <Typography
+            sx={{
+              fontSize: 10,
+              color: "#66758A"
+            }}
+          >
+            {type === "deposit"
+              ? "Total Deposit"
+              : "Total Loan"}
+          </Typography>
+
+          <Typography
+            sx={{
+              fontSize: 14,
+              color: "#173F7A",
+              fontWeight: 900
+            }}
+          >
+            {formatT(selectedValue)}
+          </Typography>
+
+          <Typography
+            sx={{
+              fontSize: 10,
+              color: "#66758A"
+            }}
+          >
+            CASA
+          </Typography>
+
+          <Typography
+            sx={{
+              fontSize: 14,
+              color: "#159768",
+              fontWeight: 900
+            }}
+          >
+            {formatPercent(selectedCasa)}
+          </Typography>
+        </Box>
+      </Box>
+    </Box>
+  );
+}
