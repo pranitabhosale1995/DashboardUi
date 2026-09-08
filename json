@@ -1,313 +1,199 @@
 {
-  "meta": {
-    "bank": "SBI",
-    "currency": "INR",
-    "lastUpdated": "2026-09-07T12:00:00"
-  },
-
-  "years": {
-    "2026": {
-      "label": "FY 2025-26",
-
-      "monthlyTrend": [
-        { "month": "Apr", "production": 82 },
-        { "month": "May", "production": 91 },
-        { "month": "Jun", "production": 87 },
-        { "month": "Jul", "production": 103 },
-        { "month": "Aug", "production": 111 },
-        { "month": "Sep", "production": 108 },
-        { "month": "Oct", "production": 119 },
-        { "month": "Nov", "production": 126 },
-        { "month": "Dec", "production": 121 },
-        { "month": "Jan", "production": 134 },
-        { "month": "Feb", "production": 141 },
-        { "month": "Mar", "production": 152 }
-      ],
-
-      "circles": {
-        "Mumbai": {
-          "regions": {
-            "Mumbai Central": {
-              "branches": {
-                "Dadar": {
-                  "production": 32,
-                  "deposits": 840,
-                  "advances": 620,
-                  "casa": 410,
-                  "npa": 1.8
-                },
-                "Parel": {
-                  "production": 28,
-                  "deposits": 760,
-                  "advances": 580,
-                  "casa": 365,
-                  "npa": 2.1
-                }
-              }
-            },
-
-            "Mumbai West": {
-              "branches": {
-                "Andheri": {
-                  "production": 41,
-                  "deposits": 920,
-                  "advances": 710,
-                  "casa": 480,
-                  "npa": 1.6
-                },
-                "Bandra": {
-                  "production": 38,
-                  "deposits": 880,
-                  "advances": 690,
-                  "casa": 452,
-                  "npa": 1.9
-                }
-              }
-            }
-          }
-        },
-
-        "Pune": {
-          "regions": {
-            "Pune City": {
-              "branches": {
-                "Shivajinagar": {
-                  "production": 36,
-                  "deposits": 810,
-                  "advances": 590,
-                  "casa": 420,
-                  "npa": 1.7
-                },
-                "Kothrud": {
-                  "production": 31,
-                  "deposits": 735,
-                  "advances": 540,
-                  "casa": 390,
-                  "npa": 2.0
-                }
-              }
-            },
-
-            "Pune Rural": {
-              "branches": {
-                "Baramati": {
-                  "production": 25,
-                  "deposits": 610,
-                  "advances": 430,
-                  "casa": 300,
-                  "npa": 2.4
-                },
-                "Lonavala": {
-                  "production": 22,
-                  "deposits": 540,
-                  "advances": 390,
-                  "casa": 275,
-                  "npa": 2.6
-                }
-              }
-            }
-          }
-        },
-
-        "Nashik": {
-          "regions": {
-            "Nashik City": {
-              "branches": {
-                "Nashik Main": {
-                  "production": 29,
-                  "deposits": 690,
-                  "advances": 510,
-                  "casa": 350,
-                  "npa": 2.0
-                },
-                "Panchavati": {
-                  "production": 24,
-                  "deposits": 570,
-                  "advances": 420,
-                  "casa": 315,
-                  "npa": 2.3
-                }
-              }
-            }
-          }
-        }
-      }
+  "financialYear": "FY 2025-26",
+  "deposit": {
+    "dates": [
+      "27-Jul-2026",
+      "28-Jul-2026",
+      "29-Jul-2026",
+      "30-Jul-2026",
+      "31-Jul-2026",
+      "01-Aug-2026",
+      "02-Aug-2026",
+      "03-Aug-2026",
+      "04-Aug-2026",
+      "05-Aug-2026",
+      "06-Aug-2026",
+      "07-Aug-2026",
+      "08-Aug-2026",
+      "09-Aug-2026",
+      "10-Aug-2026"
+    ],
+    "totalDepositTrend": [
+      57470624430316.9,
+      57585058908423,
+      57484646643556.1,
+      57702997610224.1,
+      58768484743718.6,
+      58210000000000,
+      58070000000000,
+      57980000000000,
+      57920000000000,
+      57870000000000,
+      57820000000000,
+      57790000000000,
+      57750000000000,
+      57720000000000,
+      57700000000000
+    ],
+    "casaRatioTrend": [
+      0.3671,
+      0.3233,
+      0.3721,
+      0.3122,
+      0.29,
+      0.302,
+      0.311,
+      0.305,
+      0.298,
+      0.301,
+      0.295,
+      0.292,
+      0.289,
+      0.291,
+      0.29
+    ],
+    "summary": {
+      "totalDeposits": 58768484743718.6,
+      "casaRatio": 0.29,
+      "demandDeposits": 22420000000000,
+      "termDeposits": 20550000000000
     },
-
-    "2025": {
-      "label": "FY 2024-25",
-
-      "monthlyTrend": [
-        { "month": "Apr", "production": 72 },
-        { "month": "May", "production": 78 },
-        { "month": "Jun", "production": 81 },
-        { "month": "Jul", "production": 88 },
-        { "month": "Aug", "production": 92 },
-        { "month": "Sep", "production": 95 },
-        { "month": "Oct", "production": 101 },
-        { "month": "Nov", "production": 105 },
-        { "month": "Dec", "production": 108 },
-        { "month": "Jan", "production": 113 },
-        { "month": "Feb", "production": 118 },
-        { "month": "Mar", "production": 124 }
-      ],
-
-      "circles": {
-        "Mumbai": {
-          "regions": {
-            "Mumbai Central": {
-              "branches": {
-                "Dadar": {
-                  "production": 27,
-                  "deposits": 760,
-                  "advances": 550,
-                  "casa": 365,
-                  "npa": 2.1
-                },
-                "Parel": {
-                  "production": 24,
-                  "deposits": 690,
-                  "advances": 520,
-                  "casa": 330,
-                  "npa": 2.4
-                }
-              }
-            },
-
-            "Mumbai West": {
-              "branches": {
-                "Andheri": {
-                  "production": 35,
-                  "deposits": 830,
-                  "advances": 640,
-                  "casa": 425,
-                  "npa": 1.9
-                },
-                "Bandra": {
-                  "production": 32,
-                  "deposits": 790,
-                  "advances": 610,
-                  "casa": 400,
-                  "npa": 2.2
-                }
-              }
-            }
-          }
+    "demandDeposits": {
+      "name": "Demand Deposits",
+      "children": [
+        {
+          "name": "Saving Bank A/c",
+          "value": 14934560839689
         },
-
-        "Pune": {
-          "regions": {
-            "Pune City": {
-              "branches": {
-                "Shivajinagar": {
-                  "production": 31,
-                  "deposits": 740,
-                  "advances": 540,
-                  "casa": 385,
-                  "npa": 2.0
-                },
-                "Kothrud": {
-                  "production": 27,
-                  "deposits": 670,
-                  "advances": 500,
-                  "casa": 350,
-                  "npa": 2.3
-                }
-              }
+        {
+          "name": "Current A/c",
+          "value": 5200000000000,
+          "children": [
+            {
+              "name": "Cash Credit Cr Balance",
+              "value": 3100000000000
             },
-
-            "Pune Rural": {
-              "branches": {
-                "Baramati": {
-                  "production": 21,
-                  "deposits": 560,
-                  "advances": 390,
-                  "casa": 280,
-                  "npa": 2.7
-                },
-                "Lonavala": {
-                  "production": 19,
-                  "deposits": 500,
-                  "advances": 350,
-                  "casa": 250,
-                  "npa": 2.9
-                }
-              }
+            {
+              "name": "Other Demand Deposit",
+              "value": 2100000000000
             }
-          }
-        },
-
-        "Nashik": {
-          "regions": {
-            "Nashik City": {
-              "branches": {
-                "Nashik Main": {
-                  "production": 25,
-                  "deposits": 630,
-                  "advances": 460,
-                  "casa": 320,
-                  "npa": 2.3
-                },
-                "Panchavati": {
-                  "production": 20,
-                  "deposits": 520,
-                  "advances": 380,
-                  "casa": 280,
-                  "npa": 2.6
-                }
-              }
-            }
-          }
+          ]
         }
-      }
+      ]
+    },
+    "termDeposits": {
+      "name": "Term Deposits",
+      "children": [
+        {
+          "name": "Term Deposit",
+          "value": 19054335888722.8
+        },
+        {
+          "name": "Special Term Deposit",
+          "value": 2543431978289.57
+        },
+        {
+          "name": "Other Term Deposit",
+          "value": 149345608396.89
+        },
+        {
+          "name": "Certificate of Deposit",
+          "value": 46045386253.93
+        }
+      ]
     }
   },
-
-  "announcements": [
-    {
-      "id": 1,
-      "title": "Monthly Production Target",
-      "message": "All circles to review monthly production targets.",
-      "date": "2026-09-05",
-      "priority": "High"
+  "loan": {
+    "dates": [
+      "27-Jul-2026",
+      "28-Jul-2026",
+      "29-Jul-2026",
+      "30-Jul-2026",
+      "31-Jul-2026",
+      "01-Aug-2026",
+      "02-Aug-2026",
+      "03-Aug-2026",
+      "04-Aug-2026",
+      "05-Aug-2026",
+      "06-Aug-2026",
+      "07-Aug-2026",
+      "08-Aug-2026",
+      "09-Aug-2026",
+      "10-Aug-2026"
+    ],
+    "loanTrend": [
+      41850000000000,
+      42010000000000,
+      41920000000000,
+      42350000000000,
+      42880000000000,
+      43050000000000,
+      43210000000000,
+      43150000000000,
+      43320000000000,
+      43500000000000,
+      43680000000000,
+      43800000000000,
+      43950000000000,
+      44100000000000,
+      44250000000000
+    ],
+    "summary": {
+      "totalLoans": 44250000000000,
+      "outstandingLoans": 44250000000000,
+      "loanGrowth": 8.7,
+      "npaRatio": 1.42
     },
-    {
-      "id": 2,
-      "title": "Digital Banking Drive",
-      "message": "Focus on digital adoption and customer activation.",
-      "date": "2026-09-03",
-      "priority": "Medium"
-    },
-    {
-      "id": 3,
-      "title": "Branch Performance Review",
-      "message": "Quarterly branch performance review is scheduled.",
-      "date": "2026-09-01",
-      "priority": "Normal"
+    "loanPortfolio": {
+      "name": "Loan Portfolio",
+      "children": [
+        {
+          "name": "Retail Loans",
+          "value": 16500000000000,
+          "children": [
+            {
+              "name": "Home Loan",
+              "value": 8200000000000
+            },
+            {
+              "name": "Personal Loan",
+              "value": 4800000000000
+            },
+            {
+              "name": "Vehicle Loan",
+              "value": 3500000000000
+            }
+          ]
+        },
+        {
+          "name": "Corporate Loans",
+          "value": 17200000000000,
+          "children": [
+            {
+              "name": "Large Corporate",
+              "value": 10500000000000
+            },
+            {
+              "name": "Working Capital",
+              "value": 6700000000000
+            }
+          ]
+        },
+        {
+          "name": "MSME Loans",
+          "value": 10550000000000,
+          "children": [
+            {
+              "name": "Business Loan",
+              "value": 6200000000000
+            },
+            {
+              "name": "MSME Working Capital",
+              "value": 4350000000000
+            }
+          ]
+        }
+      ]
     }
-  ],
-
-  "recentActivity": [
-    {
-      "id": 1,
-      "type": "Production",
-      "message": "Mumbai Circle crossed monthly production target.",
-      "date": "2026-09-07",
-      "status": "Success"
-    },
-    {
-      "id": 2,
-      "type": "Branch",
-      "message": "Andheri branch performance updated.",
-      "date": "2026-09-06",
-      "status": "Updated"
-    },
-    {
-      "id": 3,
-      "type": "Target",
-      "message": "Pune region target revised.",
-      "date": "2026-09-05",
-      "status": "Updated"
-    }
-  ]
+  }
 }
