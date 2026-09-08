@@ -1,0 +1,617 @@
+import React from "react";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Grid,
+  Chip,
+  Divider,
+  LinearProgress,
+} from "@mui/material";
+
+const purple = "#5B4B9A";
+const blue = "#496A9F";
+const pink = "#D94BB5";
+const green = "#67A77A";
+const orange = "#E7A64A";
+
+const monthlyData = [
+  { month: "Apr", production: 72 },
+  { month: "May", production: 81 },
+  { month: "Jun", production: 87 },
+  { month: "Jul", production: 84 },
+  { month: "Aug", production: 98 },
+  { month: "Sep", production: 108 },
+  { month: "Oct", production: 104 },
+  { month: "Nov", production: 116 },
+  { month: "Dec", production: 121 },
+  { month: "Jan", production: 130 },
+  { month: "Feb", production: 142 },
+  { month: "Mar", production: 157 },
+];
+
+const portfolioData = [
+  { name: "Deposits", value: 7355 },
+  { name: "Advances", value: 5480 },
+  { name: "CASA", value: 3757 },
+];
+
+const casaData = [
+  { name: "Savings", value: 2480 },
+  { name: "Current", value: 1277 },
+];
+
+const riskData = [
+  { name: "Low Risk", value: 42 },
+  { name: "Moderate", value: 36 },
+  { name: "High Risk", value: 22 },
+];
+
+const target = 1505;
+const production = 306;
+const achievement = ((production / target) * 100).toFixed(1);
+
+const money = (value) =>
+  new Intl.NumberFormat("en-IN", {
+    maximumFractionDigits: 0,
+  }).format(value);
+
+function MetricCard({ title, value, subtitle, trend, icon }) {
+  return (
+    <Card
+      sx={{
+        height: "100%",
+        borderRadius: 4,
+        border: "1px solid #eeeaf7",
+        boxShadow: "0 5px 20px rgba(80,65,130,.07)",
+      }}
+    >
+      <CardContent sx={{ p: 2.2 }}>
+        <Box display="flex" justifyContent="space-between">
+          <Typography
+            sx={{ color: "#68627a", fontSize: 14, fontWeight: 600 }}
+          >
+            {title}
+          </Typography>
+
+          <Box
+            sx={{
+              width: 38,
+              height: 38,
+              borderRadius: "50%",
+              background: "#f2effb",
+              display: "grid",
+              placeItems: "center",
+              color: purple,
+              fontSize: 18,
+            }}
+          >
+            {icon}
+          </Box>
+        </Box>
+
+        <Typography
+          sx={{
+            fontSize: 29,
+            fontWeight: 700,
+            color: "#303044",
+            mt: 1,
+          }}
+        >
+          {value}
+        </Typography>
+
+        <Typography sx={{ fontSize: 12, color: "#9691a4" }}>
+          {subtitle}
+        </Typography>
+
+        <Chip
+          size="small"
+          label={`↑ ${trend}% vs previous year`}
+          sx={{
+            mt: 1.4,
+            fontSize: 11,
+            height: 24,
+            background: "#e9f7ec",
+            color: "#4f9560",
+            fontWeight: 600,
+          }}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+function ChartCard({ title, subtitle, children, sx = {} }) {
+  return (
+    <Card
+      sx={{
+        borderRadius: 4,
+        border: "1px solid #eeeaf7",
+        boxShadow: "0 5px 20px rgba(80,65,130,.07)",
+        height: "100%",
+        ...sx,
+      }}
+    >
+      <CardContent sx={{ p: 2.2 }}>
+        <Typography
+          sx={{
+            fontWeight: 700,
+            fontSize: 16,
+            color: "#37334b",
+          }}
+        >
+          {title}
+        </Typography>
+
+        {subtitle && (
+          <Typography
+            sx={{
+              fontSize: 12,
+              color: "#9691a4",
+              mt: 0.3,
+              mb: 1,
+            }}
+          >
+            {subtitle}
+          </Typography>
+        )}
+
+        {children}
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Box
+      sx={{
+        minHeight: "100vh",
+        background:
+          "linear-gradient(135deg,#f7f5fc 0%,#eeeafb 50%,#f8f7fc 100%)",
+        p: { xs: 1.5, sm: 2.5, md: 3.5 },
+      }}
+    >
+      {/* HEADER */}
+      <Box
+        sx={{
+          background: "rgba(255,255,255,.88)",
+          borderRadius: 4,
+          px: { xs: 2, md: 3 },
+          py: 2,
+          mb: 2.5,
+          boxShadow: "0 5px 25px rgba(70,55,120,.06)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 1.5,
+        }}
+      >
+        <Box>
+          <Typography
+            sx={{
+              fontSize: { xs: 24, md: 30 },
+              fontWeight: 800,
+              color: "#302d40",
+            }}
+          >
+            Dashboard
+          </Typography>
+
+          <Typography sx={{ color: "#898397", fontSize: 13 }}>
+            Banking performance overview
+          </Typography>
+        </Box>
+
+        <Chip
+          label="FY 2025-26"
+          sx={{
+            background: "#f0edf9",
+            color: purple,
+            fontWeight: 700,
+          }}
+        />
+      </Box>
+
+      {/* METRICS */}
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6} md={2.4}>
+          <MetricCard
+            title="Production"
+            value={money(306)}
+            subtitle="Total production"
+            trend="17.2"
+            icon="↗"
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={2.4}>
+          <MetricCard
+            title="Deposits"
+            value={money(7355)}
+            subtitle="Total deposits"
+            trend="9.9"
+            icon="▣"
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={2.4}>
+          <MetricCard
+            title="Advances"
+            value={money(5480)}
+            subtitle="Total advances"
+            trend="10.9"
+            icon="▤"
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={2.4}>
+          <MetricCard
+            title="CASA"
+            value={money(3757)}
+            subtitle="CASA portfolio"
+            trend="11.0"
+            icon="●"
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={2.4}>
+          <MetricCard
+            title="Average NPA"
+            value="2.0%"
+            subtitle="Lower is better"
+            trend="12.8"
+            icon="!"
+          />
+        </Grid>
+      </Grid>
+
+      {/* TARGET */}
+      <Card
+        sx={{
+          mt: 2.5,
+          borderRadius: 4,
+          border: "1px solid #eeeaf7",
+          boxShadow: "0 5px 20px rgba(80,65,130,.07)",
+        }}
+      >
+        <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Box>
+              <Typography
+                sx={{ fontWeight: 700, color: "#403a59", fontSize: 17 }}
+              >
+                Production Target Achievement
+              </Typography>
+
+              <Typography sx={{ color: "#9993a8", fontSize: 12 }}>
+                Current production vs annual target
+              </Typography>
+            </Box>
+
+            <Typography
+              sx={{ fontWeight: 800, color: purple, fontSize: 20 }}
+            >
+              {achievement}%
+            </Typography>
+          </Box>
+
+          <LinearProgress
+            variant="determinate"
+            value={Number(achievement)}
+            sx={{
+              mt: 2,
+              height: 9,
+              borderRadius: 10,
+              background: "#eeeaf7",
+              "& .MuiLinearProgress-bar": {
+                borderRadius: 10,
+                background: purple,
+              },
+            }}
+          />
+
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            mt={0.8}
+          >
+            <Typography sx={{ fontSize: 11, color: "#8f899d" }}>
+              Actual: {production}
+            </Typography>
+
+            <Typography sx={{ fontSize: 11, color: "#8f899d" }}>
+              Target: {target}
+            </Typography>
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* GRAPHS */}
+      <Grid container spacing={2.5} mt={0.2}>
+
+        {/* MONTHLY PRODUCTION */}
+        <Grid item xs={12} md={6}>
+          <ChartCard
+            title="Monthly Production"
+            subtitle="Production trend for FY 2025-26"
+          >
+            <Box sx={{ height: 300 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={monthlyData}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#eeeaf2"
+                  />
+
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fontSize: 11, fill: "#777184" }}
+                  />
+
+                  <YAxis
+                    tick={{ fontSize: 11, fill: "#777184" }}
+                  />
+
+                  <Tooltip />
+
+                  <Line
+                    type="monotone"
+                    dataKey="production"
+                    stroke={blue}
+                    strokeWidth={3}
+                    dot={{
+                      r: 4,
+                      fill: "#fff",
+                      stroke: blue,
+                      strokeWidth: 2,
+                    }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </Box>
+          </ChartCard>
+        </Grid>
+
+        {/* PORTFOLIO */}
+        <Grid item xs={12} md={6}>
+          <ChartCard
+            title="Portfolio Comparison"
+            subtitle="Deposits, advances and CASA"
+          >
+            <Box sx={{ height: 300 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={portfolioData}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#eeeaf2"
+                  />
+
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 11 }}
+                  />
+
+                  <YAxis
+                    tick={{ fontSize: 11 }}
+                  />
+
+                  <Tooltip />
+
+                  <Bar
+                    dataKey="value"
+                    fill={purple}
+                    radius={[7, 7, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </Box>
+          </ChartCard>
+        </Grid>
+
+        {/* CASA DONUT */}
+        <Grid item xs={12} sm={6} md={4}>
+          <ChartCard
+            title="CASA Portfolio"
+            subtitle="Savings vs current account"
+          >
+            <Box sx={{ height: 280 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={casaData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="48%"
+                    innerRadius={65}
+                    outerRadius={100}
+                    paddingAngle={3}
+                  >
+                    {casaData.map((_, index) => (
+                      <Cell
+                        key={index}
+                        fill={[purple, pink][index]}
+                      />
+                    ))}
+                  </Pie>
+
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </Box>
+          </ChartCard>
+        </Grid>
+
+        {/* LOAN RISK DONUT */}
+        <Grid item xs={12} sm={6} md={4}>
+          <ChartCard
+            title="Loan Risk Distribution"
+            subtitle="Overall portfolio risk"
+          >
+            <Box sx={{ height: 280 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={riskData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="48%"
+                    innerRadius={65}
+                    outerRadius={100}
+                    paddingAngle={3}
+                  >
+                    {riskData.map((_, index) => (
+                      <Cell
+                        key={index}
+                        fill={[green, orange, pink][index]}
+                      />
+                    ))}
+                  </Pie>
+
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </Box>
+          </ChartCard>
+        </Grid>
+
+        {/* PERFORMANCE SUMMARY */}
+        <Grid item xs={12} md={4}>
+          <ChartCard
+            title="Key Performance Summary"
+            subtitle="Current banking indicators"
+          >
+            <Box sx={{ mt: 2 }}>
+              {[
+                ["Deposit Growth", "9.9%", green],
+                ["Advance Growth", "10.9%", green],
+                ["CASA Growth", "11.0%", green],
+                ["NPA", "2.0%", orange],
+              ].map(([label, value, color]) => (
+                <Box key={label} sx={{ mb: 2.3 }}>
+                  <Box
+                    display="flex"
+                    justifyContent="space-between"
+                    mb={0.6}
+                  >
+                    <Typography
+                      sx={{ fontSize: 13, color: "#696477" }}
+                    >
+                      {label}
+                    </Typography>
+
+                    <Typography
+                      sx={{
+                        fontWeight: 700,
+                        fontSize: 13,
+                        color,
+                      }}
+                    >
+                      {value}
+                    </Typography>
+                  </Box>
+
+                  <LinearProgress
+                    variant="determinate"
+                    value={parseFloat(value) * 7}
+                    sx={{
+                      height: 7,
+                      borderRadius: 10,
+                      background: "#f0edf5",
+                      "& .MuiLinearProgress-bar": {
+                        background: color,
+                        borderRadius: 10,
+                      },
+                    }}
+                  />
+                </Box>
+              ))}
+            </Box>
+          </ChartCard>
+        </Grid>
+
+        {/* YEARLY TREND */}
+        <Grid item xs={12}>
+          <ChartCard
+            title="Banking Growth Trend"
+            subtitle="Production and portfolio performance"
+          >
+            <Box sx={{ height: 300 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyData}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#eeeaf2"
+                  />
+
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fontSize: 11 }}
+                  />
+
+                  <YAxis
+                    tick={{ fontSize: 11 }}
+                  />
+
+                  <Tooltip />
+
+                  <Legend />
+
+                  <Bar
+                    dataKey="production"
+                    name="Production"
+                    fill={blue}
+                    radius={[6, 6, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </Box>
+          </ChartCard>
+        </Grid>
+      </Grid>
+
+      <Divider sx={{ mt: 3, mb: 1.5 }} />
+
+      <Typography
+        align="center"
+        sx={{
+          fontSize: 11,
+          color: "#aaa4b4",
+          pb: 1,
+        }}
+      >
+        Banking Performance Dashboard • FY 2025-26
+      </Typography>
+    </Box>
+  );
+}

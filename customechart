@@ -1,0 +1,1253 @@
+import React, { useMemo, useState } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Stack,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Chip,
+  IconButton,
+  Tooltip,
+  Divider,
+} from "@mui/material";
+
+import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
+
+import ReactECharts from "echarts-for-react";
+
+import dashboardData from "../dashboard.json";
+
+const formatNumber = (value) => {
+  return new Intl.NumberFormat("en-IN", {
+    maximumFractionDigits: 1,
+  }).format(Number(value || 0));
+};
+
+const getBranches = (yearData) => {
+  const result = [];
+
+  Object.entries(yearData?.circles || {}).forEach(
+    ([circle, circleData]) => {
+      Object.entries(circleData?.regions || {}).forEach(
+        ([region, regionData]) => {
+          Object.entries(regionData?.branches || {}).forEach(
+            ([branch, branchData]) => {
+              result.push({
+                circle,
+                region,
+                branch,
+                ...branchData,
+              });
+            }
+          );
+        }
+      );
+    }
+  );
+
+  return result;
+};
+
+const getMetricValue = (items, metric) => {
+  if (!items.length) return 0;
+
+  if (metric === "npa") {
+    return (
+      items.reduce(
+        (total, item) =>
+          total + Number(item?.npa || 0),
+        0
+      ) / items.length
+    );
+  }
+
+  return items.reduce(
+    (total, item) =>
+      total + Number(item?.[metric] || 0),
+    0
+  );
+};
+
+const DashboardCustomChart = () => {
+  const years = useMemo(() => {
+    return Object.keys(
+      dashboardData?.years || {}
+    ).sort(
+      (a, b) => Number(b) - Number(a)
+    );
+  }, []);
+
+  const [selectedYear, setSelectedYear] =
+    useState(years[0] || "");
+
+  const [metric, setMetric] =
+    useState("production");
+
+  const [view, setView] =
+    useState("drilldown");
+
+  const [level, setLevel] =
+    useState("circle");
+
+  const [selectedCircle, setSelectedCircle] =
+    useState(null);
+
+  const [selectedRegion, setSelectedRegion] =
+    useState(null);
+
+  const [selectedBranch, setSelectedBranch] =
+    useState(null);
+
+  const currentYearData =
+    dashboardData?.years?.[selectedYear];
+
+  const currentYearIndex =
+    years.indexOf(selectedYear);
+
+  const previousYear =
+    years[currentYearIndex + 1];
+
+  const previousYearData =
+    dashboardData?.years?.[
+      previousYear
+    ];
+
+  const branches = useMemo(
+    () => getBranches(currentYearData),
+    [currentYearData]
+  );
+
+  const circleData = useMemo(() => {
+    const map = {};
+
+    branches.forEach((item) => {
+      if (!map[item.circle]) {
+        map[item.circle] = [];
+      }
+
+      map[item.circle].push(item);
+    });
+
+    return Object.entries(map).map(
+      ([name, items]) => ({
+        name,
+        value: getMetricValue(
+          items,
+          metric
+        ),
+      })
+    );
+  }, [branches, metric]);
+
+  const regionData = useMemo(() => {
+    if (!selectedCircle) {
+      return [];
+    }
+
+    const filtered = branches.filter(
+      (item) =>
+        item.circle === selectedCircle
+    );
+
+    const map = {};
+
+    filtered.forEach((item) => {
+      if (!map[item.region]) {
+        map[item.region] = [];
+      }
+
+      map[item.region].push(item);
+    });
+
+    return Object.entries(map).map(
+      ([name, items]) => ({
+        name,
+        value: getMetricValue(
+          items,
+          metric
+        ),
+      })
+    );
+  }, [
+    branches,
+    selectedCircle,
+    metric,
+  ]);
+
+  const branchData = useMemo(() => {
+    if (!selectedCircle) {
+      return [];
+    }
+
+    let filtered = branches.filter(
+      (item) =>
+        item.circle === selectedCircle
+    );
+
+    if (selectedRegion) {
+      filtered = filtered.filter(
+        (item) =>
+          item.region === selectedRegion
+      );
+    }
+
+    return filtered.map((item) => ({
+      name: item.branch,
+      value: Number(
+        item?.[metric] || 0
+      ),
+    }));
+  }, [
+    branches,
+    selectedCircle,
+    selectedRegion,
+    metric,
+  ]);
+
+  const selectedBranchData = useMemo(() => {
+    if (!selectedBranch) {
+      return null;
+    }
+
+    return branches.find(
+      (item) =>
+        item.branch === selectedBranch &&
+        item.circle === selectedCircle &&
+        item.region === selectedRegion
+    );
+  }, [
+    branches,
+    selectedBranch,
+    selectedCircle,
+    selectedRegion,
+  ]);
+
+  const currentMonthly =
+    currentYearData?.monthlyTrend || [];
+
+  const previousMonthly =
+    previousYearData?.monthlyTrend || [];
+
+  const metricLabel = {
+    production: "Production",
+    deposits: "Deposits",
+    advances: "Advances",
+    casa: "CASA",
+    npa: "NPA",
+  };
+
+  const chartTitle = useMemo(() => {
+    if (level === "circle") {
+      return "Circle Performance";
+    }
+
+    if (level === "region") {
+      return `${selectedCircle} — Region Performance`;
+    }
+
+    return selectedRegion
+      ? `${selectedRegion} — Branch Performance`
+      : `${selectedCircle} — Branch Performance`;
+  }, [
+    level,
+    selectedCircle,
+    selectedRegion,
+  ]);
+
+  const drilldownData =
+    level === "circle"
+      ? circleData
+      : level === "region"
+      ? regionData
+      : branchData;
+
+  const drilldownOption = useMemo(() => {
+    const names = drilldownData.map(
+      (item) => item.name
+    );
+
+    const values = drilldownData.map(
+      (item) => item.value
+    );
+
+    if (level === "circle") {
+      return {
+        animationDuration: 700,
+
+        tooltip: {
+          trigger: "item",
+
+          formatter: (params) => {
+            return `
+              <b>${params.name}</b><br/>
+              ${metricLabel[metric]}:
+              ${formatNumber(params.value)}
+              <br/>
+              Share: ${params.percent}%
+            `;
+          },
+        },
+
+        legend: {
+          bottom: 0,
+          type: "scroll",
+        },
+
+        series: [
+          {
+            name: metricLabel[metric],
+            type: "pie",
+
+            radius: [
+              "42%",
+              "72%",
+            ],
+
+            center: [
+              "50%",
+              "45%",
+            ],
+
+            avoidLabelOverlap: true,
+
+            itemStyle: {
+              borderWidth: 3,
+              borderColor: "#fff",
+              borderRadius: 7,
+            },
+
+            label: {
+              show: true,
+              formatter: "{b}\n{d}%",
+            },
+
+            emphasis: {
+              scale: true,
+              scaleSize: 8,
+
+              itemStyle: {
+                shadowBlur: 20,
+                shadowOffsetX: 0,
+                shadowColor:
+                  "rgba(0,0,0,0.18)",
+              },
+            },
+
+            data: drilldownData,
+          },
+        ],
+      };
+    }
+
+    return {
+      animationDuration: 600,
+
+      tooltip: {
+        trigger: "axis",
+
+        axisPointer: {
+          type: "shadow",
+        },
+
+        formatter: (params) => {
+          const item = params?.[0];
+
+          if (!item) return "";
+
+          return `
+            <b>${item.name}</b><br/>
+            ${metricLabel[metric]}:
+            ${formatNumber(item.value)}
+          `;
+        },
+      },
+
+      grid: {
+        left: 55,
+        right: 25,
+        top: 40,
+        bottom:
+          level === "branch"
+            ? 95
+            : 60,
+      },
+
+      xAxis: {
+        type: "category",
+        data: names,
+
+        axisLabel: {
+          interval: 0,
+
+          rotate:
+            level === "branch"
+              ? 35
+              : names.length > 4
+              ? 25
+              : 0,
+        },
+      },
+
+      yAxis: {
+        type: "value",
+
+        name: metricLabel[metric],
+
+        nameTextStyle: {
+          padding: [0, 0, 0, 10],
+        },
+
+        splitLine: {
+          lineStyle: {
+            type: "dashed",
+            opacity: 0.5,
+          },
+        },
+      },
+
+      dataZoom:
+        level === "branch" &&
+        names.length > 7
+          ? [
+              {
+                type: "inside",
+              },
+              {
+                type: "slider",
+                bottom: 5,
+              },
+            ]
+          : [],
+
+      series: [
+        {
+          name: metricLabel[metric],
+
+          type: "bar",
+
+          barMaxWidth: 55,
+
+          data: values,
+
+          label: {
+            show: true,
+            position: "top",
+
+            formatter: (params) =>
+              formatNumber(params.value),
+          },
+
+          emphasis: {
+            focus: "series",
+
+            itemStyle: {
+              shadowBlur: 12,
+              shadowOffsetY: 4,
+            },
+          },
+        },
+      ],
+    };
+  }, [
+    drilldownData,
+    level,
+    metric,
+  ]);
+
+  const monthlyOption = useMemo(() => {
+    return {
+      animationDuration: 700,
+
+      tooltip: {
+        trigger: "axis",
+      },
+
+      legend: {
+        top: 0,
+        right: 0,
+      },
+
+      grid: {
+        left: 50,
+        right: 25,
+        top: 50,
+        bottom: 40,
+      },
+
+      xAxis: {
+        type: "category",
+        boundaryGap: false,
+
+        data: currentMonthly.map(
+          (item) => item.month
+        ),
+      },
+
+      yAxis: {
+        type: "value",
+        name: "Production",
+
+        splitLine: {
+          lineStyle: {
+            type: "dashed",
+            opacity: 0.5,
+          },
+        },
+      },
+
+      series: [
+        {
+          name:
+            currentYearData?.label ||
+            selectedYear,
+
+          type: "line",
+
+          smooth: true,
+
+          symbol: "circle",
+
+          symbolSize: 7,
+
+          data: currentMonthly.map(
+            (item) =>
+              item.production
+          ),
+
+          areaStyle: {
+            opacity: 0.08,
+          },
+        },
+
+        {
+          name:
+            previousYearData?.label ||
+            previousYear ||
+            "Previous Year",
+
+          type: "line",
+
+          smooth: true,
+
+          symbol: "circle",
+
+          symbolSize: 5,
+
+          lineStyle: {
+            type: "dashed",
+          },
+
+          data: previousMonthly.map(
+            (item) =>
+              item.production
+          ),
+        },
+      ],
+    };
+  }, [
+    currentMonthly,
+    previousMonthly,
+    currentYearData,
+    previousYearData,
+    selectedYear,
+    previousYear,
+  ]);
+
+
+  const handleChartClick = (params) => {
+    if (!params?.name) return;
+
+    if (level === "circle") {
+      setSelectedCircle(params.name);
+      setSelectedRegion(null);
+      setSelectedBranch(null);
+      setLevel("region");
+      return;
+    }
+
+    if (level === "region") {
+      setSelectedRegion(params.name);
+      setSelectedBranch(null);
+      setLevel("branch");
+      return;
+    }
+
+    if (level === "branch") {
+      setSelectedBranch(params.name);
+    }
+  };
+
+
+  const handleBack = () => {
+    if (level === "branch") {
+      setSelectedBranch(null);
+      setLevel("region");
+      return;
+    }
+
+    if (level === "region") {
+      setSelectedRegion(null);
+      setSelectedCircle(null);
+      setLevel("circle");
+    }
+  };
+
+
+  const handleHome = () => {
+    setSelectedCircle(null);
+    setSelectedRegion(null);
+    setSelectedBranch(null);
+    setLevel("circle");
+  };
+
+
+  const handleYearChange = (event) => {
+    const year = event.target.value;
+
+    setSelectedYear(year);
+
+    setSelectedCircle(null);
+    setSelectedRegion(null);
+    setSelectedBranch(null);
+    setLevel("circle");
+  };
+
+
+  return (
+    <Card
+      sx={{
+        width: "100%",
+        borderRadius: 3,
+        border: "1px solid #E4E7EC",
+        boxShadow:
+          "0 4px 18px rgba(16,24,40,0.05)",
+      }}
+    >
+      <CardContent
+        sx={{
+          p: 0,
+          "&:last-child": {
+            pb: 0,
+          },
+        }}
+      >
+
+        {/* HEADER */}
+
+        <Box
+          sx={{
+            px: 2.5,
+            py: 2,
+          }}
+        >
+          <Stack
+            direction={{
+              xs: "column",
+              md: "row",
+            }}
+            justifyContent="space-between"
+            alignItems={{
+              xs: "flex-start",
+              md: "center",
+            }}
+            spacing={2}
+          >
+
+            {/* TITLE */}
+
+            <Box>
+              <Typography
+                sx={{
+                  fontSize: 17,
+                  fontWeight: 800,
+                  color: "#101828",
+                }}
+              >
+                Banking Performance
+              </Typography>
+
+              <Typography
+                sx={{
+                  mt: 0.3,
+                  fontSize: 11,
+                  color: "#667085",
+                }}
+              >
+                Interactive {metricLabel[metric]} analysis
+              </Typography>
+            </Box>
+
+
+            {/* CONTROLS */}
+
+            <Stack
+              direction={{
+                xs: "column",
+                sm: "row",
+              }}
+              spacing={1}
+              width={{
+                xs: "100%",
+                md: "auto",
+              }}
+            >
+
+              {/* YEAR */}
+
+              <FormControl
+                size="small"
+                sx={{
+                  minWidth: 125,
+                }}
+              >
+                <InputLabel>
+                  Year
+                </InputLabel>
+
+                <Select
+                  value={selectedYear}
+                  label="Year"
+                  onChange={handleYearChange}
+                >
+                  {years.map((year) => (
+                    <MenuItem
+                      key={year}
+                      value={year}
+                    >
+                      {year}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+
+              {/* METRIC */}
+
+              <FormControl
+                size="small"
+                sx={{
+                  minWidth: 145,
+                }}
+              >
+                <InputLabel>
+                  Metric
+                </InputLabel>
+
+                <Select
+                  value={metric}
+                  label="Metric"
+                  onChange={(event) => {
+                    setMetric(
+                      event.target.value
+                    );
+
+                    setSelectedBranch(null);
+                  }}
+                >
+                  <MenuItem value="production">
+                    Production
+                  </MenuItem>
+
+                  <MenuItem value="deposits">
+                    Deposits
+                  </MenuItem>
+
+                  <MenuItem value="advances">
+                    Advances
+                  </MenuItem>
+
+                  <MenuItem value="casa">
+                    CASA
+                  </MenuItem>
+
+                  <MenuItem value="npa">
+                    NPA
+                  </MenuItem>
+                </Select>
+              </FormControl>
+
+
+              {/* VIEW */}
+
+              <FormControl
+                size="small"
+                sx={{
+                  minWidth: 135,
+                }}
+              >
+                <InputLabel>
+                  View
+                </InputLabel>
+
+                <Select
+                  value={view}
+                  label="View"
+                  onChange={(event) => {
+                    setView(
+                      event.target.value
+                    );
+
+                    if (
+                      event.target.value ===
+                      "drilldown"
+                    ) {
+                      handleHome();
+                    }
+                  }}
+                >
+                  <MenuItem value="drilldown">
+                    Drill Down
+                  </MenuItem>
+
+                  <MenuItem value="trend">
+                    Yearly Trend
+                  </MenuItem>
+                </Select>
+              </FormControl>
+
+            </Stack>
+          </Stack>
+        </Box>
+
+
+        <Divider />
+
+
+        {/* DRILLDOWN TOOLBAR */}
+
+        {view === "drilldown" && (
+          <Box
+            sx={{
+              px: 2.5,
+              py: 1.2,
+              display: "flex",
+              alignItems: "center",
+              justifyContent:
+                "space-between",
+              gap: 1,
+              flexWrap: "wrap",
+            }}
+          >
+
+            <Stack
+              direction="row"
+              spacing={0.7}
+              alignItems="center"
+            >
+
+              {level !== "circle" && (
+                <Tooltip title="Go Back">
+                  <IconButton
+                    size="small"
+                    onClick={handleBack}
+                    sx={{
+                      border:
+                        "1px solid #EAECF0",
+                    }}
+                  >
+                    <ArrowBackRoundedIcon
+                      sx={{
+                        fontSize: 18,
+                      }}
+                    />
+                  </IconButton>
+                </Tooltip>
+              )}
+
+
+              {level !== "circle" && (
+                <Tooltip title="Go to Circles">
+                  <IconButton
+                    size="small"
+                    onClick={handleHome}
+                    sx={{
+                      border:
+                        "1px solid #EAECF0",
+                    }}
+                  >
+                    <HomeRoundedIcon
+                      sx={{
+                        fontSize: 18,
+                      }}
+                    />
+                  </IconButton>
+                </Tooltip>
+              )}
+
+              <Typography
+                sx={{
+                  ml: 0.5,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#344054",
+                }}
+              >
+                {chartTitle}
+              </Typography>
+
+            </Stack>
+
+
+            <Stack
+              direction="row"
+              spacing={0.7}
+              flexWrap="wrap"
+            >
+
+              <Chip
+                size="small"
+                label={selectedYear}
+                sx={{
+                  height: 24,
+                  fontSize: 10,
+                  fontWeight: 700,
+                }}
+              />
+
+              <Chip
+                size="small"
+                label={
+                  metricLabel[metric]
+                }
+                sx={{
+                  height: 24,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  background:
+                    "#EEF4FF",
+                  color: "#175CD3",
+                }}
+              />
+
+              <Chip
+                size="small"
+                label={
+                  level === "circle"
+                    ? "Circle"
+                    : level === "region"
+                    ? "Region"
+                    : "Branch"
+                }
+                sx={{
+                  height: 24,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  background:
+                    "#F2F4F7",
+                  color: "#475467",
+                }}
+              />
+
+            </Stack>
+          </Box>
+        )}
+
+
+        {/* BREADCRUMB */}
+
+        {view === "drilldown" &&
+          (selectedCircle ||
+            selectedRegion ||
+            selectedBranch) && (
+            <Box
+              sx={{
+                px: 2.5,
+                pb: 1,
+              }}
+            >
+              <Stack
+                direction="row"
+                spacing={0.7}
+                alignItems="center"
+                flexWrap="wrap"
+              >
+
+                <Chip
+                  size="small"
+                  clickable
+                  label="All Circles"
+                  onClick={handleHome}
+                  sx={{
+                    height: 23,
+                    fontSize: 9.5,
+                  }}
+                />
+
+                {selectedCircle && (
+                  <>
+                    <Typography
+                      sx={{
+                        fontSize: 11,
+                        color: "#98A2B3",
+                      }}
+                    >
+                      /
+                    </Typography>
+
+                    <Chip
+                      size="small"
+                      clickable
+                      label={selectedCircle}
+                      onClick={() => {
+                        setSelectedRegion(null);
+                        setSelectedBranch(null);
+                        setLevel("region");
+                      }}
+                      sx={{
+                        height: 23,
+                        fontSize: 9.5,
+                        fontWeight: 700,
+                      }}
+                    />
+                  </>
+                )}
+
+                {selectedRegion && (
+                  <>
+                    <Typography
+                      sx={{
+                        fontSize: 11,
+                        color: "#98A2B3",
+                      }}
+                    >
+                      /
+                    </Typography>
+
+                    <Chip
+                      size="small"
+                      clickable
+                      label={selectedRegion}
+                      onClick={() => {
+                        setSelectedBranch(null);
+                        setLevel("branch");
+                      }}
+                      sx={{
+                        height: 23,
+                        fontSize: 9.5,
+                        fontWeight: 700,
+                      }}
+                    />
+                  </>
+                )}
+
+                {selectedBranch && (
+                  <>
+                    <Typography
+                      sx={{
+                        fontSize: 11,
+                        color: "#98A2B3",
+                      }}
+                    >
+                      /
+                    </Typography>
+
+                    <Chip
+                      size="small"
+                      label={selectedBranch}
+                      sx={{
+                        height: 23,
+                        fontSize: 9.5,
+                        fontWeight: 700,
+                        background:
+                          "#EEF4FF",
+                        color: "#175CD3",
+                      }}
+                    />
+                  </>
+                )}
+
+              </Stack>
+            </Box>
+          )}
+
+
+        {/* CHART */}
+
+        <Box
+          sx={{
+            px: {
+              xs: 1,
+              sm: 2,
+            },
+            pb: 1,
+          }}
+        >
+
+          {view === "drilldown" ? (
+            <ReactECharts
+              option={drilldownOption}
+              style={{
+                width: "100%",
+                height: 430,
+              }}
+              notMerge
+              lazyUpdate
+              onEvents={{
+                click: handleChartClick,
+              }}
+            />
+          ) : (
+            <ReactECharts
+              option={monthlyOption}
+              style={{
+                width: "100%",
+                height: 410,
+              }}
+              notMerge
+              lazyUpdate
+            />
+          )}
+
+        </Box>
+
+
+        {/* SELECTED BRANCH */}
+
+        {view === "drilldown" &&
+          selectedBranchData && (
+            <Box
+              sx={{
+                mx: 2.5,
+                mb: 2,
+                p: 2,
+                borderRadius: 2,
+                background:
+                  "#F8F9FC",
+                border:
+                  "1px solid #EAECF0",
+              }}
+            >
+
+              <Stack
+                direction={{
+                  xs: "column",
+                  sm: "row",
+                }}
+                justifyContent="space-between"
+                spacing={1.5}
+              >
+
+                <Box>
+                  <Typography
+                    sx={{
+                      fontSize: 10,
+                      color: "#667085",
+                    }}
+                  >
+                    Selected Branch
+                  </Typography>
+
+                  <Typography
+                    sx={{
+                      mt: 0.3,
+                      fontSize: 15,
+                      fontWeight: 800,
+                      color: "#101828",
+                    }}
+                  >
+                    {
+                      selectedBranchData.branch
+                    }
+                  </Typography>
+                </Box>
+
+                <Chip
+                  size="small"
+                  label={
+                    selectedBranchData.circle
+                  }
+                  sx={{
+                    alignSelf: {
+                      xs: "flex-start",
+                      sm: "center",
+                    },
+                    fontSize: 10,
+                    fontWeight: 700,
+                  }}
+                />
+
+              </Stack>
+
+
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                  mt: 1.5,
+                  flexWrap: "wrap",
+                  gap: 0.8,
+                }}
+              >
+
+                <Chip
+                  label={`Production: ${formatNumber(
+                    selectedBranchData.production
+                  )}`}
+                  size="small"
+                />
+
+                <Chip
+                  label={`Deposits: ${formatNumber(
+                    selectedBranchData.deposits
+                  )}`}
+                  size="small"
+                />
+
+                <Chip
+                  label={`Advances: ${formatNumber(
+                    selectedBranchData.advances
+                  )}`}
+                  size="small"
+                />
+
+                <Chip
+                  label={`CASA: ${formatNumber(
+                    selectedBranchData.casa
+                  )}`}
+                  size="small"
+                />
+
+                <Chip
+                  label={`NPA: ${formatNumber(
+                    selectedBranchData.npa
+                  )}%`}
+                  size="small"
+                />
+
+              </Stack>
+            </Box>
+          )}
+
+
+        {/* FOOTER */}
+
+        <Box
+          sx={{
+            px: 2.5,
+            py: 1.2,
+            borderTop:
+              "1px solid #F2F4F7",
+          }}
+        >
+          <Typography
+            sx={{
+              fontSize: 10,
+              color: "#98A2B3",
+            }}
+          >
+            Click a Circle → Region → Branch
+            to drill down into performance.
+          </Typography>
+        </Box>
+
+      </CardContent>
+    </Card>
+  );
+};
+
+export default DashboardCustomChart;

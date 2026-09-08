@@ -1,0 +1,1031 @@
+import React from "react";
+import {
+  Box,
+  Paper,
+  Stack,
+  Typography,
+  Select,
+  MenuItem,
+  Button,
+  IconButton,
+} from "@mui/material";
+import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  PieChart,
+  Pie,
+  Cell,
+  LabelList,
+} from "recharts";
+import { theme } from "../theme/primitive";
+
+const glassCardSx = {
+  p: { xs: 1.75, md: 2.5 },
+  borderRadius: 3,
+  height: "100%",
+  border: "1px solid rgba(255,255,255,0.62)",
+  background: "rgba(255,255,255,0.34)",
+  boxShadow: "0 14px 40px rgba(49,38,91,0.08)",
+  backdropFilter: "blur(18px)",
+  WebkitBackdropFilter: "blur(18px)",
+  overflow: "hidden",
+};
+
+export function GlassCard({ children, sx = {}, ...props }) {
+  return (
+    <Paper elevation={0} sx={{ ...glassCardSx, ...sx }} {...props}>
+      {children}
+    </Paper>
+  );
+}
+
+export function PanelHeader({ icon: Icon, title, action, iconColor }) {
+  const color = iconColor || theme.palette.primary.main;
+
+  return (
+    <Stack
+      direction="row"
+      alignItems="center"
+      justifyContent="space-between"
+      sx={{ mb: 2 }}
+    >
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1.25}
+        minWidth={0}
+      >
+        {Icon && (
+          <Box
+            sx={{
+              width: 36,
+              height: 36,
+              borderRadius: 2.25,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              bgcolor: `${color}18`,
+              color,
+              border: `1px solid ${color}20`,
+            }}
+          >
+            <Icon sx={{ fontSize: 19 }} />
+          </Box>
+        )}
+
+        <Typography
+          sx={{
+            fontWeight: 800,
+            fontSize: 15,
+            letterSpacing: 0.15,
+            color: theme.palette.text.primary,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {title}
+        </Typography>
+      </Stack>
+
+      {action}
+    </Stack>
+  );
+}
+
+export function MiniSelect({
+  options = [],
+  value,
+  onChange,
+}) {
+  return (
+    <Select
+      size="small"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      sx={{
+        minWidth: 118,
+        fontSize: 12.5,
+        fontWeight: 650,
+        borderRadius: 2,
+        bgcolor: "rgba(255,255,255,0.40)",
+        backdropFilter: "blur(10px)",
+
+        "& .MuiOutlinedInput-notchedOutline": {
+          border: "1px solid rgba(255,255,255,0.72)",
+        },
+
+        "&:hover .MuiOutlinedInput-notchedOutline": {
+          borderColor: `${theme.palette.primary.main}55`,
+        },
+
+        "& .MuiSelect-select": {
+          py: 0.8,
+          pr: 4,
+        },
+      }}
+    >
+      {options.map((option) => (
+        <MenuItem
+          key={option}
+          value={option}
+          sx={{
+            fontSize: 13,
+          }}
+        >
+          {option}
+        </MenuItem>
+      ))}
+    </Select>
+  );
+}
+
+function DrilldownView({
+  data,
+  onBack,
+}) {
+  if (!data) return null;
+
+  const columns = data.columns || [];
+  const rows = data.rows || [];
+
+  return (
+    <Box
+      sx={{
+        height: "100%",
+        minHeight: 260,
+      }}
+    >
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1}
+        sx={{ mb: 1.5 }}
+      >
+        <IconButton
+          size="small"
+          onClick={onBack}
+          aria-label="Back to chart"
+          sx={{
+            border: "1px solid rgba(255,255,255,0.72)",
+            bgcolor: "rgba(255,255,255,0.35)",
+
+            "&:hover": {
+              bgcolor: "rgba(255,255,255,0.55)",
+            },
+          }}
+        >
+          <ArrowBackRoundedIcon fontSize="small" />
+        </IconButton>
+
+        <Box minWidth={0}>
+          <Typography
+            sx={{
+              fontSize: 14.5,
+              fontWeight: 800,
+            }}
+          >
+            {data.title}
+          </Typography>
+
+          {data.subtitle && (
+            <Typography
+              sx={{
+                fontSize: 11.5,
+                color: theme.palette.text.secondary,
+              }}
+            >
+              {data.subtitle}
+            </Typography>
+          )}
+        </Box>
+      </Stack>
+
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${Math.max(
+            columns.length,
+            1
+          )}, minmax(0, 1fr))`,
+          gap: 1,
+          px: 1.25,
+          py: 1,
+          borderRadius: 2,
+          bgcolor: "rgba(108,92,224,0.08)",
+          mb: 0.75,
+        }}
+      >
+        {columns.map((column) => (
+          <Typography
+            key={column.key}
+            sx={{
+              fontSize: 10.5,
+              fontWeight: 800,
+              color: theme.palette.text.secondary,
+              textTransform: "uppercase",
+              letterSpacing: 0.35,
+            }}
+          >
+            {column.label}
+          </Typography>
+        ))}
+      </Box>
+
+      <Stack
+        spacing={0.75}
+        sx={{
+          maxHeight: 235,
+          overflowY: "auto",
+          pr: 0.25,
+        }}
+      >
+        {rows.map((row, index) => (
+          <Box
+            key={row.id || index}
+            sx={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${Math.max(
+                columns.length,
+                1
+              )}, minmax(0, 1fr))`,
+              gap: 1,
+              px: 1.25,
+              py: 1.05,
+              borderRadius: 2,
+              bgcolor: "rgba(255,255,255,0.28)",
+              border: "1px solid rgba(255,255,255,0.48)",
+            }}
+          >
+            {columns.map((column) => (
+              <Typography
+                key={column.key}
+                sx={{
+                  fontSize: 11.5,
+                  fontWeight: column.emphasis ? 800 : 600,
+                  color: column.emphasis
+                    ? theme.palette.text.primary
+                    : theme.palette.text.secondary,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {row[column.key] ?? "—"}
+              </Typography>
+            ))}
+          </Box>
+        ))}
+      </Stack>
+    </Box>
+  );
+}
+
+function useDrilldown() {
+  const [selectedId, setSelectedId] =
+    React.useState(null);
+
+  return {
+    selectedId,
+    open: setSelectedId,
+    close: () => setSelectedId(null),
+  };
+}
+
+
+export function Gauge({ config, drilldowns = {} }) {
+  const { selectedId, open, close } = useDrilldown();
+  const selected = selectedId ? drilldowns[selectedId] : null;
+
+  const RADIAN = Math.PI / 180;
+  const cx = 150;
+  const cy = 150;
+  const innerR = 92;
+
+  const needleAngle =
+    180 - (config.needlePercent / 100) * 180;
+
+  return (
+    <GlassCard>
+      {selected ? (
+        <DrilldownView
+          data={selected}
+          onBack={close}
+        />
+      ) : (
+        <>
+          <PanelHeader
+            title={config.title}
+          />
+
+          <Typography
+            sx={{
+              fontSize: 12.5,
+              color: theme.palette.text.secondary,
+              mt: -1.5,
+              mb: 1,
+            }}
+          >
+            {config.subtitle}
+          </Typography>
+
+          <Box
+            sx={{
+              position: "relative",
+              width: "100%",
+              height: 210,
+            }}
+          >
+            <ResponsiveContainer>
+              <PieChart>
+                <Pie
+                  data={config.segments}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="85%"
+                  startAngle={180}
+                  endAngle={0}
+                  innerRadius={92}
+                  outerRadius={130}
+                  paddingAngle={2}
+                  stroke="none"
+                  isAnimationActive={false}
+                  onClick={(entry) => {
+                    if (entry?.drilldownId) {
+                      open(entry.drilldownId);
+                    }
+                  }}
+                  cursor="pointer"
+                >
+                  {config.segments.map(
+                    (segment, index) => (
+                      <Cell
+                        key={index}
+                        fill={segment.color}
+                      />
+                    )
+                  )}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+
+            <Box
+              sx={{
+                position: "absolute",
+                inset: 0,
+                pointerEvents: "none",
+              }}
+            >
+              <svg
+                viewBox="0 0 300 300"
+                width="100%"
+                height="100%"
+              >
+                <circle
+                  cx={cx}
+                  cy={cy * 0.85}
+                  r="7"
+                  fill={theme.palette.text.primary}
+                />
+
+                <line
+                  x1={cx}
+                  y1={cy * 0.85}
+                  x2={
+                    cx +
+                    (innerR - 6) *
+                      Math.cos(
+                        needleAngle * RADIAN
+                      )
+                  }
+                  y2={
+                    cy * 0.85 -
+                    (innerR - 6) *
+                      Math.sin(
+                        needleAngle * RADIAN
+                      )
+                  }
+                  stroke={theme.palette.text.primary}
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </Box>
+
+            <Box
+              sx={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                bottom: 6,
+                textAlign: "center",
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: 30,
+                  fontWeight: 850,
+                  color: theme.palette.text.primary,
+                  lineHeight: 1.1,
+                }}
+              >
+                {Number(config.value).toFixed(1)}%
+              </Typography>
+
+              <Typography
+                sx={{
+                  fontSize: 13,
+                  color: theme.palette.text.secondary,
+                  fontWeight: 600,
+                }}
+              >
+                {config.centerLabel}
+              </Typography>
+            </Box>
+          </Box>
+
+          <Stack
+            direction="row"
+            spacing={2.5}
+            justifyContent="center"
+            flexWrap="wrap"
+            sx={{ mt: 1 }}
+          >
+            {config.segments.map(
+              (segment) => (
+                <Button
+                  key={segment.name}
+                  variant="text"
+                  onClick={() => {
+                    if (
+                      segment.drilldownId
+                    ) {
+                      open(
+                        segment.drilldownId
+                      );
+                    }
+                  }}
+                  sx={{
+                    minWidth: 0,
+                    p: 0,
+                    textTransform: "none",
+                    color:
+                      theme.palette.text.secondary,
+                    fontSize: 12,
+                    fontWeight: 600,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 9,
+                      height: 9,
+                      borderRadius: "50%",
+                      bgcolor:
+                        segment.color,
+                      mr: 0.75,
+                    }}
+                  />
+
+                  {segment.name}
+                </Button>
+              )
+            )}
+          </Stack>
+        </>
+      )}
+    </GlassCard>
+  );
+}
+
+export function CompositionMosaic({
+  config,
+  drilldowns = {},
+  icon,
+}) {
+  const {
+    selectedId,
+    open,
+    close,
+  } = useDrilldown();
+
+  const selected = selectedId
+    ? drilldowns[selectedId]
+    : null;
+
+  const hasFilter =
+    Array.isArray(config.filterOptions) &&
+    config.filterOptions.length > 0;
+
+  const [filter, setFilter] =
+    React.useState(
+      config.activeFilter ||
+        (hasFilter
+          ? config.filterOptions[0]
+          : "")
+    );
+
+  const items =
+    filter &&
+    config.filters?.[filter]
+      ? config.filters[filter]
+      : config.items;
+
+  const [
+    big1,
+    big2,
+    big3,
+    ...rest
+  ] = items || [];
+
+  if (selected) {
+    return (
+      <GlassCard>
+        <DrilldownView
+          data={selected}
+          onBack={close}
+        />
+      </GlassCard>
+    );
+  }
+
+  const Tile = ({
+    item,
+    sx = {},
+  }) => (
+    <Box
+      role={
+        item.drilldownId
+          ? "button"
+          : undefined
+      }
+      tabIndex={
+        item.drilldownId
+          ? 0
+          : undefined
+      }
+      onClick={() => {
+        if (item.drilldownId) {
+          open(item.drilldownId);
+        }
+      }}
+      onKeyDown={(e) => {
+        if (
+          item.drilldownId &&
+          (e.key === "Enter" ||
+            e.key === " ")
+        ) {
+          open(item.drilldownId);
+        }
+      }}
+      sx={{
+        borderRadius: 2.25,
+        p: 1.5,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        background:
+          `linear-gradient(135deg, ` +
+          `${item.color}f2, ` +
+          `${item.color}c9)`,
+        color: "#fff",
+        minHeight: 70,
+        cursor: item.drilldownId
+          ? "pointer"
+          : "default",
+        border:
+          "1px solid rgba(255,255,255,0.25)",
+        boxShadow:
+          "inset 0 1px 0 rgba(255,255,255,0.20)",
+        transition:
+          "transform .18s ease, filter .18s ease",
+
+        "&:hover":
+          item.drilldownId
+            ? {
+                transform:
+                  "translateY(-2px)",
+                filter:
+                  "brightness(1.04)",
+              }
+            : {},
+
+        "&:focus-visible":
+          item.drilldownId
+            ? {
+                outline:
+                  `2px solid ${theme.palette.primary.main}`,
+              }
+            : {},
+
+        ...sx,
+      }}
+    >
+      <Typography
+        sx={{
+          fontSize: 12.5,
+          fontWeight: 700,
+          opacity: 0.96,
+          lineHeight: 1.2,
+        }}
+      >
+        {item.name}
+      </Typography>
+
+      <Box>
+        <Typography
+          sx={{
+            fontSize: 16,
+            fontWeight: 850,
+          }}
+        >
+          ₹
+          {Number(item.value).toFixed(2)}
+          T
+        </Typography>
+
+        <Typography
+          sx={{
+            fontSize: 11,
+            opacity: 0.9,
+          }}
+        >
+          {item.share}%
+        </Typography>
+      </Box>
+    </Box>
+  );
+
+  return (
+    <GlassCard>
+      <PanelHeader
+        icon={icon}
+        title={config.title}
+        action={
+          hasFilter ? (
+            <MiniSelect
+              options={
+                config.filterOptions
+              }
+              value={filter}
+              onChange={setFilter}
+            />
+          ) : undefined
+        }
+      />
+
+      <Typography
+        sx={{
+          fontSize: 12.5,
+          color:
+            theme.palette.text.secondary,
+          mt: -1.5,
+          mb: 1.5,
+        }}
+      >
+        {config.subtitle}
+      </Typography>
+
+      <Box
+        sx={{
+          display: "flex",
+          gap: 1,
+          height: 190,
+        }}
+      >
+        {big1 && (
+          <Tile
+            item={big1}
+            sx={{
+              flex: 1.3,
+            }}
+          />
+        )}
+
+        {big2 && (
+          <Tile
+            item={big2}
+            sx={{
+              flex: 1.1,
+            }}
+          />
+        )}
+
+        <Box
+          sx={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            gap: 1,
+          }}
+        >
+          {big3 && (
+            <Tile
+              item={big3}
+              sx={{
+                flex: 1,
+              }}
+            />
+          )}
+
+          <Box
+            sx={{
+              display: "flex",
+              gap: 1,
+              flex: 1,
+            }}
+          >
+            {rest.map(
+              (item) => (
+                <Tile
+                  key={item.name}
+                  item={item}
+                  sx={{
+                    flex: 1,
+
+                    "& .MuiTypography-root":
+                      {
+                        fontSize: 10.5,
+                      },
+                  }}
+                />
+              )
+            )}
+          </Box>
+        </Box>
+      </Box>
+
+      <Box
+        sx={{
+          mt: 2,
+          display: "grid",
+          gridTemplateColumns:
+            "1fr 1fr",
+          rowGap: 0.75,
+          columnGap: 2,
+        }}
+      >
+        {(config.legend || []).map(
+          (legend) => (
+            <Button
+              key={legend.name}
+              variant="text"
+              onClick={() => {
+                if (
+                  legend.drilldownId
+                ) {
+                  open(
+                    legend.drilldownId
+                  );
+                }
+              }}
+              sx={{
+                justifyContent:
+                  "flex-start",
+                minWidth: 0,
+                p: 0,
+                textTransform: "none",
+                color:
+                  theme.palette.text
+                    .secondary,
+                fontSize: 11.5,
+                fontWeight: 600,
+                overflow: "hidden",
+                whiteSpace:
+                  "nowrap",
+                textOverflow:
+                  "ellipsis",
+              }}
+            >
+              <Box
+                sx={{
+                  width: 9,
+                  height: 9,
+                  borderRadius: "3px",
+                  bgcolor:
+                    legend.color,
+                  flexShrink: 0,
+                  mr: 0.75,
+                }}
+              />
+
+              {legend.name}
+            </Button>
+          )
+        )}
+      </Box>
+    </GlassCard>
+  );
+}
+
+
+export function BarPanel({
+  icon,
+  config,
+  drilldowns = {},
+}) {
+  const {
+    selectedId,
+    open,
+    close,
+  } = useDrilldown();
+
+  const selected = selectedId
+    ? drilldowns[selectedId]
+    : null;
+
+  const hasDropdown =
+    Array.isArray(config.dropdownOptions) &&
+    config.dropdownOptions.length > 0;
+
+  const [option, setOption] =
+    React.useState(
+      config.activeOption ||
+        (hasDropdown
+          ? config.dropdownOptions[0]
+          : "")
+    );
+
+  const chartData =
+    option &&
+    config.filters?.[option]
+      ? config.filters[option]
+      : config.data;
+
+  const longLabels =
+    chartData.length > 5;
+
+  return (
+    <GlassCard>
+      {selected ? (
+        <DrilldownView
+          data={selected}
+          onBack={close}
+        />
+      ) : (
+        <>
+          <PanelHeader
+            icon={icon}
+            title={config.title}
+            action={
+              hasDropdown ? (
+                <MiniSelect
+                  options={
+                    config.dropdownOptions
+                  }
+                  value={option}
+                  onChange={
+                    setOption
+                  }
+                />
+              ) : undefined
+            }
+          />
+
+          <Typography
+            sx={{
+              fontSize: 12.5,
+              color:
+                theme.palette.text.secondary,
+              mt: -1.5,
+              mb: 1.5,
+            }}
+          >
+            {config.subtitle}
+          </Typography>
+
+          <Box
+            sx={{
+              width: "100%",
+              height: longLabels
+                ? 300
+                : 260,
+            }}
+          >
+            <ResponsiveContainer>
+              <BarChart
+                data={chartData}
+                margin={{
+                  top: 24,
+                  right: 10,
+                  left: -10,
+                  bottom:
+                    longLabels
+                      ? 60
+                      : 0,
+                }}
+                barCategoryGap="28%"
+              >
+                <CartesianGrid
+                  vertical={false}
+                  stroke="rgba(105,94,145,0.12)"
+                />
+
+                <XAxis
+                  dataKey="name"
+                  tick={{
+                    fontSize:
+                      longLabels
+                        ? 9.5
+                        : 10.5,
+                    fill:
+                      theme.palette
+                        .text.secondary,
+                  }}
+                  axisLine={{
+                    stroke:
+                      "rgba(105,94,145,0.12)",
+                  }}
+                  tickLine={false}
+                  interval={0}
+                  angle={
+                    longLabels
+                      ? -35
+                      : 0
+                  }
+                  textAnchor={
+                    longLabels
+                      ? "end"
+                      : "middle"
+                  }
+                  height={
+                    longLabels
+                      ? 70
+                      : 30
+                  }
+                />
+
+                <YAxis
+                  tick={{
+                    fontSize: 11,
+                    fill:
+                      theme.palette
+                        .text.secondary,
+                  }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={38}
+                />
+
+                <Bar
+                  dataKey="value"
+                  radius={[
+                    8,
+                    8,
+                    0,
+                    0,
+                  ]}
+                  maxBarSize={54}
+                  onClick={(entry) => {
+                    if (
+                      entry?.drilldownId
+                    ) {
+                      open(
+                        entry.drilldownId
+                      );
+                    }
+                  }}
+                  cursor="pointer"
+                >
+                  {chartData.map(
+                    (item, index) => (
+                      <Cell
+                        key={index}
+                        fill={item.color}
+                      />
+                    )
+                  )}
+
+                  <LabelList
+                    dataKey="value"
+                    position="top"
+                    formatter={(value) =>
+                      `₹${
+                        Number(value) < 1
+                          ? Number(value).toFixed(4)
+                          : value
+                      }T`
+                    }
+                    style={{
+                      fontSize: 11.5,
+                      fontWeight: 800,
+                      fill:
+                        theme.palette
+                          .text.primary,
+                    }}
+                  />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </Box>
+        </>
+      )}
+    </GlassCard>
+  );
+}

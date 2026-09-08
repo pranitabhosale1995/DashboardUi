@@ -1,0 +1,575 @@
+import React, { useMemo, useState } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Stack,
+  Chip,
+  Divider,
+  TextField,
+  MenuItem,
+} from "@mui/material";
+
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
+import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
+import InfoRoundedIcon from "@mui/icons-material/InfoRounded";
+import ErrorRoundedIcon from "@mui/icons-material/ErrorRounded";
+import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
+
+import dashboardData from "../dashboard.json";
+
+
+const DashboardRecentActivity = () => {
+  const activities =
+    dashboardData?.recentActivity || [];
+
+  const [filter, setFilter] =
+    useState("all");
+
+  const [search, setSearch] =
+    useState("");
+
+
+  const getActivityType = (item) => {
+    return (
+      item.type ||
+      item.status ||
+      "info"
+    ).toLowerCase();
+  };
+
+
+  const filteredActivities = useMemo(() => {
+    return activities
+      .filter((item) => {
+        if (filter === "all") {
+          return true;
+        }
+
+        return (
+          getActivityType(item) ===
+          filter
+        );
+      })
+      .filter((item) => {
+        if (!search.trim()) {
+          return true;
+        }
+
+        const text = `
+          ${item.title || ""}
+          ${item.description || ""}
+          ${item.branch || ""}
+          ${item.circle || ""}
+          ${item.region || ""}
+        `.toLowerCase();
+
+        return text.includes(
+          search.toLowerCase()
+        );
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.timestamp || b.date || 0) -
+          new Date(a.timestamp || a.date || 0)
+      );
+  }, [
+    activities,
+    filter,
+    search,
+  ]);
+
+
+  const getIcon = (type) => {
+    if (type === "success") {
+      return (
+        <CheckCircleRoundedIcon
+          sx={{
+            fontSize: 18,
+            color: "#12B76A",
+          }}
+        />
+      );
+    }
+
+    if (type === "warning") {
+      return (
+        <WarningAmberRoundedIcon
+          sx={{
+            fontSize: 18,
+            color: "#F79009",
+          }}
+        />
+      );
+    }
+
+    if (type === "error") {
+      return (
+        <ErrorRoundedIcon
+          sx={{
+            fontSize: 18,
+            color: "#F04438",
+          }}
+        />
+      );
+    }
+
+    return (
+      <InfoRoundedIcon
+        sx={{
+          fontSize: 18,
+          color: "#2E90FA",
+        }}
+      />
+    );
+  };
+
+
+  const getIconBackground = (type) => {
+    if (type === "success") {
+      return "#ECFDF3";
+    }
+
+    if (type === "warning") {
+      return "#FFFAEB";
+    }
+
+    if (type === "error") {
+      return "#FEF3F2";
+    }
+
+    return "#EFF8FF";
+  };
+
+
+  const formatDate = (value) => {
+    if (!value) {
+      return "N/A";
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+
+    return date.toLocaleString(
+      "en-IN",
+      {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    );
+  };
+
+
+  return (
+    <Card
+      sx={{
+        borderRadius: 3,
+        border: "1px solid #E4E7EC",
+        boxShadow:
+          "0 4px 18px rgba(16,24,40,0.05)",
+      }}
+    >
+      <CardContent
+        sx={{
+          p: 0,
+          "&:last-child": {
+            pb: 0,
+          },
+        }}
+      >
+
+        {/* HEADER */}
+
+        <Box
+          sx={{
+            px: 2.5,
+            py: 2,
+          }}
+        >
+          <Stack
+            direction={{
+              xs: "column",
+              sm: "row",
+            }}
+            justifyContent="space-between"
+            alignItems={{
+              xs: "flex-start",
+              sm: "center",
+            }}
+            spacing={1.5}
+          >
+
+            <Box>
+              <Typography
+                sx={{
+                  fontSize: 17,
+                  fontWeight: 800,
+                  color: "#101828",
+                }}
+              >
+                Recent Activity
+              </Typography>
+
+              <Typography
+                sx={{
+                  mt: 0.3,
+                  fontSize: 11,
+                  color: "#667085",
+                }}
+              >
+                Latest branch and banking
+                operations
+              </Typography>
+            </Box>
+
+
+            <Chip
+              size="small"
+              label={`${filteredActivities.length} Activities`}
+              sx={{
+                fontSize: 10.5,
+                fontWeight: 700,
+                background: "#F2F4F7",
+                color: "#344054",
+              }}
+            />
+
+          </Stack>
+
+
+          {/* FILTERS */}
+
+          <Stack
+            direction={{
+              xs: "column",
+              sm: "row",
+            }}
+            spacing={1}
+            sx={{
+              mt: 2,
+            }}
+          >
+
+            <TextField
+              size="small"
+              placeholder="Search activity..."
+              value={search}
+              onChange={(event) =>
+                setSearch(
+                  event.target.value
+                )
+              }
+              sx={{
+                flex: 1,
+                minWidth: 200,
+                "& .MuiInputBase-input": {
+                  fontSize: 12,
+                },
+              }}
+            />
+
+            <TextField
+              select
+              size="small"
+              value={filter}
+              onChange={(event) =>
+                setFilter(
+                  event.target.value
+                )
+              }
+              label="Status"
+              sx={{
+                minWidth: 140,
+              }}
+            >
+              <MenuItem value="all">
+                All
+              </MenuItem>
+
+              <MenuItem value="success">
+                Success
+              </MenuItem>
+
+              <MenuItem value="warning">
+                Warning
+              </MenuItem>
+
+              <MenuItem value="error">
+                Error
+              </MenuItem>
+
+              <MenuItem value="info">
+                Info
+              </MenuItem>
+            </TextField>
+
+          </Stack>
+        </Box>
+
+
+        <Divider />
+
+
+        {/* ACTIVITY LIST */}
+
+        <Box>
+          {filteredActivities.length === 0 ? (
+            <Box
+              sx={{
+                py: 6,
+                textAlign: "center",
+              }}
+            >
+              <AccessTimeRoundedIcon
+                sx={{
+                  fontSize: 36,
+                  color: "#98A2B3",
+                }}
+              />
+
+              <Typography
+                sx={{
+                  mt: 1,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#475467",
+                }}
+              >
+                No activity found
+              </Typography>
+
+              <Typography
+                sx={{
+                  mt: 0.5,
+                  fontSize: 11,
+                  color: "#98A2B3",
+                }}
+              >
+                Try changing your search
+                or filter.
+              </Typography>
+            </Box>
+          ) : (
+            filteredActivities
+              .slice(0, 10)
+              .map((item, index) => {
+                const type =
+                  getActivityType(item);
+
+                return (
+                  <React.Fragment
+                    key={
+                      item.id ||
+                      `${item.title}-${index}`
+                    }
+                  >
+
+                    <Box
+                      sx={{
+                        px: 2.5,
+                        py: 1.7,
+                        transition:
+                          "background 0.2s",
+                        "&:hover": {
+                          background:
+                            "#F8F9FC",
+                        },
+                      }}
+                    >
+
+                      <Stack
+                        direction="row"
+                        spacing={1.5}
+                        alignItems="flex-start"
+                      >
+
+                        {/* ICON */}
+
+                        <Box
+                          sx={{
+                            width: 36,
+                            height: 36,
+                            flexShrink: 0,
+                            borderRadius: 2,
+                            display:
+                              "flex",
+                            alignItems:
+                              "center",
+                            justifyContent:
+                              "center",
+                            background:
+                              getIconBackground(
+                                type
+                              ),
+                          }}
+                        >
+                          {getIcon(type)}
+                        </Box>
+
+
+                        {/* CONTENT */}
+
+                        <Box
+                          sx={{
+                            flex: 1,
+                            minWidth: 0,
+                          }}
+                        >
+
+                          <Stack
+                            direction="row"
+                            justifyContent="space-between"
+                            alignItems="flex-start"
+                            spacing={1}
+                          >
+
+                            <Typography
+                              sx={{
+                                fontSize: 12.5,
+                                fontWeight: 750,
+                                color:
+                                  "#101828",
+                              }}
+                            >
+                              {item.title ||
+                                item.activity ||
+                                "Activity"}
+                            </Typography>
+
+                            <Typography
+                              sx={{
+                                flexShrink: 0,
+                                fontSize: 10,
+                                color:
+                                  "#98A2B3",
+                              }}
+                            >
+                              {formatDate(
+                                item.timestamp ||
+                                  item.date
+                              )}
+                            </Typography>
+
+                          </Stack>
+
+
+                          <Typography
+                            sx={{
+                              mt: 0.5,
+                              fontSize: 11.5,
+                              lineHeight: 1.5,
+                              color:
+                                "#667085",
+                            }}
+                          >
+                            {item.description ||
+                              item.message ||
+                              ""}
+                          </Typography>
+
+
+                          {/* LOCATION */}
+
+                          {(item.circle ||
+                            item.region ||
+                            item.branch) && (
+                            <Stack
+                              direction="row"
+                              spacing={0.7}
+                              sx={{
+                                mt: 1,
+                              }}
+                              flexWrap="wrap"
+                            >
+
+                              {item.circle && (
+                                <Chip
+                                  size="small"
+                                  label={
+                                    item.circle
+                                  }
+                                  sx={{
+                                    height: 21,
+                                    fontSize: 9.5,
+                                    fontWeight: 600,
+                                    background:
+                                      "#F2F4F7",
+                                    color:
+                                      "#475467",
+                                  }}
+                                />
+                              )}
+
+                              {item.region && (
+                                <Chip
+                                  size="small"
+                                  label={
+                                    item.region
+                                  }
+                                  sx={{
+                                    height: 21,
+                                    fontSize: 9.5,
+                                    fontWeight: 600,
+                                    background:
+                                      "#F2F4F7",
+                                    color:
+                                      "#475467",
+                                  }}
+                                />
+                              )}
+
+                              {item.branch && (
+                                <Chip
+                                  size="small"
+                                  label={
+                                    item.branch
+                                  }
+                                  sx={{
+                                    height: 21,
+                                    fontSize: 9.5,
+                                    fontWeight: 600,
+                                    background:
+                                      "#EEF4FF",
+                                    color:
+                                      "#175CD3",
+                                  }}
+                                />
+                              )}
+
+                            </Stack>
+                          )}
+
+                        </Box>
+
+                      </Stack>
+
+                    </Box>
+
+                    {index <
+                      filteredActivities.length -
+                        1 && (
+                      <Divider
+                        sx={{
+                          mx: 2.5,
+                        }}
+                      />
+                    )}
+
+                  </React.Fragment>
+                );
+              })
+          )}
+        </Box>
+
+      </CardContent>
+    </Card>
+  );
+};
+
+export default DashboardRecentActivity;

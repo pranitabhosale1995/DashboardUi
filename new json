@@ -1,0 +1,258 @@
+{
+  "header": {
+    "title": "Deposits Dashboard",
+    "subtitle": "Deposit portfolio overview and trend analysis",
+    "financialYearLabel": "Financial Year",
+    "financialYear": "2025-26",
+    "dateRange": "27-Jul-2025 ~ 10-Aug-2025",
+    "resetLabel": "Reset",
+    "switch": ["deposits", "loans"]
+  },
+  "stats": [
+    {
+      "title": "Total Deposits",
+      "value": "₹ 58.77 T",
+      "up": "+2.4%",
+      "comparison": "vs previous period",
+      "icon": "deposit"
+    },
+    {
+      "title": "Demand Deposits",
+      "value": "₹ 22.42 T",
+      "up": "+3.1%",
+      "comparison": "vs previous period",
+      "icon": "bank"
+    },
+    {
+      "title": "Term Deposits",
+      "value": "₹ 20.55 T",
+      "up": "+1.9%",
+      "comparison": "vs previous period",
+      "icon": "term"
+    },
+    {
+      "title": "CASA Ratio",
+      "value": "29.0%",
+      "up": "+0.8%",
+      "comparison": "vs previous period",
+      "icon": "percent"
+    }
+  ],
+  "casaTrend": {
+    "title": "TREND IN CASA RATIO",
+    "tabs": ["Daily", "Weekly", "Monthly"],
+    "activeTab": "Daily",
+    "data": [
+      {"d": "27-Jul", "v": 36.7},
+      {"d": "28-Jul", "v": 36.9},
+      {"d": "29-Jul", "v": 36.88},
+      {"d": "30-Jul", "v": 37.55},
+      {"d": "31-Jul", "v": 37.35},
+      {"d": "01-Aug", "v": 37.25},
+      {"d": "02-Aug", "v": 37.12},
+      {"d": "03-Aug", "v": 37.05},
+      {"d": "07-Aug", "v": 37.0},
+      {"d": "08-Aug", "v": 36.96},
+      {"d": "09-Aug", "v": 36.9},
+      {"d": "10-Aug", "v": 36.72}
+    ]
+  },
+  "casaRatio": {
+    "title": "CASA Ratio",
+    "subtitle": "Current portfolio mix",
+    "value": "29.0%",
+    "label": "CASA Ratio",
+    "data": [
+      {"name": "Current A/c", "value": 40},
+      {"name": "Savings Bank A/c", "value": 29},
+      {"name": "Others", "value": 31}
+    ]
+  },
+  "deposits": {
+    "title": "Deposits",
+    "subtitle": "Composition by category (₹ T)",
+    "data": [
+      {
+        "name": "Special Term Deposit",
+        "value": 20.11,
+        "percent": "34.2%"
+      },
+      {
+        "name": "Saving Bank A/c",
+        "value": 14.93,
+        "percent": "25.4%"
+      },
+      {
+        "name": "Term Deposit",
+        "value": 19.05,
+        "percent": "32.4%"
+      },
+      {
+        "name": "Current A/c",
+        "value": 5.2,
+        "percent": "8.9%"
+      },
+      {
+        "name": "Other Term Deposits",
+        "value": 0.58,
+        "percent": "1.0%"
+      }
+    ]
+  },
+  "demandDeposits": {
+    "title": "Demand Deposits",
+    "filter": "Demand Deposits",
+    "data": [
+      {"name": "Saving Bank A/c", "value": 14.9346},
+      {"name": "Current A/c", "value": 5.2},
+      {"name": "Cash Credit Cr Balance", "value": 3.1},
+      {"name": "Other Demand Deposit", "value": 2.1}
+    ]
+  },
+  "termDeposits": {
+    "title": "TERM DEPOSITS",
+    "filter": "Term Deposits",
+    "data": [
+      {"name": "Term Deposit", "value": 19.0543},
+      {"name": "Special Term Deposit", "value": 2.5434},
+      {"name": "Other Term Deposit", "value": 0.1493},
+      {"name": "Certificate of Deposit", "value": 0.046}
+    ]
+  },
+  "totalDeposits": {
+    "title": "TOTAL DEPOSITS",
+    "tabs": ["Daily", "Weekly", "Monthly"],
+    "activeTab": "Daily",
+    "data": [
+      {"d": "27-Jul", "v": 56.7},
+      {"d": "28-Jul", "v": 57.0},
+      {"d": "29-Jul", "v": 57.3},
+      {"d": "30-Jul", "v": 57.55},
+      {"d": "31-Jul", "v": 57.55},
+      {"d": "01-Aug", "v": 57.35},
+      {"d": "02-Aug", "v": 57.15},
+      {"d": "03-Aug", "v": 57.0},
+      {"d": "07-Aug", "v": 56.95},
+      {"d": "08-Aug", "v": 56.95},
+      {"d": "09-Aug", "v": 57.0},
+      {"d": "10-Aug", "v": 57.1}
+    ]
+  },
+  "forecast": {
+    "title": "Special Term Deposit Forecast for next 7 Days",
+    "data": [
+      {
+        "d": "27-Jul",
+        "actual": 2654000
+      },
+      {
+        "d": "28-Jul",
+        "actual": 2653000
+      },
+      {
+        "d": "29-Jul",
+        "actual": 2656000
+      },
+      {
+        "d": "30-Jul",
+        "actual": 2655500
+      },
+      {
+        "d": "31-Jul",
+        "actual": 2655500
+      },
+      {
+        "d": "01-Aug",
+        "actual": 2656000
+      },
+      {
+        "d": "02-Aug",
+        "actual": 2661000
+      },
+      {
+        "d": "03-Aug",
+        "actual": 2659000
+      },
+      {
+        "d": "04-Aug",
+        "actual": 2662000
+      },
+      {
+        "d": "05-Aug",
+        "actual": 2661500
+      },
+      {
+        "d": "06-Aug",
+        "actual": 2661200
+      },
+      {
+        "d": "07-Aug",
+        "actual": 2663500
+      },
+      {
+        "d": "08-Aug",
+        "actual": 2661500,
+        "forecast": 2663000,
+        "lower": 2659000,
+        "upper": 2667000
+      },
+      {
+        "d": "09-Aug",
+        "forecast": 2664000,
+        "lower": 2660000,
+        "upper": 2668000
+      },
+      {
+        "d": "13-Aug",
+        "forecast": 2665000,
+        "lower": 2661000,
+        "upper": 2670000
+      },
+      {
+        "d": "14-Aug",
+        "forecast": 2667000,
+        "lower": 2662000,
+        "upper": 2670000
+      },
+      {
+        "d": "15-Aug",
+        "forecast": 2669500,
+        "lower": 2664000,
+        "upper": 2673500
+      },
+      {
+        "d": "17-Aug",
+        "forecast": 2669000,
+        "lower": 2665000,
+        "upper": 2673500
+      }
+    ],
+    "legend": [
+      "Actual",
+      "Forecast",
+      "Lower Confidence Bound",
+      "Upper Confidence Bound"
+    ]
+  },
+  "insights": {
+    "title": "Insights",
+    "viewAll": "View All",
+    "items": [
+      {
+        "title": "Total deposits increased by 2.4%",
+        "sub": "compared to previous period.",
+        "icon": "up"
+      },
+      {
+        "title": "CASA ratio improved by 0.8%",
+        "sub": "",
+        "icon": "users"
+      },
+      {
+        "title": "Term deposits remain the largest component",
+        "sub": "at ₹ 19.05 T (32.4%).",
+        "icon": "chart"
+      }
+    ]
+  }
+}
