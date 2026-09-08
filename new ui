@@ -1,41 +1,161 @@
-import React, { useMemo, useState } from "react";
+const [type, setType] = useState("deposit");
+const [selectedDate, setSelectedDate] = useState(4);
+const [showMore, setShowMore] = useState(false);
 
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  Treemap
-} from "recharts";
+const current = data[type];
 
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  ToggleButton,
-  ToggleButtonGroup,
-  Button,
-  Chip,
-  Divider
-} from "@mui/material";
+const handleType = (_, value) => {
+  if (value) {
+    setType(value);
+    setSelectedDate(4);
+    setShowMore(false);
+  }
+};
 
-import {
-  Refresh,
-  TrendingUp,
-  AccountBalance,
-  Savings,
-  CreditCard,
-  PieChart as PieIcon
-} from "@mui/icons-material";
+return (
+  <Box
+    sx={{
+      minHeight: "100vh",
+      background: "#f5f7fb",
+      p: { xs: 1.5, md: 3 }
+    }}
+  >
 
-import data from "./bankingData.json";
+    {/* ================= HEADER ================= */}
+
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: { xs: "flex-start", md: "center" },
+        flexDirection: { xs: "column", md: "row" },
+        gap: 2,
+        mb: 2.5
+      }}
+    >
+
+      {/* LEFT SIDE */}
+
+      <Box>
+        <Typography
+          sx={{
+            fontSize: { xs: 24, md: 30 },
+            fontWeight: 800,
+            color: "#17233c",
+            letterSpacing: "-0.5px"
+          }}
+        >
+          {type === "deposit" ? "DEPOSITS" : "LOANS"}
+
+          <Box
+            component="span"
+            sx={{
+              fontWeight: 400,
+              ml: 1
+            }}
+          >
+            DASHBOARD
+          </Box>
+        </Typography>
+
+        <Typography
+          sx={{
+            fontSize: 12,
+            color: "#7b8494",
+            mt: 0.5
+          }}
+        >
+          Evaluating banking financial performance
+        </Typography>
+      </Box>
+
+
+      {/* RIGHT SIDE */}
+
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          flexWrap: "wrap"
+        }}
+      >
+
+        {/* FINANCIAL YEAR */}
+
+        <Chip
+          label={data.financialYear}
+          variant="outlined"
+          sx={{
+            height: 32,
+            borderRadius: 2,
+            fontWeight: 600,
+            color: "#344054",
+            borderColor: "#d0d5dd",
+            background: "#ffffff"
+          }}
+        />
+
+
+        {/* DEPOSIT / LOAN */}
+
+        <ToggleButtonGroup
+          value={type}
+          exclusive
+          onChange={handleType}
+          size="small"
+          sx={{
+            background: "#ffffff",
+            borderRadius: 2,
+
+            "& .MuiToggleButton-root": {
+              textTransform: "none",
+              fontSize: 12,
+              fontWeight: 600,
+              px: 1.8,
+              py: 0.7,
+              border: "1px solid #d0d5dd"
+            },
+
+            "& .Mui-selected": {
+              background: "#eef4ff !important",
+              color: "#315B9A"
+            }
+          }}
+        >
+          <ToggleButton value="deposit">
+            Deposit
+          </ToggleButton>
+
+          <ToggleButton value="loan">
+            Loan
+          </ToggleButton>
+        </ToggleButtonGroup>
+
+
+        {/* RESET */}
+
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<Refresh />}
+          onClick={() => {
+            setSelectedDate(4);
+            setShowMore(false);
+          }}
+          sx={{
+            height: 32,
+            borderRadius: 2,
+            textTransform: "none",
+            fontSize: 12,
+            fontWeight: 600,
+            color: "#344054",
+            borderColor: "#d0d5dd",
+            background: "#ffffff"
+          }}
+        >
+          Reset
+        </Button>
+
+      </Box>
+    </Box>
