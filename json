@@ -1,199 +1,85 @@
 {
-  "financialYear": "FY 2025-26",
-  "deposit": {
-    "dates": [
-      "27-Jul-2026",
-      "28-Jul-2026",
-      "29-Jul-2026",
-      "30-Jul-2026",
-      "31-Jul-2026",
-      "01-Aug-2026",
-      "02-Aug-2026",
-      "03-Aug-2026",
-      "04-Aug-2026",
-      "05-Aug-2026",
-      "06-Aug-2026",
-      "07-Aug-2026",
-      "08-Aug-2026",
-      "09-Aug-2026",
-      "10-Aug-2026"
-    ],
-    "totalDepositTrend": [
-      57470624430316.9,
-      57585058908423,
-      57484646643556.1,
-      57702997610224.1,
-      58768484743718.6,
-      58210000000000,
-      58070000000000,
-      57980000000000,
-      57920000000000,
-      57870000000000,
-      57820000000000,
-      57790000000000,
-      57750000000000,
-      57720000000000,
-      57700000000000
-    ],
-    "casaRatioTrend": [
-      0.3671,
-      0.3233,
-      0.3721,
-      0.3122,
-      0.29,
-      0.302,
-      0.311,
-      0.305,
-      0.298,
-      0.301,
-      0.295,
-      0.292,
-      0.289,
-      0.291,
-      0.29
-    ],
-    "summary": {
-      "totalDeposits": 58768484743718.6,
-      "casaRatio": 0.29,
-      "demandDeposits": 22420000000000,
-      "termDeposits": 20550000000000
-    },
-    "demandDeposits": {
-      "name": "Demand Deposits",
-      "children": [
-        {
-          "name": "Saving Bank A/c",
-          "value": 14934560839689
-        },
-        {
-          "name": "Current A/c",
-          "value": 5200000000000,
-          "children": [
-            {
-              "name": "Cash Credit Cr Balance",
-              "value": 3100000000000
-            },
-            {
-              "name": "Other Demand Deposit",
-              "value": 2100000000000
-            }
-          ]
-        }
-      ]
-    },
-    "termDeposits": {
-      "name": "Term Deposits",
-      "children": [
-        {
-          "name": "Term Deposit",
-          "value": 19054335888722.8
-        },
-        {
-          "name": "Special Term Deposit",
-          "value": 2543431978289.57
-        },
-        {
-          "name": "Other Term Deposit",
-          "value": 149345608396.89
-        },
-        {
-          "name": "Certificate of Deposit",
-          "value": 46045386253.93
-        }
-      ]
-    }
-  },
-  "loan": {
-    "dates": [
-      "27-Jul-2026",
-      "28-Jul-2026",
-      "29-Jul-2026",
-      "30-Jul-2026",
-      "31-Jul-2026",
-      "01-Aug-2026",
-      "02-Aug-2026",
-      "03-Aug-2026",
-      "04-Aug-2026",
-      "05-Aug-2026",
-      "06-Aug-2026",
-      "07-Aug-2026",
-      "08-Aug-2026",
-      "09-Aug-2026",
-      "10-Aug-2026"
-    ],
-    "loanTrend": [
-      41850000000000,
-      42010000000000,
-      41920000000000,
-      42350000000000,
-      42880000000000,
-      43050000000000,
-      43210000000000,
-      43150000000000,
-      43320000000000,
-      43500000000000,
-      43680000000000,
-      43800000000000,
-      43950000000000,
-      44100000000000,
-      44250000000000
-    ],
-    "summary": {
-      "totalLoans": 44250000000000,
-      "outstandingLoans": 44250000000000,
-      "loanGrowth": 8.7,
-      "npaRatio": 1.42
-    },
-    "loanPortfolio": {
-      "name": "Loan Portfolio",
-      "children": [
-        {
-          "name": "Retail Loans",
-          "value": 16500000000000,
-          "children": [
-            {
-              "name": "Home Loan",
-              "value": 8200000000000
-            },
-            {
-              "name": "Personal Loan",
-              "value": 4800000000000
-            },
-            {
-              "name": "Vehicle Loan",
-              "value": 3500000000000
-            }
-          ]
-        },
-        {
-          "name": "Corporate Loans",
-          "value": 17200000000000,
-          "children": [
-            {
-              "name": "Large Corporate",
-              "value": 10500000000000
-            },
-            {
-              "name": "Working Capital",
-              "value": 6700000000000
-            }
-          ]
-        },
-        {
-          "name": "MSME Loans",
-          "value": 10550000000000,
-          "children": [
-            {
-              "name": "Business Loan",
-              "value": 6200000000000
-            },
-            {
-              "name": "MSME Working Capital",
-              "value": 4350000000000
-            }
-          ]
-        }
-      ]
-    }
-  }
+  "stats": [
+    {"title":"Total Deposits","value":"₹ 58.77 T","up":"+2.4%","icon":"deposit"},
+    {"title":"Demand Deposits","value":"₹ 22.42 T","up":"+3.1%","icon":"bank"},
+    {"title":"Term Deposits","value":"₹ 20.55 T","up":"+1.9%","icon":"term"},
+    {"title":"CASA Ratio","value":"29.0%","up":"+0.8%","icon":"percent"}
+  ],
+  "casaTrend": [
+    {"d":"27-Jul","v":36.7},
+    {"d":"28-Jul","v":36.9},
+    {"d":"29-Jul","v":36.88},
+    {"d":"30-Jul","v":37.55},
+    {"d":"31-Jul","v":37.35},
+    {"d":"01-Aug","v":37.25},
+    {"d":"02-Aug","v":37.12},
+    {"d":"03-Aug","v":37.05},
+    {"d":"07-Aug","v":37},
+    {"d":"08-Aug","v":36.96},
+    {"d":"09-Aug","v":36.9},
+    {"d":"10-Aug","v":36.72}
+  ],
+  "casaRatio": [
+    {"name":"Current A/c","value":40},
+    {"name":"Savings Bank A/c","value":29},
+    {"name":"Others","value":31}
+  ],
+  "deposits": [
+    {"name":"Special Term Deposit","value":20.11,"percent":"34.2%"},
+    {"name":"Saving Bank A/c","value":14.93,"percent":"25.4%"},
+    {"name":"Term Deposit","value":19.05,"percent":"32.4%"},
+    {"name":"Current A/c","value":5.20,"percent":"8.9%"},
+    {"name":"Other Term Deposits","value":0.58,"percent":"1.0%"}
+  ],
+  "demandDeposits": [
+    {"name":"Saving Bank A/c","value":14.9346},
+    {"name":"Current A/c","value":5.20},
+    {"name":"Cash Credit Cr Balance","value":3.10},
+    {"name":"Other Demand Deposit","value":2.10}
+  ],
+  "termDeposits": [
+    {"name":"Term Deposit","value":19.0543},
+    {"name":"Special Term Deposit","value":2.5434},
+    {"name":"Other Term Deposit","value":0.1493},
+    {"name":"Certificate of Deposit","value":0.046}
+  ],
+  "totalDeposits": [
+    {"d":"27-Jul","v":56.7},
+    {"d":"28-Jul","v":57.0},
+    {"d":"29-Jul","v":57.3},
+    {"d":"30-Jul","v":57.55},
+    {"d":"31-Jul","v":57.55},
+    {"d":"01-Aug","v":57.35},
+    {"d":"02-Aug","v":57.15},
+    {"d":"03-Aug","v":57.0},
+    {"d":"07-Aug","v":56.95},
+    {"d":"08-Aug","v":56.95},
+    {"d":"09-Aug","v":57.0},
+    {"d":"10-Aug","v":57.1}
+  ],
+  "forecast": [
+    {"d":"27-Jul","actual":2654000},
+    {"d":"28-Jul","actual":2653000},
+    {"d":"29-Jul","actual":2656000},
+    {"d":"30-Jul","actual":2655500},
+    {"d":"31-Jul","actual":2655500},
+    {"d":"01-Aug","actual":2656000},
+    {"d":"02-Aug","actual":2661000},
+    {"d":"03-Aug","actual":2659000},
+    {"d":"04-Aug","actual":2662000},
+    {"d":"05-Aug","actual":2661500},
+    {"d":"06-Aug","actual":2661200},
+    {"d":"07-Aug","actual":2663500},
+    {"d":"08-Aug","actual":2661500,"forecast":2663000,"lower":2659000,"upper":2667000},
+    {"d":"09-Aug","forecast":2664000,"lower":2660000,"upper":2668000},
+    {"d":"13-Aug","forecast":2665000,"lower":2661000,"upper":2670000},
+    {"d":"14-Aug","forecast":2667000,"lower":2662000,"upper":2670000},
+    {"d":"15-Aug","forecast":2669500,"lower":2664000,"upper":2673500},
+    {"d":"17-Aug","forecast":2669000,"lower":2665000,"upper":2673500}
+  ],
+  "insights": [
+    {"title":"Total deposits increased by 2.4%","sub":"compared to previous period.","icon":"up"},
+    {"title":"CASA ratio improved by 0.8%","sub":"","icon":"users"},
+    {"title":"Term deposits remain the largest component","sub":"at ₹ 19.05 T (32.4%).","icon":"chart"}
+  ]
 }
