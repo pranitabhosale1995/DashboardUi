@@ -2,27 +2,22 @@
   "financialYear": "FY 2025-26",
 
   "deposit": {
-    "summary": {
-      "totalDeposits": 58768484743718.6,
-      "casaRatio": 0.29,
-      "demandDeposits": 22415784163263.2,
-      "termDeposits": 20554870957013.2
-    },
-
     "dates": [
       "27-Jul-2026",
       "28-Jul-2026",
       "29-Jul-2026",
       "30-Jul-2026",
-      "31-Jul-2026"
-    ],
-
-    "casaRatioTrend": [
-      0.3671,
-      0.3233,
-      0.3721,
-      0.3122,
-      0.29
+      "31-Jul-2026",
+      "01-Aug-2026",
+      "02-Aug-2026",
+      "03-Aug-2026",
+      "04-Aug-2026",
+      "05-Aug-2026",
+      "06-Aug-2026",
+      "07-Aug-2026",
+      "08-Aug-2026",
+      "09-Aug-2026",
+      "10-Aug-2026"
     ],
 
     "totalDepositTrend": [
@@ -30,65 +25,62 @@
       57585058908423,
       57484646643556.1,
       57702997610224.1,
-      58768484743718.6
+      58768484743718.6,
+      58210000000000,
+      58070000000000,
+      57980000000000,
+      57920000000000,
+      57870000000000,
+      57820000000000,
+      57790000000000,
+      57750000000000,
+      57720000000000,
+      57700000000000
     ],
+
+    "casaRatioTrend": [
+      0.3671,
+      0.3233,
+      0.3721,
+      0.3122,
+      0.29,
+      0.302,
+      0.311,
+      0.305,
+      0.298,
+      0.301,
+      0.295,
+      0.292,
+      0.289,
+      0.291,
+      0.29
+    ],
+
+    "summary": {
+      "totalDeposits": 58768484743718.6,
+      "casaRatio": 0.29,
+      "demandDeposits": 22420000000000,
+      "termDeposits": 20550000000000
+    },
 
     "demandDeposits": {
       "name": "Demand Deposits",
       "children": [
         {
           "name": "Saving Bank A/c",
-          "value": 19054335888722.8,
-          "children": [
-            {
-              "name": "Retail Savings",
-              "value": 11254335888722.8
-            },
-            {
-              "name": "Salary Accounts",
-              "value": 7800000000000
-            }
-          ]
+          "value": 14934560839689
         },
         {
           "name": "Current A/c",
-          "value": 2543431978289.57,
+          "value": 5200000000000,
           "children": [
             {
-              "name": "Corporate Current",
-              "value": 1543431978289.57
+              "name": "Cash Credit Cr Balance",
+              "value": 3100000000000
             },
             {
-              "name": "Business Current",
-              "value": 1000000000000
-            }
-          ]
-        },
-        {
-          "name": "Cash Credit Cr Balance",
-          "value": 149345608396.89,
-          "children": [
-            {
-              "name": "Working Capital",
-              "value": 93445608396.89
-            },
-            {
-              "name": "Overdraft",
-              "value": 55900000000
-            }
-          ]
-        },
-        {
-          "name": "Other Demand Deposit",
-          "value": 46045386253.93,
-          "children": [
-            {
-              "name": "NRE/NRO",
-              "value": 26045386253.93
-            },
-            {
-              "name": "Other Accounts",
-              "value": 20000000000
+              "name": "Other Demand Deposit",
+              "value": 2100000000000
             }
           ]
         }
@@ -100,94 +92,74 @@
       "children": [
         {
           "name": "Term Deposit",
-          "value": 19054335888722.8,
-          "children": [
-            {
-              "name": "Retail Term",
-              "value": 10554335888722.8
-            },
-            {
-              "name": "Corporate Term",
-              "value": 8500000000000
-            }
-          ]
+          "value": 19054335888722.8
         },
         {
           "name": "Special Term Deposit",
-          "value": 2543431978289.57,
-          "children": [
-            {
-              "name": "Senior Citizen",
-              "value": 1543431978289.57
-            },
-            {
-              "name": "Special Scheme",
-              "value": 1000000000000
-            }
-          ]
+          "value": 2543431978289.57
         },
         {
           "name": "Other Term Deposit",
-          "value": 149345608396.89,
-          "children": [
-            {
-              "name": "Short Term",
-              "value": 89345608396.89
-            },
-            {
-              "name": "Other",
-              "value": 60000000000
-            }
-          ]
+          "value": 149345608396.89
         },
         {
           "name": "Certificate of Deposit",
-          "value": 46045386253.93,
-          "children": [
-            {
-              "name": "Institutional CD",
-              "value": 30045386253.93
-            },
-            {
-              "name": "Other CD",
-              "value": 16000000000
-            }
-          ]
+          "value": 46045386253.93
         }
       ]
     }
   },
 
   "loan": {
-    "summary": {
-      "totalLoans": 42358000000000,
-      "outstandingLoans": 38742000000000,
-      "loanGrowth": 8.7,
-      "npaRatio": 1.84
-    },
-
     "dates": [
       "27-Jul-2026",
       "28-Jul-2026",
       "29-Jul-2026",
       "30-Jul-2026",
-      "31-Jul-2026"
+      "31-Jul-2026",
+      "01-Aug-2026",
+      "02-Aug-2026",
+      "03-Aug-2026",
+      "04-Aug-2026",
+      "05-Aug-2026",
+      "06-Aug-2026",
+      "07-Aug-2026",
+      "08-Aug-2026",
+      "09-Aug-2026",
+      "10-Aug-2026"
     ],
 
     "loanTrend": [
-      38120000000000,
-      38260000000000,
-      38410000000000,
-      38590000000000,
-      38742000000000
+      41850000000000,
+      42010000000000,
+      41920000000000,
+      42350000000000,
+      42880000000000,
+      43050000000000,
+      43210000000000,
+      43150000000000,
+      43320000000000,
+      43500000000000,
+      43680000000000,
+      43800000000000,
+      43950000000000,
+      44100000000000,
+      44250000000000
     ],
+
+    "summary": {
+      "totalLoans": 44250000000000,
+      "outstandingLoans": 44250000000000,
+      "loanGrowth": 8.7,
+      "npaRatio": 1.42
+    },
 
     "loanPortfolio": {
       "name": "Loan Portfolio",
       "children": [
         {
           "name": "Retail Loans",
-          "value": 14500000000000,
+          "value": 16500000000000,
           "children": [
             {
               "name": "Home Loan",
@@ -195,39 +167,39 @@
             },
             {
               "name": "Personal Loan",
-              "value": 3800000000000
+              "value": 4800000000000
             },
             {
               "name": "Vehicle Loan",
-              "value": 2500000000000
+              "value": 3500000000000
             }
           ]
         },
         {
           "name": "Corporate Loans",
-          "value": 16200000000000,
+          "value": 17200000000000,
           "children": [
             {
-              "name": "Working Capital",
-              "value": 9200000000000
+              "name": "Large Corporate",
+              "value": 10500000000000
             },
             {
-              "name": "Term Loan",
-              "value": 7000000000000
+              "name": "Working Capital",
+              "value": 6700000000000
             }
           ]
         },
         {
           "name": "MSME Loans",
-          "value": 8050000000000,
+          "value": 10550000000000,
           "children": [
             {
               "name": "Business Loan",
-              "value": 4550000000000
+              "value": 6200000000000
             },
             {
-              "name": "Equipment Finance",
-              "value": 3500000000000
+              "name": "MSME Working Capital",
+              "value": 4350000000000
             }
           ]
         }
