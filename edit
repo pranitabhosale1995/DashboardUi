@@ -1,43 +1,102 @@
-{/* FINANCIAL YEAR DROPDOWN */}
+function DepositsTreemap({ depositData }) {
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <Treemap
+        data={depositData}
+        dataKey="value"
+        nameKey="name"
+        stroke="#ffffff"
+        aspectRatio={1.8}
+        content={({ x, y, width, height, name, value }) => {
+          if (width <= 0 || height <= 0) return null;
 
-<TextField
-  select
-  size="small"
-  value={data.financialYear}
-  onChange={(e) => {
-    // Future financial-year handling can be added here
-    console.log("Selected FY:", e.target.value);
-  }}
-  sx={{
-    minWidth: 125,
-    background: "#fff",
-    "& .MuiOutlinedInput-root": {
-      borderRadius: 2
-    }
-  }}
+          return (
+            <g>
+              <rect
+                x={x}
+                y={y}
+                width={width}
+                height={height}
+                fill="#315B9A"
+                stroke="#ffffff"
+                strokeWidth={2}
+                rx={4}
+              />
+
+              {width > 70 && height > 40 && (
+                <>
+                  <text
+                    x={x + 10}
+                    y={y + height - 18}
+                    fill="#fff"
+                    fontSize={12}
+                    fontWeight={600}
+                  >
+                    {name}
+                  </text>
+
+                  <text
+                    x={x + 10}
+                    y={y + height - 5}
+                    fill="#fff"
+                    fontSize={10}
+                  >
+                    ₹{(value / 1e12).toFixed(2)}T
+                  </text>
+                </>
+              )}
+            </g>
+          );
+        }}
+      >
+        <Tooltip
+          formatter={(value) =>
+            `₹${(value / 1e12).toFixed(2)}T`
+          }
+        />
+      </Treemap>
+    </ResponsiveContainer>
+  );
+}
+
+<Panel
+  title="Deposits"
+  subtitle="Deposit portfolio composition"
 >
-  <MenuItem value="FY 2025-26">
-    FY 2025-26
-  </MenuItem>
-
-  <MenuItem value="FY 2024-25">
-    FY 2024-25
-  </MenuItem>
-
-  <MenuItem value="FY 2023-24">
-    FY 2023-24
-  </MenuItem>
-</TextField>
-
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  ToggleButton,
-  ToggleButtonGroup,
-  Button,
-  Chip,
-  TextField,
-  MenuItem
-} from "@mui/material";
+  <DepositsTreemap
+    depositData={[
+      {
+        name: "Saving Bank A/c",
+        value: 18.50e12
+      },
+      {
+        name: "Special Term Deposit",
+        value: 16.20e12
+      },
+      {
+        name: "Term Deposit",
+        value: 9.80e12
+      },
+      {
+        name: "Current A/c",
+        value: 4.20e12
+      },
+      {
+        name: "Other Term Deposit",
+        value: 3.10e12
+      },
+      {
+        name: "Other Demand Deposit",
+        value: 2.40e12
+      },
+      {
+        name: "Cash Credit Cr Balance",
+        value: 1.80e12
+      },
+      {
+        name: "Certificate of Deposit",
+        value: 1.20e12
+      }
+    ]}
+  />
+</Panel>
