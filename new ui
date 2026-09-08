@@ -15,6 +15,7 @@ import {
   Cell,
   Treemap
 } from "recharts";
+
 import {
   Box,
   Card,
@@ -25,6 +26,7 @@ import {
   Button,
   Chip
 } from "@mui/material";
+
 import {
   Refresh,
   TrendingUp,
@@ -37,9 +39,18 @@ import {
 import data from "./bankingData.json";
 
 const fmt = n => {
-  if (Math.abs(n) >= 1e12) return `₹${(n / 1e12).toFixed(2)}T`;
-  if (Math.abs(n) >= 1e9) return `₹${(n / 1e9).toFixed(2)}B`;
-  if (Math.abs(n) >= 1e6) return `₹${(n / 1e6).toFixed(2)}M`;
+  if (Math.abs(n) >= 1e12) {
+    return `₹${(n / 1e12).toFixed(2)}T`;
+  }
+
+  if (Math.abs(n) >= 1e9) {
+    return `₹${(n / 1e9).toFixed(2)}B`;
+  }
+
+  if (Math.abs(n) >= 1e6) {
+    return `₹${(n / 1e6).toFixed(2)}M`;
+  }
+
   return `₹${Number(n).toLocaleString("en-IN")}`;
 };
 
@@ -55,14 +66,29 @@ const colors = [
 
 function Panel({ title, subtitle, children, className = "" }) {
   return (
-    <Card className={className} sx={{ height: "100%", borderRadius: 3 }}>
+    <Card
+      className={className}
+      sx={{
+        height: "100%",
+        borderRadius: 3,
+        boxShadow: "0 2px 12px rgba(0,0,0,0.06)"
+      }}
+    >
       <CardContent sx={{ height: "100%", p: 2 }}>
-        <Typography fontWeight={700} fontSize={15}>
+        <Typography
+          fontWeight={700}
+          fontSize={15}
+          color="#17233c"
+        >
           {title}
         </Typography>
 
         {subtitle && (
-          <Typography color="text.secondary" fontSize={11} mb={1.5}>
+          <Typography
+            color="text.secondary"
+            fontSize={11}
+            mb={1.5}
+          >
             {subtitle}
           </Typography>
         )}
@@ -77,13 +103,29 @@ function Panel({ title, subtitle, children, className = "" }) {
 
 function KPI({ title, value, sub, icon }) {
   return (
-    <Card sx={{ borderRadius: 3, height: "100%" }}>
+    <Card
+      sx={{
+        borderRadius: 3,
+        height: "100%",
+        boxShadow: "0 2px 12px rgba(0,0,0,0.06)"
+      }}
+    >
       <CardContent sx={{ p: 2 }}>
-        <Box display="flex" justifyContent="space-between">
-          <Typography color="text.secondary" fontSize={12}>
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems="center"
+        >
+          <Typography
+            color="text.secondary"
+            fontSize={12}
+          >
             {title}
           </Typography>
-          {icon}
+
+          <Box sx={{ color: "#315B9A" }}>
+            {icon}
+          </Box>
         </Box>
 
         <Typography
@@ -95,7 +137,11 @@ function KPI({ title, value, sub, icon }) {
           {value}
         </Typography>
 
-        <Typography fontSize={11} color="text.secondary" mt={0.5}>
+        <Typography
+          fontSize={11}
+          color="text.secondary"
+          mt={0.5}
+        >
           {sub}
         </Typography>
       </CardContent>
@@ -105,7 +151,10 @@ function KPI({ title, value, sub, icon }) {
 
 function NestedChart({ data: chartData }) {
   return (
-    <ResponsiveContainer width="100%" height="100%">
+    <ResponsiveContainer
+      width="100%"
+      height="100%"
+    >
       <Treemap
         data={chartData.children}
         dataKey="value"
@@ -121,12 +170,21 @@ function NestedChart({ data: chartData }) {
 
 function Donut({ value }) {
   const chart = [
-    { name: "CASA", value: value * 100 },
-    { name: "Term", value: 100 - value * 100 }
+    {
+      name: "CASA",
+      value: value * 100
+    },
+    {
+      name: "Term",
+      value: 100 - value * 100
+    }
   ];
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
+    <ResponsiveContainer
+      width="100%"
+      height="100%"
+    >
       <PieChart>
         <Pie
           data={chart}
@@ -138,7 +196,10 @@ function Donut({ value }) {
           paddingAngle={2}
         >
           {chart.map((_, i) => (
-            <Cell key={i} fill={colors[i]} />
+            <Cell
+              key={i}
+              fill={colors[i]}
+            />
           ))}
         </Pie>
 
@@ -164,7 +225,11 @@ function Donut({ value }) {
           CASA Ratio
         </text>
 
-        <Tooltip formatter={v => `${v.toFixed(2)}%`} />
+        <Tooltip
+          formatter={v =>
+            `${v.toFixed(2)}%`
+          }
+        />
       </PieChart>
     </ResponsiveContainer>
   );
@@ -172,8 +237,12 @@ function Donut({ value }) {
 
 export default function Dashboard() {
   const [type, setType] = useState("deposit");
-  const [selectedDate, setSelectedDate] = useState(4);
-  const [showMore, setShowMore] = useState(false);
+
+  const [selectedDate, setSelectedDate] =
+    useState(4);
+
+  const [showMore, setShowMore] =
+    useState(false);
 
   const current = data[type];
 
@@ -181,6 +250,7 @@ export default function Dashboard() {
     () =>
       current.dates.map((date, i) => ({
         date,
+
         value:
           type === "deposit"
             ? current.totalDepositTrend[i]
@@ -207,40 +277,69 @@ export default function Dashboard() {
       sx={{
         minHeight: "100vh",
         background: "#f5f7fb",
-        p: { xs: 1.5, md: 3 }
+        p: {
+          xs: 1.5,
+          md: 3
+        }
       }}
     >
       {/* HEADER */}
+
       <Box
         display="flex"
         justifyContent="space-between"
-        alignItems={{ xs: "flex-start", md: "center" }}
-        flexDirection={{ xs: "column", md: "row" }}
+        alignItems={{
+          xs: "flex-start",
+          md: "center"
+        }}
+        flexDirection={{
+          xs: "column",
+          md: "row"
+        }}
         gap={2}
         mb={2}
       >
         <Box>
           <Typography
-            fontSize={{ xs: 24, md: 30 }}
+            fontSize={{
+              xs: 24,
+              md: 30
+            }}
             fontWeight={800}
             color="#17233c"
           >
-            {type === "deposit" ? "DEPOSITS" : "LOANS"}{" "}
-            <Box component="span" fontWeight={400}>
+            {type === "deposit"
+              ? "DEPOSITS"
+              : "LOANS"}{" "}
+
+            <Box
+              component="span"
+              fontWeight={400}
+            >
               DASHBOARD
             </Box>
           </Typography>
 
-          <Typography fontSize={12} color="text.secondary">
+          <Typography
+            fontSize={12}
+            color="text.secondary"
+          >
             Evaluating banking financial performance
           </Typography>
         </Box>
 
-        <Box display="flex" gap={1} alignItems="center" flexWrap="wrap">
+        <Box
+          display="flex"
+          gap={1}
+          alignItems="center"
+          flexWrap="wrap"
+        >
           <Chip
             label={data.financialYear}
             variant="outlined"
-            sx={{ fontWeight: 600 }}
+            sx={{
+              fontWeight: 600
+            }}
           />
 
           <ToggleButtonGroup
@@ -249,14 +348,21 @@ export default function Dashboard() {
             onChange={handleType}
             size="small"
           >
-            <ToggleButton value="deposit">Deposit</ToggleButton>
-            <ToggleButton value="loan">Loan</ToggleButton>
+            <ToggleButton value="deposit">
+              Deposit
+            </ToggleButton>
+
+            <ToggleButton value="loan">
+              Loan
+            </ToggleButton>
           </ToggleButtonGroup>
 
           <Button
             variant="outlined"
             size="small"
-            onClick={() => setSelectedDate(4)}
+            onClick={() =>
+              setSelectedDate(4)
+            }
             startIcon={<Refresh />}
           >
             Reset
@@ -265,6 +371,7 @@ export default function Dashboard() {
       </Box>
 
       {/* KPI ROW */}
+
       <Box
         display="grid"
         gridTemplateColumns={{
@@ -279,69 +386,101 @@ export default function Dashboard() {
           <>
             <KPI
               title="Total Deposits"
-              value={fmt(current.summary.totalDeposits)}
+              value={fmt(
+                current.summary.totalDeposits
+              )}
               sub={`Selected date: ${current.dates[selectedDate]}`}
-              icon={<AccountBalance fontSize="small" />}
+              icon={
+                <AccountBalance fontSize="small" />
+              }
             />
 
             <KPI
               title="CASA Ratio"
-              value={pct(current.summary.casaRatio)}
+              value={pct(
+                current.summary.casaRatio
+              )}
               sub="Current CASA position"
-              icon={<Savings fontSize="small" />}
+              icon={
+                <Savings fontSize="small" />
+              }
             />
 
             <KPI
               title="Demand Deposits"
-              value={fmt(current.summary.demandDeposits)}
+              value={fmt(
+                current.summary.demandDeposits
+              )}
               sub="Savings + Current + Other"
-              icon={<AccountBalance fontSize="small" />}
+              icon={
+                <AccountBalance fontSize="small" />
+              }
             />
 
             <KPI
               title="Term Deposits"
-              value={fmt(current.summary.termDeposits)}
+              value={fmt(
+                current.summary.termDeposits
+              )}
               sub="Term deposit portfolio"
-              icon={<CreditCard fontSize="small" />}
+              icon={
+                <CreditCard fontSize="small" />
+              }
             />
           </>
         ) : (
           <>
             <KPI
               title="Total Loans"
-              value={fmt(current.summary.totalLoans)}
+              value={fmt(
+                current.summary.totalLoans
+              )}
               sub="Total sanctioned portfolio"
-              icon={<CreditCard fontSize="small" />}
+              icon={
+                <CreditCard fontSize="small" />
+              }
             />
 
             <KPI
               title="Outstanding Loans"
-              value={fmt(current.summary.outstandingLoans)}
+              value={fmt(
+                current.summary.outstandingLoans
+              )}
               sub={`As of ${current.dates[selectedDate]}`}
-              icon={<AccountBalance fontSize="small" />}
+              icon={
+                <AccountBalance fontSize="small" />
+              }
             />
 
             <KPI
               title="Loan Growth"
               value={`${current.summary.loanGrowth}%`}
               sub="Year-on-year growth"
-              icon={<TrendingUp fontSize="small" />}
+              icon={
+                <TrendingUp fontSize="small" />
+              }
             />
 
             <KPI
               title="NPA Ratio"
               value={`${current.summary.npaRatio}%`}
               sub="Portfolio quality"
-              icon={<PieIcon fontSize="small" />}
+              icon={
+                <PieIcon fontSize="small" />
+              }
             />
           </>
         )}
       </Box>
 
       {/* MAIN CHART */}
+
       <Box
         display="grid"
-        gridTemplateColumns={{ xs: "1fr", lg: "1.6fr 1fr" }}
+        gridTemplateColumns={{
+          xs: "1fr",
+          lg: "1.6fr 1fr"
+        }}
         gap={1.5}
         mb={1.5}
       >
@@ -353,27 +492,46 @@ export default function Dashboard() {
           }
           subtitle="Click any date to view that day's value"
         >
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+          >
             <LineChart data={trendData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+              <CartesianGrid
+                strokeDasharray="3 3"
+              />
+
+              <XAxis
+                dataKey="date"
+                tick={{
+                  fontSize: 10
+                }}
+              />
+
               <YAxis
                 tickFormatter={v =>
-                  type === "deposit"
-                    ? `₹${(v / 1e12).toFixed(0)}T`
-                    : `₹${(v / 1e12).toFixed(0)}T`
+                  `₹${(
+                    v / 1e12
+                  ).toFixed(0)}T`
                 }
               />
-              <Tooltip formatter={v => fmt(v)} />
+
+              <Tooltip
+                formatter={v => fmt(v)}
+              />
+
               <Line
                 type="monotone"
                 dataKey="value"
                 stroke="#315B9A"
                 strokeWidth={3}
-                dot={{ r: 5 }}
+                dot={{
+                  r: 5
+                }}
                 activeDot={{
                   r: 8,
-                  onClick: (_, index) => setSelectedDate(index)
+                  onClick: (_, index) =>
+                    setSelectedDate(index)
                 }}
               />
             </LineChart>
@@ -381,7 +539,11 @@ export default function Dashboard() {
         </Panel>
 
         <Panel
-          title={type === "deposit" ? "CASA Ratio" : "Loan Portfolio"}
+          title={
+            type === "deposit"
+              ? "CASA Ratio"
+              : "Loan Portfolio"
+          }
           subtitle={
             type === "deposit"
               ? "Current selected position"
@@ -389,17 +551,30 @@ export default function Dashboard() {
           }
         >
           {type === "deposit" ? (
-            <Donut value={current.casaRatio} />
+            <Donut
+              value={
+                current.casaRatio
+              }
+            />
           ) : (
-            <NestedChart data={current.loanPortfolio} />
+            <NestedChart
+              data={
+                current.loanPortfolio
+              }
+            />
           )}
         </Panel>
       </Box>
 
+
       {/* SECOND ROW */}
+
       <Box
         display="grid"
-        gridTemplateColumns={{ xs: "1fr", md: "1fr 1fr" }}
+        gridTemplateColumns={{
+          xs: "1fr",
+          md: "1fr 1fr"
+        }}
         gap={1.5}
         mb={1.5}
       >
@@ -409,14 +584,22 @@ export default function Dashboard() {
               title="Demand Deposits"
               subtitle="Nested banking deposit structure"
             >
-              <NestedChart data={current.demandDeposits} />
+              <NestedChart
+                data={
+                  current.demandDeposits
+                }
+              />
             </Panel>
 
             <Panel
               title="Term Deposits"
               subtitle="Nested term deposit structure"
             >
-              <NestedChart data={current.termDeposits} />
+              <NestedChart
+                data={
+                  current.termDeposits
+                }
+              />
             </Panel>
           </>
         ) : (
@@ -425,22 +608,59 @@ export default function Dashboard() {
               title="Loan Portfolio Breakdown"
               subtitle="Retail, Corporate and MSME"
             >
-              <NestedChart data={current.loanPortfolio} />
+              <NestedChart
+                data={
+                  current.loanPortfolio
+                }
+              />
             </Panel>
 
             <Panel
               title="Loan Trend"
               subtitle="Daily outstanding loan movement"
             >
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={trendData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                  <YAxis
-                    tickFormatter={v => `₹${(v / 1e12).toFixed(0)}T`}
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+              >
+                <BarChart
+                  data={trendData}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
                   />
-                  <Tooltip formatter={v => fmt(v)} />
-                  <Bar dataKey="value" fill="#315B9A" radius={[6, 6, 0, 0]} />
+
+                  <XAxis
+                    dataKey="date"
+                    tick={{
+                      fontSize: 10
+                    }}
+                  />
+
+                  <YAxis
+                    tickFormatter={v =>
+                      `₹${(
+                        v / 1e12
+                      ).toFixed(0)}T`
+                    }
+                  />
+
+                  <Tooltip
+                    formatter={v =>
+                      fmt(v)
+                    }
+                  />
+
+                  <Bar
+                    dataKey="value"
+                    fill="#315B9A"
+                    radius={[
+                      6,
+                      6,
+                      0,
+                      0
+                    ]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </Panel>
@@ -449,34 +669,47 @@ export default function Dashboard() {
       </Box>
 
       {/* SELECTED DATE */}
+
       <Card
         sx={{
           borderRadius: 3,
           mb: 1.5,
-          cursor: "default"
+          boxShadow:
+            "0 2px 12px rgba(0,0,0,0.06)"
         }}
       >
         <CardContent
           sx={{
             display: "flex",
-            justifyContent: "space-between",
+            justifyContent:
+              "space-between",
             alignItems: "center",
             flexWrap: "wrap",
             gap: 1
           }}
         >
           <Box>
-            <Typography fontSize={11} color="text.secondary">
+            <Typography
+              fontSize={11}
+              color="text.secondary"
+            >
               SELECTED DATE
             </Typography>
 
             <Typography fontWeight={700}>
-              {current.dates[selectedDate]}
+              {
+                current.dates[
+                  selectedDate
+                ]
+              }
             </Typography>
           </Box>
 
           <Typography
-            fontSize={{ xs: 20, md: 26 }}
+            fontSize={{
+              xs: 20,
+              md: 26
+            }}
             fontWeight={800}
             color="#315B9A"
           >
@@ -486,20 +719,31 @@ export default function Dashboard() {
       </Card>
 
       {/* SHOW MORE */}
+
       <Box textAlign="center">
         <Button
-          onClick={() => setShowMore(v => !v)}
-          sx={{ fontWeight: 700 }}
+          onClick={() =>
+            setShowMore(v => !v)
+          }
+          sx={{
+            fontWeight: 700
+          }}
         >
-          {showMore ? "Show Less ↑" : "Show More ↓"}
+          {showMore
+            ? "Show Less ↑"
+            : "Show More ↓"}
         </Button>
       </Box>
 
       {/* EXTRA ANALYTICS */}
+
       {showMore && (
         <Box
           display="grid"
-          gridTemplateColumns={{ xs: "1fr", md: "1fr 1fr" }}
+          gridTemplateColumns={{
+            xs: "1fr",
+            md: "1fr 1fr"
+          }}
           gap={1.5}
           mt={1.5}
         >
@@ -511,30 +755,54 @@ export default function Dashboard() {
             }
             subtitle="Complete daily movement"
           >
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+            >
               <LineChart
-                data={current.dates.map((date, i) => ({
-                  date,
-                  value:
-                    type === "deposit"
-                      ? current.casaRatioTrend[i] * 100
-                      : current.loanTrend[i]
-                }))}
+                data={current.dates.map(
+                  (date, i) => ({
+                    date,
+
+                    value:
+                      type === "deposit"
+                        ? current
+                            .casaRatioTrend[
+                            i
+                          ] * 100
+                        : current
+                            .loanTrend[i]
+                  })
+                )}
               >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                />
+
+                <XAxis
+                  dataKey="date"
+                  tick={{
+                    fontSize: 10
+                  }}
+                />
 
                 <YAxis
                   tickFormatter={v =>
                     type === "deposit"
                       ? `${v}%`
-                      : `₹${(v / 1e12).toFixed(0)}T`
+                      : `₹${(
+                          v / 1e12
+                        ).toFixed(0)}T`
                   }
                 />
 
                 <Tooltip
                   formatter={v =>
-                    type === "deposit" ? `${v.toFixed(2)}%` : fmt(v)
+                    type === "deposit"
+                      ? `${v.toFixed(
+                          2
+                        )}%`
+                      : fmt(v)
                   }
                 />
 
@@ -557,36 +825,63 @@ export default function Dashboard() {
             }
             subtitle="Portfolio-level distribution"
           >
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+            >
               <BarChart
                 layout="vertical"
                 data={
                   type === "deposit"
-                    ? current.demandDeposits.children
-                    : current.loanPortfolio.children
+                    ? current
+                        .demandDeposits
+                        .children
+                    : current
+                        .loanPortfolio
+                        .children
                 }
-                margin={{ left: 20, right: 20 }}
+                margin={{
+                  left: 20,
+                  right: 20
+                }}
               >
-                <CartesianGrid strokeDasharray="3 3" />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                />
 
                 <XAxis
                   type="number"
-                  tickFormatter={v => `₹${(v / 1e12).toFixed(0)}T`}
+                  tickFormatter={v =>
+                    `₹${(
+                      v / 1e12
+                    ).toFixed(0)}T`
+                  }
                 />
 
                 <YAxis
                   type="category"
                   dataKey="name"
                   width={120}
-                  tick={{ fontSize: 10 }}
+                  tick={{
+                    fontSize: 10
+                  }}
                 />
 
-                <Tooltip formatter={v => fmt(v)} />
+                <Tooltip
+                  formatter={v =>
+                    fmt(v)
+                  }
+                />
 
                 <Bar
                   dataKey="value"
                   fill="#315B9A"
-                  radius={[0, 6, 6, 0]}
+                  radius={[
+                    0,
+                    6,
+                    6,
+                    0
+                  ]}
                 />
               </BarChart>
             </ResponsiveContainer>
