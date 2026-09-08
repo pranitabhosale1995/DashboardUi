@@ -1,0 +1,444 @@
+import React, { useMemo, useState } from "react";
+import {
+  Box,
+  Stack,
+  Typography,
+  Button,
+  Chip,
+} from "@mui/material";
+
+import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
+import CalendarTodayRoundedIcon from "@mui/icons-material/CalendarTodayRounded";
+import AccountBalanceRoundedIcon from "@mui/icons-material/AccountBalanceRounded";
+import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
+import PieChartRoundedIcon from "@mui/icons-material/PieChartRounded";
+import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
+import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceWalletRounded";
+import EqualizerRoundedIcon from "@mui/icons-material/EqualizerRounded";
+
+import dashboardData from "./mockdata.json";
+
+import {
+  GlassCard,
+  PanelHeader,
+  MiniSelect,
+  Gauge,
+  CompositionMosaic,
+  BarPanel,
+} from "./DashboardCharts";
+
+import { theme } from "../theme/primitive";
+
+function SectionTitle({ children }) {
+  return (
+    <Typography
+      sx={{
+        fontSize: {
+          xs: 17,
+          md: 19,
+        },
+        fontWeight: 800,
+        color: theme.palette.text.primary,
+        mb: 1.75,
+        mt: 0.5,
+        pl: 1.25,
+        borderLeft:
+          `4px solid ${theme.palette.primary.main}`,
+        lineHeight: 1.4,
+      }}
+    >
+      {children}
+    </Typography>
+  );
+}
+
+function DashboardHeader({
+  config,
+  onReset,
+}) {
+  const [fy, setFy] = useState(
+    config.financialYear
+  );
+
+  const fyOptions =
+    config.financialYearOptions ||
+    [];
+
+  return (
+    <Box
+      sx={{
+        position: "relative",
+        mb: 2.5,
+        px: {
+          xs: 0.5,
+          md: 1,
+        },
+        py: {
+          xs: 2,
+          md: 2.5,
+        },
+      }}
+    >
+      <Stack
+        direction={{
+          xs: "column",
+          lg: "row",
+        }}
+        alignItems={{
+          xs: "flex-start",
+          lg: "center",
+        }}
+        justifyContent="space-between"
+        spacing={2}
+      >
+        <Box>
+          <Typography
+            sx={{
+              fontSize: {
+                xs: 22,
+                md: 26,
+              },
+              fontWeight: 850,
+              color:
+                theme.palette.text.primary,
+              letterSpacing: -0.35,
+            }}
+          >
+            {config.title}
+          </Typography>
+
+          <Typography
+            sx={{
+              fontSize: 13.5,
+              color:
+                theme.palette.text.secondary,
+              mt: 0.25,
+            }}
+          >
+            {config.subtitle}
+          </Typography>
+        </Box>
+
+        <Stack
+          direction={{
+            xs: "column",
+            sm: "row",
+          }}
+          spacing={1.25}
+          alignItems={{
+            xs: "stretch",
+            sm: "center",
+          }}
+          flexWrap="wrap"
+        >
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+          >
+            <Typography
+              sx={{
+                fontSize: 13,
+                color:
+                  theme.palette.text.secondary,
+                fontWeight: 650,
+                whiteSpace: "nowrap",
+              }}
+            >
+              Financial Year
+            </Typography>
+
+            <MiniSelect
+              options={fyOptions}
+              value={fy}
+              onChange={setFy}
+            />
+          </Stack>
+
+          <Chip
+            icon={
+              <CalendarTodayRoundedIcon
+                sx={{
+                  fontSize:
+                    "16px !important",
+                }}
+              />
+            }
+            label={`${config.dateRange.start} ~ ${config.dateRange.end}`}
+            sx={{
+              bgcolor:
+                "rgba(255,255,255,0.38)",
+              backdropFilter:
+                "blur(12px)",
+              WebkitBackdropFilter:
+                "blur(12px)",
+              border:
+                "1px solid rgba(255,255,255,0.70)",
+              fontWeight: 650,
+              fontSize: 12.5,
+              px: 0.5,
+              height: 36,
+              borderRadius: 2,
+              color:
+                theme.palette.text.primary,
+            }}
+          />
+
+          <Button
+            variant="contained"
+            startIcon={
+              <RefreshRoundedIcon />
+            }
+            onClick={onReset}
+            sx={{
+              textTransform: "none",
+              fontWeight: 750,
+              fontSize: 13.5,
+              borderRadius: 2,
+              boxShadow:
+                "0 8px 22px rgba(108,92,224,0.20)",
+              px: 2,
+              height: 36,
+              background:
+                `linear-gradient(135deg, ` +
+                `${theme.palette.primary.light}, ` +
+                `${theme.palette.primary.main})`,
+
+              "&:hover": {
+                boxShadow:
+                  "0 10px 25px rgba(108,92,224,0.25)",
+              },
+            }}
+          >
+            Reset
+          </Button>
+        </Stack>
+      </Stack>
+    </Box>
+  );
+}
+
+function DashboardSection({
+  title,
+  children,
+}) {
+  return (
+    <Box
+      component="section"
+      sx={{
+        mb: 3.5,
+      }}
+    >
+      <SectionTitle>
+        {title}
+      </SectionTitle>
+
+      {children}
+    </Box>
+  );
+}
+
+function DashboardBackground() {
+  return (
+    <Box
+      sx={{
+        position: "fixed",
+        inset: 0,
+        zIndex: -2,
+        pointerEvents: "none",
+        background:
+          "linear-gradient(135deg, rgba(246,243,255,0.82), rgba(235,241,255,0.72))",
+      }}
+    >
+      <Box
+        sx={{
+          position: "absolute",
+          width: 420,
+          height: 420,
+          top: -180,
+          left: -120,
+          borderRadius: "50%",
+          background:
+            "rgba(139,124,246,0.13)",
+          filter: "blur(60px)",
+        }}
+      />
+
+      <Box
+        sx={{
+          position: "absolute",
+          width: 480,
+          height: 480,
+          right: -180,
+          top: 180,
+          borderRadius: "50%",
+          background:
+            "rgba(96,165,250,0.12)",
+          filter: "blur(70px)",
+        }}
+      />
+
+      <Box
+        sx={{
+          position: "absolute",
+          width: 400,
+          height: 400,
+          left: "35%",
+          bottom: -220,
+          borderRadius: "50%",
+          background:
+            "rgba(236,72,153,0.08)",
+          filter: "blur(70px)",
+        }}
+      />
+    </Box>
+  );
+}
+
+export default function Dashboard({
+  data = dashboardData,
+}) {
+  const [refreshKey, setRefreshKey] =
+    useState(0);
+
+  const normalizedData = useMemo(
+    () => data || {},
+    [data]
+  );
+
+  const handleReset = () => {
+    setRefreshKey(
+      (current) => current + 1
+    );
+  };
+
+  const drilldowns =
+    normalizedData.drilldowns || {};
+
+  return (
+    <Box
+      key={refreshKey}
+      sx={{
+        minHeight: "100vh",
+        position: "relative",
+        p: {
+          xs: 1.5,
+          sm: 2,
+          md: 3,
+        },
+        color:
+          theme.palette.text.primary,
+      }}
+    >
+      <DashboardBackground />
+
+      <DashboardHeader
+        config={
+          normalizedData.header
+        }
+        onReset={handleReset}
+      />
+
+      <DashboardSection title="Deposits">
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              lg: "1fr 1.6fr",
+            },
+            gap: 2.5,
+            alignItems: "stretch",
+          }}
+        >
+          <Gauge
+            config={
+              normalizedData.casaGauge
+            }
+            drilldowns={drilldowns}
+          />
+
+          <CompositionMosaic
+            config={
+              normalizedData.depositsComposition
+            }
+            drilldowns={drilldowns}
+            icon={
+              Inventory2RoundedIcon
+            }
+          />
+        </Box>
+      </DashboardSection>
+
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            lg: "1fr 1fr",
+          },
+          gap: 2.5,
+          mb: {
+            xs: 3,
+            lg: 4.5,
+          },
+          alignItems: "stretch",
+        }}
+      >
+        <BarPanel
+          icon={
+            AccountBalanceWalletRoundedIcon
+          }
+          config={
+            normalizedData.demandDeposits
+          }
+          drilldowns={drilldowns}
+        />
+
+        <BarPanel
+          icon={
+            DescriptionRoundedIcon
+          }
+          config={
+            normalizedData.termDeposits
+          }
+          drilldowns={drilldowns}
+        />
+      </Box>
+
+      <DashboardSection title="Loans">
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              lg: "1.2fr 1fr",
+            },
+            gap: 2.5,
+            alignItems: "stretch",
+          }}
+        >
+          <CompositionMosaic
+            config={
+              normalizedData.loansComposition
+            }
+            drilldowns={drilldowns}
+            icon={
+              AccountBalanceRoundedIcon
+            }
+          />
+
+          <BarPanel
+            icon={
+              EqualizerRoundedIcon
+            }
+            config={
+              normalizedData.loansBreakdown
+            }
+            drilldowns={drilldowns}
+          />
+        </Box>
+      </DashboardSection>
+    </Box>
+  );
+}
