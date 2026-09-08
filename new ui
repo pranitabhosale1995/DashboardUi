@@ -1,14 +1,267 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 
-export default function DashboardPage() {
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  ToggleButton,
+  ToggleButtonGroup,
+  Button,
+  Chip
+} from "@mui/material";
 
-  // states
-  // calculations
-  // handlers
+import {
+  Refresh,
+  AccountBalance,
+  Savings,
+  CreditCard,
+  TrendingUp,
+  PieChart as PieIcon
+} from "@mui/icons-material";
+
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  Treemap
+} from "recharts";
+
+import data from "./bankingData.json";
+
+
+export default function Dashboard() {
+
+  // ---------------------------------------
+  // STATE
+  // ---------------------------------------
+
+  const [type, setType] = useState("deposit");
+
+  const [selectedDate, setSelectedDate] = useState(4);
+
+  const [showMore, setShowMore] = useState(false);
+
+
+  // ---------------------------------------
+  // CURRENT DATA
+  // ---------------------------------------
+
+  const current = data[type];
+
+
+  // ---------------------------------------
+  // TREND DATA
+  // ---------------------------------------
+
+  const trendData = useMemo(() => {
+
+    if (!current?.dates) {
+      return [];
+    }
+
+    return current.dates.map((date, index) => ({
+      date,
+      value:
+        type === "deposit"
+          ? current.totalDepositTrend?.[index] ?? 0
+          : current.loanTrend?.[index] ?? 0
+    }));
+
+  }, [current, type]);
+
+
+  // ---------------------------------------
+  // SELECTED DATE VALUE
+  // ---------------------------------------
+
+  const selectedValue =
+    type === "deposit"
+      ? current?.totalDepositTrend?.[selectedDate] ?? 0
+      : current?.loanTrend?.[selectedDate] ?? 0;
+
+
+  // ---------------------------------------
+  // DEPOSIT / LOAN SWITCH
+  // ---------------------------------------
+
+  const handleType = (_, value) => {
+
+    if (!value) {
+      return;
+    }
+
+    setType(value);
+    setSelectedDate(4);
+    setShowMore(false);
+  };
+
+
+  // ---------------------------------------
+  // HEADER
+  // ---------------------------------------
 
   return (
-    <div>
-      {/* UI */}
-    </div>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        background: "#f5f7fb",
+        p: {
+          xs: 1.5,
+          md: 3
+        }
+      }}
+    >
+
+      {/* ================================
+          HEADER
+      ================================= */}
+
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: {
+            xs: "flex-start",
+            md: "center"
+          },
+          flexDirection: {
+            xs: "column",
+            md: "row"
+          },
+          gap: 2,
+          mb: 2.5
+        }}
+      >
+
+        {/* TITLE */}
+
+        <Box>
+
+          <Typography
+            sx={{
+              fontSize: {
+                xs: 24,
+                md: 30
+              },
+              fontWeight: 800,
+              color: "#17233c",
+              letterSpacing: "-0.5px"
+            }}
+          >
+            {type === "deposit"
+              ? "DEPOSITS"
+              : "LOANS"}
+
+            <Box
+              component="span"
+              sx={{
+                fontWeight: 400,
+                ml: 1
+              }}
+            >
+              DASHBOARD
+            </Box>
+          </Typography>
+
+
+          <Typography
+            sx={{
+              fontSize: 12,
+              color: "text.secondary",
+              mt: 0.3
+            }}
+          >
+            Evaluating banking financial performance
+          </Typography>
+
+        </Box>
+
+
+        {/* RIGHT SIDE CONTROLS */}
+
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            flexWrap: "wrap"
+          }}
+        >
+
+          {/* FINANCIAL YEAR */}
+
+          <Chip
+            label={data.financialYear}
+            variant="outlined"
+            size="small"
+            sx={{
+              fontWeight: 600,
+              background: "#fff"
+            }}
+          />
+
+
+          {/* DEPOSIT / LOAN */}
+
+          <ToggleButtonGroup
+            value={type}
+            exclusive
+            onChange={handleType}
+            size="small"
+            sx={{
+              background: "#fff"
+            }}
+          >
+
+            <ToggleButton value="deposit">
+              Deposit
+            </ToggleButton>
+
+            <ToggleButton value="loan">
+              Loan
+            </ToggleButton>
+
+          </ToggleButtonGroup>
+
+
+          {/* RESET */}
+
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<Refresh />}
+            onClick={() => {
+              setSelectedDate(4);
+              setShowMore(false);
+            }}
+            sx={{
+              background: "#fff",
+              textTransform: "none"
+            }}
+          >
+            Reset
+          </Button>
+
+        </Box>
+
+      </Box>
+
+
+      {/* ==========================================
+          NEXT SECTION WILL BE ADDED HERE
+          ========================================== */}
+
+    </Box>
   );
 }
