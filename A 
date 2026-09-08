@@ -17,7 +17,7 @@
       "change": "+2.4%",
       "trend": "up",
       "icon": "coins",
-      "color": "#6D4AFF",
+      "color": "#6C5CE0",
       "bg": "#EDE7FF"
     },
     {
@@ -96,13 +96,13 @@
     "activeFilter": "All Deposits",
     "items": [
       { "name": "Special Term Deposit", "value": 20.11, "share": 34.2, "color": "#22C55E" },
-      { "name": "Saving Bank A/c", "value": 14.93, "share": 25.4, "color": "#7C6AF0" },
+      { "name": "Saving Bank A/c", "value": 14.93, "share": 25.4, "color": "#6C5CE0" },
       { "name": "Term Deposit", "value": 19.05, "share": 32.4, "color": "#60A5FA" },
       { "name": "Current A/c", "value": 5.20, "share": 8.9, "color": "#EC4899" },
       { "name": "Other Term Deposits", "value": 0.46, "share": 0.8, "color": "#4338CA" }
     ],
     "legend": [
-      { "name": "Saving Bank A/c", "color": "#7C6AF0" },
+      { "name": "Saving Bank A/c", "color": "#6C5CE0" },
       { "name": "Current A/c", "color": "#EC4899" },
       { "name": "Cash Credit Cr Balance", "color": "#60A5FA" },
       { "name": "Other Demand Deposit", "color": "#FACC15" },
@@ -120,7 +120,7 @@
     "unit": "₹ T",
     "topValue": "₹ 14.9346 T",
     "data": [
-      { "name": "Saving Bank A/c", "value": 14.9346, "color": "#7C6AF0" },
+      { "name": "Saving Bank A/c", "value": 14.9346, "color": "#6C5CE0" },
       { "name": "Current A/c", "value": 5.20, "color": "#EC4899" },
       { "name": "Cash Credit Cr Balance", "value": 3.10, "color": "#60A5FA" },
       { "name": "Other Demand Deposit", "value": 2.10, "color": "#FACC15" }
@@ -134,7 +134,7 @@
     "unit": "₹ T",
     "topValue": "₹ 19.0543 T",
     "data": [
-      { "name": "Term Deposit", "value": 19.0543, "color": "#7C6AF0" },
+      { "name": "Term Deposit", "value": 19.0543, "color": "#6C5CE0" },
       { "name": "Special Term Deposit", "value": 2.5434, "color": "#EC4899" },
       { "name": "Other Term Deposit", "value": 0.1493, "color": "#60A5FA" },
       { "name": "Certificate of Deposit", "value": 0.0460, "color": "#FACC15" }
@@ -167,7 +167,7 @@
     "title": "Special Term Deposit Forecast for next 7 Days",
     "unit": "₹ Cr",
     "legend": [
-      { "key": "actual", "name": "Actual", "color": "#6D4AFF", "dashed": false },
+      { "key": "actual", "name": "Actual", "color": "#6C5CE0", "dashed": false },
       { "key": "forecast", "name": "Forecast", "color": "#EC4899", "dashed": true },
       { "key": "lower", "name": "Lower Confidence Bound", "color": "#94A3B8", "dashed": true },
       { "key": "upper", "name": "Upper Confidence Bound", "color": "#334155", "dashed": true }
