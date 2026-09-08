@@ -1,267 +1,737 @@
-import React, { useMemo, useState } from "react";
+      {/* =========================================================
+          MAIN BANKING PORTFOLIO SECTION
+          ========================================================= */}
 
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  ToggleButton,
-  ToggleButtonGroup,
-  Button,
-  Chip
-} from "@mui/material";
+      {(() => {
 
-import {
-  Refresh,
-  AccountBalance,
-  Savings,
-  CreditCard,
-  TrendingUp,
-  PieChart as PieIcon
-} from "@mui/icons-material";
+        // ---------------------------------------------------------
+        // Convert nested JSON -> leaf nodes for Treemap
+        // No name-based mapping. Everything is index based.
+        // ---------------------------------------------------------
 
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  Treemap
-} from "recharts";
+        const getLeafNodes = (node, result = []) => {
 
-import data from "./bankingData.json";
+          if (!node) {
+            return result;
+          }
+
+          if (Array.isArray(node.children) && node.children.length > 0) {
+
+            node.children.forEach((child) => {
+              getLeafNodes(child, result);
+            });
+
+          } else {
+
+            result.push({
+              name: node.name,
+              value: Number(node.value) || 0
+            });
+
+          }
+
+          return result;
+        };
 
 
-export default function Dashboard() {
+        // ---------------------------------------------------------
+        // CURRENT PORTFOLIO
+        // ---------------------------------------------------------
 
-  // ---------------------------------------
-  // STATE
-  // ---------------------------------------
-
-  const [type, setType] = useState("deposit");
-
-  const [selectedDate, setSelectedDate] = useState(4);
-
-  const [showMore, setShowMore] = useState(false);
-
-
-  // ---------------------------------------
-  // CURRENT DATA
-  // ---------------------------------------
-
-  const current = data[type];
+        const portfolio =
+          type === "deposit"
+            ? current?.demandDeposits && current?.termDeposits
+              ? {
+                  name: "Deposits",
+                  children: [
+                    ...(current.demandDeposits.children || []),
+                    ...(current.termDeposits.children || [])
+                  ]
+                }
+              : null
+            : current?.loanPortfolio;
 
 
-  // ---------------------------------------
-  // TREND DATA
-  // ---------------------------------------
-
-  const trendData = useMemo(() => {
-
-    if (!current?.dates) {
-      return [];
-    }
-
-    return current.dates.map((date, index) => ({
-      date,
-      value:
-        type === "deposit"
-          ? current.totalDepositTrend?.[index] ?? 0
-          : current.loanTrend?.[index] ?? 0
-    }));
-
-  }, [current, type]);
+        const portfolioData = getLeafNodes(portfolio);
 
 
-  // ---------------------------------------
-  // SELECTED DATE VALUE
-  // ---------------------------------------
+        // ---------------------------------------------------------
+        // BANKING COLORS
+        // Index based - independent of database names
+        // ---------------------------------------------------------
 
-  const selectedValue =
-    type === "deposit"
-      ? current?.totalDepositTrend?.[selectedDate] ?? 0
-      : current?.loanTrend?.[selectedDate] ?? 0;
-
-
-  // ---------------------------------------
-  // DEPOSIT / LOAN SWITCH
-  // ---------------------------------------
-
-  const handleType = (_, value) => {
-
-    if (!value) {
-      return;
-    }
-
-    setType(value);
-    setSelectedDate(4);
-    setShowMore(false);
-  };
+        const bankingColors = [
+          "#1769AA",
+          "#2E7D6B",
+          "#D99A2B",
+          "#5B6FB5",
+          "#00838F",
+          "#6A5ACD",
+          "#C66A2B",
+          "#3F7CAC"
+        ];
 
 
-  // ---------------------------------------
-  // HEADER
-  // ---------------------------------------
+        // ---------------------------------------------------------
+        // FORMAT LARGE BANKING VALUES
+        // ---------------------------------------------------------
 
-  return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        background: "#f5f7fb",
-        p: {
-          xs: 1.5,
-          md: 3
-        }
-      }}
-    >
+        const formatValue = (value) => {
 
-      {/* ================================
-          HEADER
-      ================================= */}
+          const num = Number(value) || 0;
 
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: {
-            xs: "flex-start",
-            md: "center"
-          },
-          flexDirection: {
-            xs: "column",
-            md: "row"
-          },
-          gap: 2,
-          mb: 2.5
-        }}
-      >
+          if (num >= 1000000000000) {
+            return `₹${(num / 1000000000000).toFixed(2)} T`;
+          }
 
-        {/* TITLE */}
+          if (num >= 1000000000) {
+            return `₹${(num / 1000000000).toFixed(2)} B`;
+          }
 
-        <Box>
+          if (num >= 1000000) {
+            return `₹${(num / 1000000).toFixed(2)} M`;
+          }
 
-          <Typography
-            sx={{
-              fontSize: {
-                xs: 24,
-                md: 30
-              },
-              fontWeight: 800,
-              color: "#17233c",
-              letterSpacing: "-0.5px"
-            }}
-          >
-            {type === "deposit"
-              ? "DEPOSITS"
-              : "LOANS"}
+          return `₹${num.toLocaleString("en-IN")}`;
+        };
+
+
+        // ---------------------------------------------------------
+        // CUSTOM TREEMAP CONTENT
+        // ---------------------------------------------------------
+
+        const renderTreemap = (props) => {
+
+          const {
+            x,
+            y,
+            width,
+            height,
+            index,
+            name,
+            value
+          } = props;
+
+          if (
+            width <= 0 ||
+            height <= 0
+          ) {
+            return null;
+          }
+
+
+          const color =
+            bankingColors[index % bankingColors.length];
+
+
+          const showText =
+            width > 105 &&
+            height > 65;
+
+
+          return (
+            <g>
+
+              <rect
+                x={x}
+                y={y}
+                width={width}
+                height={height}
+                rx={6}
+                ry={6}
+                fill={color}
+                stroke="#ffffff"
+                strokeWidth={3}
+              />
+
+
+              {showText && (
+                <>
+                  <text
+                    x={x + 14}
+                    y={y + height / 2 - 8}
+                    fill="#ffffff"
+                    fontSize={14}
+                    fontWeight={700}
+                  >
+                    {name}
+                  </text>
+
+                  <text
+                    x={x + 14}
+                    y={y + height / 2 + 15}
+                    fill="rgba(255,255,255,0.88)"
+                    fontSize={12}
+                    fontWeight={500}
+                  >
+                    {formatValue(value)}
+                  </text>
+                </>
+              )}
+
+            </g>
+          );
+        };
+
+
+        // ---------------------------------------------------------
+        // KPI DATA
+        // ---------------------------------------------------------
+
+        const summary = current?.summary || {};
+
+        const kpiItems =
+          type === "deposit"
+            ? [
+                {
+                  label: "Total Deposits",
+                  value: formatValue(summary.totalDeposits),
+                  icon: <AccountBalance fontSize="small" />
+                },
+                {
+                  label: "CASA Ratio",
+                  value: `${((summary.casaRatio || 0) * 100).toFixed(1)}%`,
+                  icon: <Savings fontSize="small" />
+                },
+                {
+                  label: "Demand Deposits",
+                  value: formatValue(summary.demandDeposits),
+                  icon: <CreditCard fontSize="small" />
+                },
+                {
+                  label: "Term Deposits",
+                  value: formatValue(summary.termDeposits),
+                  icon: <TrendingUp fontSize="small" />
+                }
+              ]
+            : [
+                {
+                  label: "Total Loans",
+                  value: formatValue(summary.totalLoans),
+                  icon: <AccountBalance fontSize="small" />
+                },
+                {
+                  label: "Outstanding Loans",
+                  value: formatValue(summary.outstandingLoans),
+                  icon: <CreditCard fontSize="small" />
+                },
+                {
+                  label: "Loan Growth",
+                  value: `${summary.loanGrowth || 0}%`,
+                  icon: <TrendingUp fontSize="small" />
+                },
+                {
+                  label: "NPA Ratio",
+                  value: `${summary.npaRatio || 0}%`,
+                  icon: <PieIcon fontSize="small" />
+                }
+              ];
+
+
+        return (
+          <>
+
+            {/* =====================================================
+                KPI CARDS
+                ===================================================== */}
 
             <Box
-              component="span"
               sx={{
-                fontWeight: 400,
-                ml: 1
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr 1fr",
+                  sm: "repeat(2, 1fr)",
+                  md: "repeat(4, 1fr)"
+                },
+                gap: 1.5,
+                mb: 2
               }}
             >
-              DASHBOARD
+
+              {kpiItems.map((item, index) => (
+
+                <Card
+                  key={index}
+                  elevation={0}
+                  sx={{
+                    border: "1px solid #E3E8EF",
+                    borderRadius: 2,
+                    background: "#FFFFFF",
+                    minHeight: 92,
+                    boxShadow: "0 2px 8px rgba(20,40,70,0.04)"
+                  }}
+                >
+
+                  <CardContent
+                    sx={{
+                      p: 1.6,
+                      "&:last-child": {
+                        pb: 1.6
+                      }
+                    }}
+                  >
+
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center"
+                      }}
+                    >
+
+                      <Typography
+                        sx={{
+                          fontSize: 11,
+                          color: "#6B778C",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.4px"
+                        }}
+                      >
+                        {item.label}
+                      </Typography>
+
+
+                      <Box
+                        sx={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 1.5,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: "#EEF4FA",
+                          color: "#1769AA"
+                        }}
+                      >
+                        {item.icon}
+                      </Box>
+
+                    </Box>
+
+
+                    <Typography
+                      sx={{
+                        mt: 1,
+                        fontSize: {
+                          xs: 17,
+                          md: 20
+                        },
+                        fontWeight: 800,
+                        color: "#17233C",
+                        letterSpacing: "-0.3px"
+                      }}
+                    >
+                      {item.value}
+                    </Typography>
+
+                  </CardContent>
+
+                </Card>
+
+              ))}
+
             </Box>
-          </Typography>
 
 
-          <Typography
-            sx={{
-              fontSize: 12,
-              color: "text.secondary",
-              mt: 0.3
-            }}
-          >
-            Evaluating banking financial performance
-          </Typography>
+            {/* =====================================================
+                PORTFOLIO COMPOSITION
+                ===================================================== */}
 
-        </Box>
+            <Card
+              elevation={0}
+              sx={{
+                border: "1px solid #E1E7EF",
+                borderRadius: 2.5,
+                background: "#FFFFFF",
+                overflow: "hidden",
+                mb: 2
+              }}
+            >
 
+              {/* CARD HEADER */}
 
-        {/* RIGHT SIDE CONTROLS */}
+              <Box
+                sx={{
+                  px: {
+                    xs: 2,
+                    md: 2.5
+                  },
+                  py: 1.7,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  borderBottom: "1px solid #EDF0F4"
+                }}
+              >
 
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            flexWrap: "wrap"
-          }}
-        >
+                <Box>
 
-          {/* FINANCIAL YEAR */}
+                  <Typography
+                    sx={{
+                      fontSize: 17,
+                      fontWeight: 800,
+                      color: "#17233C"
+                    }}
+                  >
+                    {type === "deposit"
+                      ? "Deposit Portfolio"
+                      : "Loan Portfolio"}
+                  </Typography>
 
-          <Chip
-            label={data.financialYear}
-            variant="outlined"
-            size="small"
-            sx={{
-              fontWeight: 600,
-              background: "#fff"
-            }}
-          />
+                  <Typography
+                    sx={{
+                      fontSize: 11,
+                      color: "#7A869A",
+                      mt: 0.3
+                    }}
+                  >
+                    Portfolio composition
+                  </Typography>
 
-
-          {/* DEPOSIT / LOAN */}
-
-          <ToggleButtonGroup
-            value={type}
-            exclusive
-            onChange={handleType}
-            size="small"
-            sx={{
-              background: "#fff"
-            }}
-          >
-
-            <ToggleButton value="deposit">
-              Deposit
-            </ToggleButton>
-
-            <ToggleButton value="loan">
-              Loan
-            </ToggleButton>
-
-          </ToggleButtonGroup>
+                </Box>
 
 
-          {/* RESET */}
+                <Chip
+                  icon={<PieIcon sx={{ fontSize: 15 }} />}
+                  label={`${portfolioData.length} categories`}
+                  size="small"
+                  sx={{
+                    background: "#F3F6FA",
+                    color: "#536174",
+                    fontSize: 11,
+                    fontWeight: 600
+                  }}
+                />
 
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={<Refresh />}
-            onClick={() => {
-              setSelectedDate(4);
-              setShowMore(false);
-            }}
-            sx={{
-              background: "#fff",
-              textTransform: "none"
-            }}
-          >
-            Reset
-          </Button>
-
-        </Box>
-
-      </Box>
+              </Box>
 
 
-      {/* ==========================================
-          NEXT SECTION WILL BE ADDED HERE
-          ========================================== */}
+              {/* TREEMAP */}
 
-    </Box>
-  );
-}
+              <Box
+                sx={{
+                  height: {
+                    xs: 300,
+                    sm: 350,
+                    md: 390
+                  },
+                  px: {
+                    xs: 1,
+                    md: 2
+                  },
+                  py: 1.5
+                }}
+              >
+
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                >
+
+                  <Treemap
+                    data={portfolioData}
+                    dataKey="value"
+                    nameKey="name"
+                    aspectRatio={1.8}
+                    stroke="#fff"
+                    content={renderTreemap}
+                  >
+
+                    <Tooltip
+                      formatter={(value, name) => [
+                        formatValue(value),
+                        name
+                      ]}
+                      contentStyle={{
+                        borderRadius: 8,
+                        border: "1px solid #DCE2EA",
+                        boxShadow:
+                          "0 5px 20px rgba(0,0,0,0.08)",
+                        fontSize: 12
+                      }}
+                    />
+
+                  </Treemap>
+
+                </ResponsiveContainer>
+
+              </Box>
+
+
+              {/* CATEGORY LEGEND */}
+
+              <Box
+                sx={{
+                  px: {
+                    xs: 2,
+                    md: 2.5
+                  },
+                  pb: 2,
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: {
+                    xs: 1.2,
+                    md: 2
+                  }
+                }}
+              >
+
+                {portfolioData.map((item, index) => (
+
+                  <Box
+                    key={index}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.7,
+                      minWidth: {
+                        xs: "45%",
+                        sm: "auto"
+                      }
+                    }}
+                  >
+
+                    <Box
+                      sx={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: "2px",
+                        flexShrink: 0,
+                        background:
+                          bankingColors[
+                            index % bankingColors.length
+                          ]
+                      }}
+                    />
+
+                    <Typography
+                      sx={{
+                        fontSize: 10.5,
+                        color: "#657184"
+                      }}
+                    >
+                      {item.name}
+                    </Typography>
+
+                  </Box>
+
+                ))}
+
+              </Box>
+
+            </Card>
+
+
+            {/* =====================================================
+                PERFORMANCE TREND
+                ===================================================== */}
+
+            <Card
+              elevation={0}
+              sx={{
+                border: "1px solid #E1E7EF",
+                borderRadius: 2.5,
+                background: "#FFFFFF",
+                mb: 2
+              }}
+            >
+
+              <Box
+                sx={{
+                  px: {
+                    xs: 2,
+                    md: 2.5
+                  },
+                  py: 1.7,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  borderBottom: "1px solid #EDF0F4"
+                }}
+              >
+
+                <Box>
+
+                  <Typography
+                    sx={{
+                      fontSize: 17,
+                      fontWeight: 800,
+                      color: "#17233C"
+                    }}
+                  >
+                    {type === "deposit"
+                      ? "Deposit Trend"
+                      : "Loan Trend"}
+                  </Typography>
+
+                  <Typography
+                    sx={{
+                      fontSize: 11,
+                      color: "#7A869A",
+                      mt: 0.3
+                    }}
+                  >
+                    Daily movement
+                  </Typography>
+
+                </Box>
+
+
+                <Chip
+                  label={
+                    current?.dates?.[selectedDate] ||
+                    "-"
+                  }
+                  size="small"
+                  sx={{
+                    background: "#EEF4FA",
+                    color: "#1769AA",
+                    fontWeight: 600,
+                    fontSize: 10.5
+                  }}
+                />
+
+              </Box>
+
+
+              <Box
+                sx={{
+                  height: {
+                    xs: 250,
+                    md: 300
+                  },
+                  px: 1,
+                  pt: 2,
+                  pb: 1
+                }}
+              >
+
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                >
+
+                  <LineChart
+                    data={trendData}
+                    margin={{
+                      top: 10,
+                      right: 20,
+                      left: 10,
+                      bottom: 5
+                    }}
+                  >
+
+                    <CartesianGrid
+                      stroke="#E8EDF3"
+                      strokeDasharray="4 4"
+                      vertical={false}
+                    />
+
+                    <XAxis
+                      dataKey="date"
+                      tick={{
+                        fontSize: 10,
+                        fill: "#788397"
+                      }}
+                      tickLine={false}
+                      axisLine={{
+                        stroke: "#DCE2EA"
+                      }}
+                    />
+
+                    <YAxis
+                      tick={{
+                        fontSize: 10,
+                        fill: "#788397"
+                      }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value) =>
+                        `${(value / 1000000000000).toFixed(0)}T`
+                      }
+                    />
+
+                    <Tooltip
+                      formatter={(value) => [
+                        formatValue(value),
+                        type === "deposit"
+                          ? "Deposits"
+                          : "Loans"
+                      ]}
+                      contentStyle={{
+                        borderRadius: 8,
+                        border: "1px solid #DCE2EA",
+                        boxShadow:
+                          "0 5px 20px rgba(0,0,0,0.08)",
+                        fontSize: 12
+                      }}
+                    />
+
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#1769AA"
+                      strokeWidth={3}
+                      dot={{
+                        r: 3,
+                        fill: "#1769AA",
+                        strokeWidth: 0
+                      }}
+                      activeDot={{
+                        r: 6
+                      }}
+                    />
+
+                  </LineChart>
+
+                </ResponsiveContainer>
+
+              </Box>
+
+            </Card>
+
+
+            {/* =====================================================
+                SELECTED DATE SUMMARY
+                ===================================================== */}
+
+            <Card
+              elevation={0}
+              sx={{
+                border: "1px solid #E1E7EF",
+                borderRadius: 2.5,
+                background: "#FFFFFF"
+              }}
+            >
+
+              <Box
+                sx={{
+                  px: {
+                    xs: 2,
+                    md: 2.5
+                  },
+                  py: 1.6,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: 1
+                }}
+              >
+
+                <Box>
+
+                  <Typography
+                    sx={{
+                      fontSize: 10,
+                      color: "#7A869A",
+                      textTransform: "uppercase",
+                      fontWeight: 700,
+                      letterSpacing: "0.5px"
+                    }}
+                  >
+                    Selected Date
+                  </Typography>
+
+               
