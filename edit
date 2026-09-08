@@ -1,0 +1,43 @@
+{/* FINANCIAL YEAR DROPDOWN */}
+
+<TextField
+  select
+  size="small"
+  value={data.financialYear}
+  onChange={(e) => {
+    // Future financial-year handling can be added here
+    console.log("Selected FY:", e.target.value);
+  }}
+  sx={{
+    minWidth: 125,
+    background: "#fff",
+    "& .MuiOutlinedInput-root": {
+      borderRadius: 2
+    }
+  }}
+>
+  <MenuItem value="FY 2025-26">
+    FY 2025-26
+  </MenuItem>
+
+  <MenuItem value="FY 2024-25">
+    FY 2024-25
+  </MenuItem>
+
+  <MenuItem value="FY 2023-24">
+    FY 2023-24
+  </MenuItem>
+</TextField>
+
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  ToggleButton,
+  ToggleButtonGroup,
+  Button,
+  Chip,
+  TextField,
+  MenuItem
+} from "@mui/material";
