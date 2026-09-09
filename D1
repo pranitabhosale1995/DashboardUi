@@ -27,6 +27,30 @@ import {
   Bar,
   XAxis,
   YAxis,
+  CartesianGrid,
+  PieChart,
+  Pie,
+  Cell,
+  LabelList,
+} from "recharts";
+
+import { glass, glassmorphismBaseStyles } from "../../theme/themePrimitives";
+import { fetchDrilldown } from "./dataProvider";
+import defaultDashboardData from "./bankingData.json";
+
+/* ---------------------------------------------------------------------- */
+/*  Theme-derived color helpers                                            */
+/*  The JSON no longer carries any color values — every color used by a    */
+/*  chart, tile, or dot below is pulled live from the MUI theme so the     */
+/*  dashboard automatically re-skins with the theme (light/dark, brand     */
+/*  palette changes, etc). Nothing here is a hardcoded hex.                */
+/* ---------------------------------------------------------------------- */
+
+/** A fixed-order list of theme tokens used as a categorical palette.
+ * Cycling through semantic + tonal variants keeps neighbouring categories
+ * visually distinct without ever introducing a color outside the theme. */
+function categoricalPalette(theme) {
+  const p = theme.palette;
   return [
     p.success.main,
     p.primary.main,
@@ -59,6 +83,33 @@ function colorForLabel(name, theme) {
   return palette[hash % palette.length];
 }
 
+/* ---------------------------------------------------------------------- */
+/*  Shared style helpers                                                   */
+/* ---------------------------------------------------------------------- */
+
+const textPrimarySx = { color: "text.primary" };
+const textSecondarySx = { color: "text.secondary" };
+
+/* ---------------------------------------------------------------------- */
+/*  Glass primitives                                                       */
+/* ---------------------------------------------------------------------- */
+
+/** Reusable glass "card" surface. Every panel in the dashboard sits on one
+ * of these — swap the tokens in theme.js and the whole UI re-skins. */
+function GlassPanel({ children, sx, ...props }) {
+  const theme = useTheme();
+  const glassStyles = glassmorphismBaseStyles(theme);
+  const gridStroke = alpha(theme.palette.text.primary, 0.08);
+
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        p: 2.5,
+        borderRadius: "20px",
+        height: "100%",
+        background: glassStyles.background,
+        backdropFilter: glassStyles.backdropFilter,
         WebkitBackdropFilter: glassStyles.WebkitBackdropFilter,
         border: glassStyles.border,
         boxShadow: glassStyles.boxShadow,
@@ -90,6 +141,164 @@ function PanelHeader({ icon: Icon, title, action, iconColor }) {
               alignItems: "center",
               justifyContent: "center",
               bgcolor: alpha(color, 0.14),
+              color,
+              backdropFilter: "blur(12px) saturate(160%)",
+              flexShrink: 0,
+            }}
+          >
+            <Icon sx={{ fontSize: 19 }} />
+          </Box>
+        )}
+        <Typography sx={{ ...textPrimarySx, fontWeight: 800, fontSize: 15, letterSpacing: 0.2 }}>
+          {title}
+        </Typography>
+      </Stack>
+      {action}
+    </Stack>
+  );
+}
+
+function MiniSelect({ options, value, onChange }) {
+  const theme = useTheme();
+
+  return (
+    <Select
+      size="small"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      sx={{
+        ...textPrimarySx,
+        fontSize: 13,
+        fontWeight: 600,
+        borderRadius: "10px",
+        background: glass.panel(0.4),
+        backdropFilter: "blur(12px) saturate(160%)",
+        "& .MuiOutlinedInput-notchedOutline": { border: `1px solid ${glass.border}` },
+        "& .MuiSelect-select": { py: 0.75, pr: 4 },
+      }}
+    >
+      {options.map((opt) => (
+        <MenuItem key={opt} value={opt} sx={{ fontSize: 13, fontFamily: theme.typography.fontFamily }}>
+          {opt}
+        </MenuItem>
+      ))}
+    </Select>
+  );
+}
+
+function SectionTitle({ children }) {
+  const theme = useTheme();
+
+  return (
+    <Typography
+      sx={{
+        ...textPrimarySx,
+        fontSize: { xs: 17, md: 19 },
+        fontWeight: 800,
+        mb: 1.75,
+        mt: 0.5,
+        pl: 0.5,
+        borderLeft: `4px solid ${theme.palette.primary.main}`,
+        lineHeight: 1.4,
+      }}
+    >
+      &nbsp;{children}
+    </Typography>
+  );
+}
+
+/** Small pill button used to leave a drill-down and return to the parent
+ * chart. Purely presentational — callers pass the `onBack` handler. */
+function BackButton({ onBack }) {
+  const theme = useTheme();
+
+  return (
+    <Button
+      size="small"
+      onClick={onBack}
+      startIcon={<ArrowBackRoundedIcon sx={{ fontSize: 16 }} />}
+      sx={{
+        textTransform: "none",
+        fontWeight: 700,
+        fontSize: 12.5,
+        borderRadius: "10px",
+        color: theme.palette.primary.main,
+        bgcolor: alpha(theme.palette.primary.main, 0.1),
+        "&:hover": { bgcolor: alpha(theme.palette.primary.main, 0.18) },
+      }}
+    >
+      Back
+    </Button>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/*  KPI strip — quick-glance totals derived live from the JSON data, no    */
+/*  numbers hardcoded.                                                     */
+/* ---------------------------------------------------------------------- */
+
+function StatCard({ icon: Icon, label, value, caption, accent }) {
+  const theme = useTheme();
+  const color = accent || theme.palette.primary.main;
+
+  return (
+    <GlassPanel sx={{ p: 2, borderRadius: "16px" }}>
+      <Stack direction="row" spacing={1.5} alignItems="center">
+        <Box
+          sx={{
+            width: 42,
+            height: 42,
+            borderRadius: "12px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            bgcolor: alpha(color, 0.14),
+            color,
+            flexShrink: 0,
+          }}
+        >
+          <Icon sx={{ fontSize: 22 }} />
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography sx={{ ...textSecondarySx, fontSize: 12, fontWeight: 600, lineHeight: 1.3 }}>
+            {label}
+          </Typography>
+          <Typography sx={{ ...textPrimarySx, fontSize: 20, fontWeight: 800, lineHeight: 1.25 }} noWrap>
+            {value}
+          </Typography>
+          {caption && (
+            <Typography sx={{ ...textSecondarySx, fontSize: 11, fontWeight: 600 }}>{caption}</Typography>
+          )}
+        </Box>
+      </Stack>
+    </GlassPanel>
+  );
+}
+
+function StatStrip({ data }) {
+  const theme = useTheme();
+  const totalDeposits = useMemo(
+    () => data.depositsComposition.items.reduce((sum, i) => sum + i.value, 0),
+    [data]
+  );
+  const totalLoans = useMemo(
+    () => data.loansComposition.items.reduce((sum, i) => sum + i.value, 0),
+    [data]
+  );
+  const totalPortfolio = totalDeposits + totalLoans;
+
+  const stats = [
+    {
+      icon: AccountBalanceRoundedIcon,
+      label: "Total Deposits",
+      value: `₹ ${totalDeposits.toFixed(2)} T`,
+      caption: `${data.depositsComposition.items.length} categories`,
+      accent: theme.palette.success.main,
+    },
+    {
+      icon: AccountBalanceWalletRoundedIcon,
+      label: "Total Loans",
+      value: `₹ ${totalLoans.toFixed(2)} T`,
       caption: `${data.loansComposition.items.length} categories`,
       accent: theme.palette.primary.main,
     },
@@ -121,6 +330,14 @@ function PanelHeader({ icon: Icon, title, action, iconColor }) {
         <StatCard key={s.label} {...s} />
       ))}
     </Box>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Reusable drill-down bar chart — knows nothing about deposits/loans,    */
+/*  just renders whatever { title, subtitle, data } it's handed.          */
+/* ---------------------------------------------------------------------- */
+
 function DrilldownBarChart({ icon, config, onBack }) {
   const theme = useTheme();
   const gridStrokeColor = alpha(theme.palette.text.primary, 0.08);
@@ -151,6 +368,60 @@ function DrilldownBarChart({ icon, config, onBack }) {
               angle={longLabels ? -35 : 0}
               textAnchor={longLabels ? "end" : "middle"}
               height={longLabels ? 70 : 30}
+            />
+            <YAxis
+              tick={{ fontSize: 11, fill: theme.palette.text.secondary }}
+              axisLine={false}
+              tickLine={false}
+              width={32}
+            />
+            <Bar dataKey="value" radius={[8, 8, 0, 0]} maxBarSize={54}>
+              {config.data.map((d) => (
+                <Cell key={d.name} fill={colorForLabel(d.name, theme)} />
+              ))}
+              <LabelList
+                dataKey="value"
+                position="top"
+                formatter={(v) => `₹${v < 1 ? v.toFixed(4) : v}T`}
+                style={{ fontSize: 11.5, fontWeight: 800, fill: theme.palette.text.primary }}
+              />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </Box>
+    </>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/*  CASA Gauge (semi-donut + needle) built with Recharts Pie               */
+/* ---------------------------------------------------------------------- */
+
+function Gauge({ config }) {
+  const theme = useTheme();
+  const RADIAN = Math.PI / 180;
+  const cx = 150;
+  const cy = 150;
+  const innerR = 92;
+
+  // Deliberately neutral/semantic mapping for the gauge: primary for the
+  // "growth" segment, secondary for savings, and a quiet grey for the
+  // catch-all "Others" bucket rather than an alarm color.
+  const segmentColor = (name, i) => {
+    if (/current/i.test(name)) return theme.palette.primary.main;
+    if (/saving/i.test(name)) return theme.palette.secondary.main;
+    if (i === 0) return theme.palette.primary.main;
+    if (i === 1) return theme.palette.secondary.main;
+    return theme.palette.grey[400];
+  };
+
+  const needleAngle = 180 - (config.needlePercent / 100) * 180; // 0..180 -> deg
+
+  return (
+    <GlassPanel>
+      <PanelHeader icon={PieChartRoundedIcon} title={config.title} />
+      <Typography sx={{ ...textSecondarySx, fontSize: 12.5, mt: -1.5, mb: 1 }}>
+        {config.subtitle}
       </Typography>
 
       <Box sx={{ position: "relative", width: "100%", height: 210 }}>
@@ -182,6 +453,29 @@ function DrilldownBarChart({ icon, config, onBack }) {
           <svg viewBox="0 0 300 300" width="100%" height="100%">
             <circle cx={cx} cy={cy * 0.85 + 0} r="7" fill={theme.palette.text.primary} />
             <line
+              x1={cx}
+              y1={cy * 0.85}
+              x2={cx + (innerR - 6) * Math.cos(needleAngle * RADIAN)}
+              y2={cy * 0.85 - (innerR - 6) * Math.sin(needleAngle * RADIAN)}
+              stroke={theme.palette.text.primary}
+              strokeWidth="4"
+              strokeLinecap="round"
+            />
+          </svg>
+        </Box>
+
+        <Box sx={{ position: "absolute", left: 0, right: 0, bottom: 6, textAlign: "center" }}>
+          <Typography sx={{ ...textPrimarySx, fontSize: 30, fontWeight: 800, lineHeight: 1.1 }}>
+            {config.value.toFixed(1)}%
+          </Typography>
+          <Typography sx={{ ...textSecondarySx, fontSize: 13, fontWeight: 600 }}>
+            {config.centerLabel}
+          </Typography>
+        </Box>
+      </Box>
+
+      <Stack direction="row" spacing={2.5} justifyContent="center" flexWrap="wrap" sx={{ mt: 1 }}>
+        {config.segments.map((s, i) => (
           <Stack key={s.name} direction="row" spacing={0.75} alignItems="center">
             <Box
               sx={{ width: 9, height: 9, borderRadius: "50%", bgcolor: segmentColor(s.name, i) }}
@@ -213,6 +507,30 @@ function CompositionMosaic({ config, icon = Inventory2RoundedIcon }) {
   const handleTileClick = (item) => {
     fetchDrilldown(item.name).then((result) => {
       if (result) setDrilldown(result);
+    });
+  };
+
+  const Tile = ({ item, sx, dense }) => {
+    const color = colorForLabel(item.name, theme);
+    return (
+      <Box
+        onClick={() => handleTileClick(item)}
+        role="button"
+        tabIndex={0}
+        sx={{
+          borderRadius: "14px",
+          p: dense ? 1.25 : 1.5,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          bgcolor: alpha(color, 0.92),
+          color: theme.palette.getContrastText(color),
+          minHeight: 68,
+          cursor: "pointer",
+          transition: "transform 0.2s ease, box-shadow 0.2s ease",
+          "&:hover": { transform: "translateY(-2px)", boxShadow: `0 10px 24px ${alpha(color, 0.35)}` },
+          "&:focus-visible": { outline: `2px solid ${theme.palette.getContrastText(color)}`, outlineOffset: 2 },
+          ...sx,
         }}
       >
         <Typography
@@ -244,6 +562,21 @@ function CompositionMosaic({ config, icon = Inventory2RoundedIcon }) {
         <DrilldownBarChart icon={icon} config={drilldown} onBack={() => setDrilldown(null)} />
       </GlassPanel>
     );
+  }
+
+  return (
+    <GlassPanel>
+      <PanelHeader
+        icon={icon}
+        title={config.title}
+        action={hasFilter ? <MiniSelect options={config.filterOptions} value={filter} onChange={setFilter} /> : undefined}
+      />
+      <Typography sx={{ ...textSecondarySx, fontSize: 12.5, mt: -1.5, mb: 1.5 }}>{config.subtitle}</Typography>
+
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+        <Box sx={{ display: "flex", gap: 1, height: 190 }}>
+          {big1 && <Tile item={big1} sx={{ flex: 1.3 }} />}
+          {big2 && <Tile item={big2} sx={{ flex: 1.1 }} />}
           {(stackTop || stackBottom) && (
             <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 1 }}>
               {stackTop && <Tile item={stackTop} dense sx={{ flex: 1 }} />}
@@ -275,6 +608,70 @@ function CompositionMosaic({ config, icon = Inventory2RoundedIcon }) {
             <Typography sx={{ ...textSecondarySx, fontSize: 11.5, fontWeight: 600 }} noWrap>
               {l.name}
             </Typography>
+          </Stack>
+        ))}
+      </Box>
+    </GlassPanel>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Bar chart panels (Demand / Term deposits, Loans breakdown)             */
+/*  Clicking a bar drills into that item; only this panel swaps content.  */
+/* ---------------------------------------------------------------------- */
+
+function BarPanel({ icon, config }) {
+  const theme = useTheme();
+  const gridStrokeColor = alpha(theme.palette.text.primary, 0.08);
+  const hasDropdown = Array.isArray(config.dropdownOptions) && config.dropdownOptions.length > 0;
+  const [option, setOption] = useState(config.activeOption || (hasDropdown ? config.dropdownOptions[0] : undefined));
+  const [drilldown, setDrilldown] = useState(null); // { title, subtitle, data } | null
+  const longLabels = config.data.length > 5;
+
+  const handleBarClick = (item) => {
+    fetchDrilldown(item.name).then((result) => {
+      if (result) setDrilldown(result);
+    });
+  };
+
+  if (drilldown) {
+    return (
+      <GlassPanel>
+        <DrilldownBarChart icon={icon} config={drilldown} onBack={() => setDrilldown(null)} />
+      </GlassPanel>
+    );
+  }
+
+  return (
+    <GlassPanel>
+      <PanelHeader
+        icon={icon}
+        title={config.title}
+        action={hasDropdown ? <MiniSelect options={config.dropdownOptions} value={option} onChange={setOption} /> : undefined}
+      />
+      {config.topValue && (
+        <Typography sx={{ ...textSecondarySx, fontSize: 12.5, mt: -1.5, mb: 1.5 }}>
+          Largest category: <b>{config.topValue}</b>
+        </Typography>
+      )}
+      <Box sx={{ width: "100%", height: longLabels ? 300 : 260 }}>
+        <ResponsiveContainer>
+          <BarChart
+            data={config.data}
+            margin={{ top: 24, right: 10, left: -10, bottom: longLabels ? 60 : 0 }}
+            barCategoryGap="28%"
+          >
+            <CartesianGrid vertical={false} stroke={gridStrokeColor} />
+            <XAxis
+              dataKey="name"
+              tick={{ fontSize: longLabels ? 9.5 : 10.5, fill: theme.palette.text.secondary }}
+              axisLine={{ stroke: gridStrokeColor }}
+              tickLine={false}
+              interval={0}
+              angle={longLabels ? -35 : 0}
+              textAnchor={longLabels ? "end" : "middle"}
+              height={longLabels ? 70 : 30}
+            />
             <YAxis
               tick={{ fontSize: 11, fill: theme.palette.text.secondary }}
               axisLine={false}
@@ -306,6 +703,23 @@ function CompositionMosaic({ config, icon = Inventory2RoundedIcon }) {
 
 /* ---------------------------------------------------------------------- */
 /*  Header                                                                  */
+/* ---------------------------------------------------------------------- */
+
+function DashboardHeader({ config }) {
+  const theme = useTheme();
+  const [fy, setFy] = useState(config.financialYear);
+
+  return (
+    <GlassPanel sx={{ borderRadius: "20px", mb: 0 }}>
+      <Stack
+        direction={{ xs: "column", lg: "row" }}
+        alignItems={{ xs: "flex-start", lg: "center" }}
+        justifyContent="space-between"
+        spacing={2}
+      >
+        <Box>
+          <Typography sx={{ ...textPrimarySx, fontSize: { xs: 22, md: 26 }, fontWeight: 800 }}>
+            {config.title}
           </Typography>
           <Typography sx={{ ...textSecondarySx, fontSize: 13.5, mt: 0.25 }}>{config.subtitle}</Typography>
         </Box>
@@ -337,6 +751,62 @@ function CompositionMosaic({ config, icon = Inventory2RoundedIcon }) {
           <Button
             variant="contained"
             startIcon={<RefreshRoundedIcon />}
+            sx={{
+              textTransform: "none",
+              fontWeight: 700,
+              fontSize: 13.5,
+              borderRadius: "10px",
+              boxShadow: "none",
+              px: 2,
+              height: 36,
+              bgcolor: theme.palette.primary.main,
+              color: theme.palette.primary.contrastText,
+              "&:hover": { boxShadow: "none", bgcolor: theme.palette.primary.dark },
+            }}
+          >
+            Reset
+          </Button>
+        </Stack>
+      </Stack>
+    </GlassPanel>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Root Dashboard                                                         */
+/*  Layout: header → KPI strip → deposits mosaic + CASA gauge → loans      */
+/*  mosaic → demand/term/loans bar panels. Every column collapses to a     */
+/*  single stack on small screens.                                        */
+/* ---------------------------------------------------------------------- */
+
+export default function DepositsLoansDashboard({ data }) {
+  const dashboardData = data || defaultDashboardData;
+
+  return (
+    <Box
+      sx={{
+        p: { xs: 1.5, md: 3 },
+        display: "flex",
+        flexDirection: "column",
+        gap: 2.5,
+        minHeight: "100vh",
+      }}
+    >
+      <DashboardHeader config={dashboardData.header} />
+
+      <StatStrip data={dashboardData} />
+
+      <SectionTitle>Deposits</SectionTitle>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", lg: "2fr 1fr" },
+          gap: 2.5,
+          alignItems: "stretch",
+        }}
+      >
+        <CompositionMosaic config={dashboardData.depositsComposition} icon={AccountBalanceRoundedIcon} />
+        <Gauge config={dashboardData.casaGauge} />
       </Box>
 
       <Box
