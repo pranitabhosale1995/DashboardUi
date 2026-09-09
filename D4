@@ -12,6 +12,7 @@ import {
 import { alpha, useTheme } from "@mui/material/styles";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import CalendarTodayRoundedIcon from "@mui/icons-material/CalendarTodayRounded";
+import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import AccountBalanceRoundedIcon from "@mui/icons-material/AccountBalanceRounded";
 import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
 import PieChartRoundedIcon from "@mui/icons-material/PieChartRounded";
@@ -23,8 +24,6 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -36,6 +35,7 @@ import {
 } from "recharts";
 
 import { glass, glassmorphismBaseStyles } from "../../theme/themePrimitives";
+import { fetchDrilldown } from "./dataProvider";
 import defaultDashboardData from "./bankingData.json";
 
 /* ---------------------------------------------------------------------- */
@@ -43,7 +43,7 @@ import defaultDashboardData from "./bankingData.json";
 /*  A restrained, finance-appropriate categorical palette: primary /       */
 /*  secondary / info / success tones only, at their darker and mid         */
 /*  weights. Error / warning are reserved for the CASA gauge's status      */
-/*  bands, not category coloring, so they keep their "alert" meaning.      */
+/*  bands (a red/amber/green read), not category coloring.                 */
 /* ---------------------------------------------------------------------- */
 
 function categoricalPalette(theme) {
@@ -63,8 +63,8 @@ function categoricalPalette(theme) {
 }
 
 /** Deterministically maps a category name to a theme color, so "Term
- * Deposit" always renders the same color in the tiles, the bars, and the
- * line chart — without needing a lookup table to maintain. */
+ * Deposit" always renders the same color in the mosaic, the bar charts,
+ * and every drill-down — without needing a lookup table to maintain. */
 function colorForLabel(name, theme) {
   const palette = categoricalPalette(theme);
   let hash = 0;
@@ -81,13 +81,13 @@ function colorForLabel(name, theme) {
 const textPrimarySx = { color: "text.primary" };
 const textSecondarySx = { color: "text.secondary" };
 const RADIUS = { lg: "20px", md: "16px", sm: "12px" };
-const CHART_VIEW_OPTIONS_FULL = ["Tiles", "Bar", "Line"];
-const CHART_VIEW_OPTIONS_SIMPLE = ["Bar", "Line"];
 
 /* ---------------------------------------------------------------------- */
 /*  Glass primitives                                                       */
 /*  Cards are noticeably more opaque than a typical glass effect so text   */
-/*  and chart data stay crisp against whatever sits behind the page.       */
+/*  and chart data stay crisp against whatever sits behind the page —      */
+/*  translucent enough to read as "glass", solid enough to read as a       */
+/*  serious financial surface rather than a see-through overlay.           */
 /* ---------------------------------------------------------------------- */
 
 function GlassPanel({ children, sx, ...props }) {
@@ -120,14 +120,7 @@ function PanelHeader({ icon: Icon, title, action, iconColor }) {
   const color = iconColor || theme.palette.primary.main;
 
   return (
-    <Stack
-      direction="row"
-      alignItems="center"
-      justifyContent="space-between"
-      flexWrap="wrap"
-      rowGap={1}
-      sx={{ mb: 2 }}
-    >
+    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
       <Stack direction="row" alignItems="center" spacing={1.25}>
         {Icon && (
           <Box
@@ -165,13 +158,13 @@ function MiniSelect({ options, value, onChange }) {
       onChange={(e) => onChange(e.target.value)}
       sx={{
         ...textPrimarySx,
-        fontSize: 12.5,
+        fontSize: 13,
         fontWeight: 600,
         borderRadius: RADIUS.sm,
         background: glass.panel(0.5),
         backdropFilter: "blur(12px) saturate(160%)",
         "& .MuiOutlinedInput-notchedOutline": { border: `1px solid ${glass.border}` },
-        "& .MuiSelect-select": { py: 0.6, pr: 4 },
+        "& .MuiSelect-select": { py: 0.75, pr: 4 },
       }}
     >
       {options.map((opt) => (
@@ -185,7 +178,9 @@ function MiniSelect({ options, value, onChange }) {
 
 /** A light section header: a slim colored accent, title + caption, and a
  * fading rule trailing to the right. No boxed icon chip — kept quiet on
- * purpose so it doesn't compete with the panels underneath it. */
+ * purpose so it doesn't compete with the panels underneath it.
+ * `icon` is accepted for API compatibility with callers but intentionally
+ * unused here. */
 function SectionHeader({ title, caption }) {
   const theme = useTheme();
 
@@ -221,8 +216,37 @@ function SectionHeader({ title, caption }) {
   );
 }
 
+/** Small pill button used to leave a drill-down and return to the parent
+ * chart. Purely presentational — callers pass the `onBack` handler.
+ * Currently unused: the click-to-drill-down interaction is disabled below
+ * (see the "DRILL-DOWN DISABLED" notes), but this stays wired up and ready
+ * for when that ships. */
+function BackButton({ onBack }) {
+  const theme = useTheme();
+
+  return (
+    <Button
+      size="small"
+      onClick={onBack}
+      startIcon={<ArrowBackRoundedIcon sx={{ fontSize: 16 }} />}
+      sx={{
+        textTransform: "none",
+        fontWeight: 700,
+        fontSize: 12.5,
+        borderRadius: RADIUS.sm,
+        color: theme.palette.primary.main,
+        bgcolor: alpha(theme.palette.primary.main, 0.1),
+        "&:hover": { bgcolor: alpha(theme.palette.primary.main, 0.18) },
+      }}
+    >
+      Back
+    </Button>
+  );
+}
+
 /* ---------------------------------------------------------------------- */
-/*  Legend — a single reusable row of color-dot + label, wraps cleanly.    */
+/*  Legend — a single reusable row of color-dot + label, wraps cleanly     */
+/*  regardless of how many categories are passed in.                      */
 /* ---------------------------------------------------------------------- */
 
 function LegendGrid({ items }) {
@@ -289,107 +313,84 @@ function ChartTooltip({ active, payload, label, theme }) {
 }
 
 /* ---------------------------------------------------------------------- */
-/*  CategoryChart — a single {name, value}[] dataset rendered as either a  */
-/*  bar chart or a line chart, sharing the same axes/grid/tooltip styling. */
-/*  This is what the "Bar" / "Line" dropdown on every panel switches       */
-/*  between. Display only — no click-to-drill-down.                       */
+/*  Reusable drill-down bar chart — knows nothing about deposits/loans,    */
+/*  just renders whatever { title, subtitle, data } it's handed. Kept in   */
+/*  place even though nothing currently navigates to it (drill-down is     */
+/*  disabled per request) — it's a future requirement.                    */
 /* ---------------------------------------------------------------------- */
 
-function CategoryChart({ data, type }) {
+function DrilldownBarChart({ icon, config, onBack }) {
   const theme = useTheme();
   const gridStrokeColor = alpha(theme.palette.text.primary, 0.08);
-  const longLabels = data.length > 5;
-  const margin = { top: 28, right: 16, left: -4, bottom: longLabels ? 70 : 6 };
-
-  const xAxis = (
-    <XAxis
-      dataKey="name"
-      tick={{ fontSize: longLabels ? 9.5 : 10.5, fill: theme.palette.text.secondary }}
-      axisLine={{ stroke: gridStrokeColor }}
-      tickLine={false}
-      interval={0}
-      angle={longLabels ? -35 : 0}
-      textAnchor={longLabels ? "end" : "middle"}
-      height={longLabels ? 70 : 30}
-    />
-  );
-  const yAxis = (
-    <YAxis
-      tick={{ fontSize: 11, fill: theme.palette.text.secondary }}
-      axisLine={false}
-      tickLine={false}
-      width={32}
-    />
-  );
-
-  if (type === "line") {
-    return (
-      <ResponsiveContainer>
-        <LineChart data={data} margin={margin}>
-          <CartesianGrid vertical={false} stroke={gridStrokeColor} strokeDasharray="3 5" />
-          {xAxis}
-          {yAxis}
-          <Tooltip
-            cursor={{ stroke: alpha(theme.palette.text.primary, 0.18) }}
-            content={(props) => <ChartTooltip {...props} theme={theme} />}
-          />
-          <Line
-            type="monotone"
-            dataKey="value"
-            stroke={theme.palette.primary.main}
-            strokeWidth={2.5}
-            dot={(dotProps) => {
-              const { cx, cy, payload, index } = dotProps;
-              return (
-                <circle
-                  key={`dot-${index}`}
-                  cx={cx}
-                  cy={cy}
-                  r={4.5}
-                  fill={colorForLabel(payload.name, theme)}
-                  stroke={theme.palette.background.paper}
-                  strokeWidth={1.5}
-                />
-              );
-            }}
-            activeDot={{ r: 6.5 }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    );
-  }
+  const longLabels = config.data.length > 5;
 
   return (
-    <ResponsiveContainer>
-      <BarChart data={data} margin={margin} barCategoryGap="32%">
-        <CartesianGrid vertical={false} stroke={gridStrokeColor} strokeDasharray="3 5" />
-        {xAxis}
-        {yAxis}
-        <Tooltip
-          cursor={{ fill: alpha(theme.palette.text.primary, 0.05) }}
-          content={(props) => <ChartTooltip {...props} theme={theme} />}
-        />
-        <Bar dataKey="value" radius={[7, 7, 0, 0]} maxBarSize={48}>
-          {data.map((d) => (
-            <Cell key={d.name} fill={colorForLabel(d.name, theme)} />
-          ))}
-          <LabelList
-            dataKey="value"
-            position="top"
-            formatter={(v) => `₹${v < 1 ? v.toFixed(4) : v}T`}
-            style={{ fontSize: 11, fontWeight: 700, fill: theme.palette.text.primary }}
-          />
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <>
+      <PanelHeader icon={icon} title={config.title} action={<BackButton onBack={onBack} />} />
+      {config.subtitle && (
+        <Typography sx={{ ...textSecondarySx, fontSize: 12.5, mt: -1.5, mb: 1.5 }}>
+          {config.subtitle}
+        </Typography>
+      )}
+      <Box sx={{ width: "100%", height: longLabels ? 320 : 270 }}>
+        <ResponsiveContainer>
+          <BarChart
+            data={config.data}
+            margin={{ top: 28, right: 16, left: -4, bottom: longLabels ? 70 : 6 }}
+            barCategoryGap="32%"
+          >
+            <CartesianGrid vertical={false} stroke={gridStrokeColor} strokeDasharray="3 5" />
+            <XAxis
+              dataKey="name"
+              tick={{ fontSize: longLabels ? 9.5 : 10.5, fill: theme.palette.text.secondary }}
+              axisLine={{ stroke: gridStrokeColor }}
+              tickLine={false}
+              interval={0}
+              angle={longLabels ? -35 : 0}
+              textAnchor={longLabels ? "end" : "middle"}
+              height={longLabels ? 70 : 30}
+            />
+            <YAxis
+              tick={{ fontSize: 11, fill: theme.palette.text.secondary }}
+              axisLine={false}
+              tickLine={false}
+              width={32}
+            />
+            <Tooltip
+              cursor={{ fill: alpha(theme.palette.text.primary, 0.05) }}
+              content={(props) => <ChartTooltip {...props} theme={theme} />}
+            />
+            <Bar dataKey="value" radius={[7, 7, 0, 0]} maxBarSize={48}>
+              {config.data.map((d) => (
+                <Cell key={d.name} fill={colorForLabel(d.name, theme)} />
+              ))}
+              <LabelList
+                dataKey="value"
+                position="top"
+                formatter={(v) => `₹${v < 1 ? v.toFixed(4) : v}T`}
+                style={{ fontSize: 11, fontWeight: 700, fill: theme.palette.text.primary }}
+              />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </Box>
+    </>
   );
 }
 
 /* ---------------------------------------------------------------------- */
 /*  CASA Gauge (semi-donut + needle) built with Recharts Pie               */
-/*  Status bands are a fixed red / amber / green — a traffic-light read    */
-/*  rather than category colors — and the needle angle is driven directly  */
-/*  by config.value, so it always points to exactly where the number says. */
+/*  Status bands are a fixed red / amber / green (a traffic-light read),   */
+/*  and the needle angle is driven directly by config.value so it always   */
+/*  points to exactly where the number says.                               */
+/*                                                                          */
+/*  FIX: the needle overlay is a plain SVG drawn on top of the Pie using a  */
+/*  fixed 300×300 coordinate system. That math only lines up with the Pie  */
+/*  underneath it when the container is a SQUARE — if the container is     */
+/*  wider than it is tall (which it was, at width:"100%"), the two         */
+/*  coordinate systems drift apart and the needle appears to swing off     */
+/*  onto the background. Fixing this means giving the gauge a fixed,       */
+/*  square, centered box instead of a full-width one.                      */
 /* ---------------------------------------------------------------------- */
 
 function Gauge({ config }) {
@@ -398,7 +399,9 @@ function Gauge({ config }) {
   const cx = 150;
   const cy = 150;
   const innerR = 92;
+  const GAUGE_SIZE = 240; // fixed + square, see note above
 
+  // Fixed red / amber / green status bands, not category colors.
   const statusPalette = [theme.palette.error.main, theme.palette.warning.main, theme.palette.success.main];
   const segmentColor = (i) => statusPalette[i % statusPalette.length];
 
@@ -412,7 +415,7 @@ function Gauge({ config }) {
         {config.subtitle}
       </Typography>
 
-      <Box sx={{ position: "relative", width: "100%", height: 232, mb: 1 }}>
+      <Box sx={{ position: "relative", width: GAUGE_SIZE, height: GAUGE_SIZE, mx: "auto", mb: 1 }}>
         <ResponsiveContainer>
           <PieChart>
             <Pie
@@ -437,7 +440,8 @@ function Gauge({ config }) {
           </PieChart>
         </ResponsiveContainer>
 
-        {/* needle + center readout, overlaid absolutely */}
+        {/* needle + center readout, overlaid absolutely — now aligned
+            correctly because the box above is guaranteed square */}
         <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
           <svg viewBox="0 0 300 300" width="100%" height="100%">
             <circle cx={cx} cy={cy * 0.85 + 0} r="6" fill={theme.palette.text.primary} />
@@ -477,27 +481,41 @@ function Gauge({ config }) {
 
 /* ---------------------------------------------------------------------- */
 /*  Composition mosaic (used for both Deposits and Loans)                  */
-/*  Default view is the tile mosaic — two tall tiles, a stacked pair       */
-/*  beside them, and an even row of the remaining categories underneath —  */
-/*  each tile filled with a solid, theme-derived color. The dropdown lets  */
-/*  the same data be viewed as a Bar or Line chart instead. Display only — */
-/*  nothing is clickable, there is no drill-down.                         */
+/*  Two tall tiles, a stacked pair beside them, and an even row of the     */
+/*  remaining categories underneath — each tile filled with a solid,       */
+/*  theme-derived color (full box, not just an accent).                    */
+/*                                                                          */
+/*  DRILL-DOWN DISABLED: tiles are no longer clickable. The click handler  */
+/*  and drill-down render branch are commented out, not removed — this is  */
+/*  a future requirement, so uncomment `onClick` on the Tile below (and    */
+/*  the `if (drilldown)` block) to bring the interaction back.             */
 /* ---------------------------------------------------------------------- */
 
 function CompositionMosaic({ config, icon = Inventory2RoundedIcon }) {
   const theme = useTheme();
   const hasFilter = Array.isArray(config.filterOptions) && config.filterOptions.length > 0;
   const [filter, setFilter] = useState(config.activeFilter || (hasFilter ? config.filterOptions[0] : undefined));
-  const [view, setView] = useState("Tiles");
+  const [drilldown, setDrilldown] = useState(null); // { title, subtitle, data } | null — unused while drill-down is disabled
   const items = config.items;
   const [big1, big2, stackTop, stackBottom, ...rest] = items;
-  const longLabels = items.length > 5;
+
+  // Kept for the future drill-down feature — not currently wired to onClick.
+  const handleTileClick = (item) => {
+    fetchDrilldown(item.name).then((result) => {
+      if (result) setDrilldown(result);
+    });
+  };
 
   const Tile = ({ item, sx, dense }) => {
     const color = colorForLabel(item.name, theme);
     const fg = theme.palette.getContrastText(color);
     return (
       <Box
+        /* DRILL-DOWN DISABLED (future requirement) — uncomment to re-enable:
+        onClick={() => handleTileClick(item)}
+        role="button"
+        tabIndex={0}
+        */
         sx={{
           borderRadius: RADIUS.sm,
           p: dense ? 1.1 : 1.5,
@@ -575,66 +593,95 @@ function CompositionMosaic({ config, icon = Inventory2RoundedIcon }) {
     );
   };
 
-  const controls = (
-    <Stack direction="row" spacing={1} flexWrap="wrap" rowGap={1}>
-      {hasFilter && <MiniSelect options={config.filterOptions} value={filter} onChange={setFilter} />}
-      <MiniSelect options={CHART_VIEW_OPTIONS_FULL} value={view} onChange={setView} />
-    </Stack>
-  );
+  /* DRILL-DOWN DISABLED (future requirement) — this branch never runs
+     while handleTileClick isn't wired to onClick above, but it's kept
+     ready rather than deleted.
+  if (drilldown) {
+    return (
+      <GlassPanel sx={{ p: 3 }}>
+        <DrilldownBarChart icon={icon} config={drilldown} onBack={() => setDrilldown(null)} />
+      </GlassPanel>
+    );
+  }
+  */
 
   return (
     <GlassPanel>
-      <PanelHeader icon={icon} title={config.title} action={controls} />
+      <PanelHeader
+        icon={icon}
+        title={config.title}
+        action={hasFilter ? <MiniSelect options={config.filterOptions} value={filter} onChange={setFilter} /> : undefined}
+      />
       <Typography sx={{ ...textSecondarySx, fontSize: 12.5, mt: -1.5, mb: 1.5 }}>{config.subtitle}</Typography>
 
-      {view === "Tiles" ? (
-        <>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <Box sx={{ display: "flex", gap: 1, height: 190 }}>
-              {big1 && <Tile item={big1} sx={{ flex: 1.3 }} />}
-              {big2 && <Tile item={big2} sx={{ flex: 1.1 }} />}
-              {(stackTop || stackBottom) && (
-                <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 1 }}>
-                  {stackTop && <Tile item={stackTop} dense sx={{ flex: 1 }} />}
-                  {stackBottom && <Tile item={stackBottom} dense sx={{ flex: 1 }} />}
-                </Box>
-              )}
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+        <Box sx={{ display: "flex", gap: 1, height: 190 }}>
+          {big1 && <Tile item={big1} sx={{ flex: 1.3 }} />}
+          {big2 && <Tile item={big2} sx={{ flex: 1.1 }} />}
+          {(stackTop || stackBottom) && (
+            <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 1 }}>
+              {stackTop && <Tile item={stackTop} dense sx={{ flex: 1 }} />}
+              {stackBottom && <Tile item={stackBottom} dense sx={{ flex: 1 }} />}
             </Box>
-            {rest.length > 0 && (
-              <Box sx={{ display: "flex", gap: 1, height: 84 }}>
-                {rest.map((r) => (
-                  <Tile key={r.name} item={r} dense sx={{ flex: 1 }} />
-                ))}
-              </Box>
-            )}
-          </Box>
-          <LegendGrid items={config.legend} />
-        </>
-      ) : (
-        <Box sx={{ width: "100%", height: longLabels ? 320 : 280 }}>
-          <CategoryChart data={items} type={view.toLowerCase()} />
+          )}
         </Box>
-      )}
+        {rest.length > 0 && (
+          <Box sx={{ display: "flex", gap: 1, height: 84 }}>
+            {rest.map((r) => (
+              <Tile key={r.name} item={r} dense sx={{ flex: 1 }} />
+            ))}
+          </Box>
+        )}
+      </Box>
+
+      <LegendGrid items={config.legend} />
     </GlassPanel>
   );
 }
 
 /* ---------------------------------------------------------------------- */
-/*  Bar / Line panel (Demand / Term deposits, Loan Distribution)           */
-/*  Display only — the dropdown swaps between a bar and a line rendering   */
-/*  of the same dataset; nothing is clickable.                            */
+/*  Bar chart panels (Demand / Term deposits, Loans breakdown)             */
+/*  `titleOverride` lets a panel show a more specific label than the       */
+/*  source config's title (the composition and breakdown views for loans  */
+/*  share the same underlying "Loans" title in the data, which reads as   */
+/*  ambiguous once both are on screen together).                          */
+/*                                                                          */
+/*  DRILL-DOWN DISABLED: bars are no longer clickable — same reasoning as  */
+/*  the mosaic tiles above. handleBarClick and the drill-down branch are   */
+/*  commented out, not removed.                                           */
 /* ---------------------------------------------------------------------- */
 
 function BarPanel({ icon, config, titleOverride }) {
-  const [view, setView] = useState("Bar");
+  const theme = useTheme();
+  const gridStrokeColor = alpha(theme.palette.text.primary, 0.08);
+  const hasDropdown = Array.isArray(config.dropdownOptions) && config.dropdownOptions.length > 0;
+  const [option, setOption] = useState(config.activeOption || (hasDropdown ? config.dropdownOptions[0] : undefined));
+  const [drilldown, setDrilldown] = useState(null); // { title, subtitle, data } | null — unused while drill-down is disabled
   const longLabels = config.data.length > 5;
+
+  // Kept for the future drill-down feature — not currently wired to onClick.
+  const handleBarClick = (item) => {
+    fetchDrilldown(item.name).then((result) => {
+      if (result) setDrilldown(result);
+    });
+  };
+
+  /* DRILL-DOWN DISABLED (future requirement) — kept ready, not deleted.
+  if (drilldown) {
+    return (
+      <GlassPanel sx={{ p: 3 }}>
+        <DrilldownBarChart icon={icon} config={drilldown} onBack={() => setDrilldown(null)} />
+      </GlassPanel>
+    );
+  }
+  */
 
   return (
     <GlassPanel sx={{ p: 3 }}>
       <PanelHeader
         icon={icon}
         title={titleOverride || config.title}
-        action={<MiniSelect options={CHART_VIEW_OPTIONS_SIMPLE} value={view} onChange={setView} />}
+        action={hasDropdown ? <MiniSelect options={config.dropdownOptions} value={option} onChange={setOption} /> : undefined}
       />
       {config.topValue && (
         <Typography sx={{ ...textSecondarySx, fontSize: 12.5, mt: -1.5, mb: 2 }}>
@@ -642,18 +689,141 @@ function BarPanel({ icon, config, titleOverride }) {
         </Typography>
       )}
       <Box sx={{ width: "100%", height: longLabels ? 320 : 270 }}>
-        <CategoryChart data={config.data} type={view.toLowerCase()} />
+        <ResponsiveContainer>
+          <BarChart
+            data={config.data}
+            margin={{ top: 28, right: 16, left: -4, bottom: longLabels ? 70 : 6 }}
+            barCategoryGap="32%"
+          >
+            <CartesianGrid vertical={false} stroke={gridStrokeColor} strokeDasharray="3 5" />
+            <XAxis
+              dataKey="name"
+              tick={{ fontSize: longLabels ? 9.5 : 10.5, fill: theme.palette.text.secondary }}
+              axisLine={{ stroke: gridStrokeColor }}
+              tickLine={false}
+              interval={0}
+              angle={longLabels ? -35 : 0}
+              textAnchor={longLabels ? "end" : "middle"}
+              height={longLabels ? 70 : 30}
+            />
+            <YAxis
+              tick={{ fontSize: 11, fill: theme.palette.text.secondary }}
+              axisLine={false}
+              tickLine={false}
+              width={32}
+            />
+            <Tooltip
+              cursor={{ fill: alpha(theme.palette.text.primary, 0.05) }}
+              content={(props) => <ChartTooltip {...props} theme={theme} />}
+            />
+            <Bar dataKey="value" radius={[7, 7, 0, 0]} maxBarSize={48}>
+              {config.data.map((d) => (
+                <Cell
+                  key={d.name}
+                  fill={colorForLabel(d.name, theme)}
+                  /* DRILL-DOWN DISABLED (future requirement) — uncomment to re-enable:
+                  cursor="pointer"
+                  onClick={() => handleBarClick(d)}
+                  */
+                />
+              ))}
+              <LabelList
+                dataKey="value"
+                position="top"
+                formatter={(v) => `₹${v < 1 ? v.toFixed(4) : v}T`}
+                style={{ fontSize: 11, fontWeight: 700, fill: theme.palette.text.primary }}
+              />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       </Box>
     </GlassPanel>
   );
 }
 
 /* ---------------------------------------------------------------------- */
-/*  Header — lightweight, no card wrapper: title + controls sit directly   */
-/*  on the page background so the header reads as a page heading rather    */
-/*  than another panel.                                                    */
+/*  Header                                                                  */
 /* ---------------------------------------------------------------------- */
 
+/* ------------------------------------------------------------------------
+ * DISABLED — the boxed/glass header below is kept for reference only.
+ * Feedback was that wrapping the title + controls in a full GlassPanel
+ * card made the header feel too heavy. To bring it back, delete this
+ * comment wrapper and remove the lightweight DashboardHeader that follows.
+
+function DashboardHeaderBoxed({ config }) {
+  const theme = useTheme();
+  const [fy, setFy] = useState(config.financialYear);
+
+  return (
+    <GlassPanel sx={{ borderRadius: RADIUS.lg, mb: 0 }}>
+      <Stack
+        direction={{ xs: "column", lg: "row" }}
+        alignItems={{ xs: "flex-start", lg: "center" }}
+        justifyContent="space-between"
+        spacing={2}
+      >
+        <Box>
+          <Typography sx={{ ...textPrimarySx, fontSize: { xs: 21, md: 25 }, fontWeight: 700 }}>
+            {config.title}
+          </Typography>
+          <Typography sx={{ ...textSecondarySx, fontSize: 13.5, mt: 0.25 }}>{config.subtitle}</Typography>
+        </Box>
+
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems="center" flexWrap="wrap">
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography sx={{ ...textSecondarySx, fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+              Financial Year
+            </Typography>
+            <MiniSelect options={config.financialYearOptions} value={fy} onChange={setFy} />
+          </Stack>
+
+          <Chip
+            icon={<CalendarTodayRoundedIcon sx={{ fontSize: "16px !important" }} />}
+            label={`${config.dateRange.start}  –  ${config.dateRange.end}`}
+            sx={{
+              ...textPrimarySx,
+              background: glass.panel(0.5),
+              backdropFilter: "blur(12px) saturate(160%)",
+              border: `1px solid ${glass.border}`,
+              fontWeight: 600,
+              fontSize: 12.5,
+              px: 0.5,
+              height: 36,
+              borderRadius: RADIUS.sm,
+            }}
+          />
+
+          <Button
+            variant="contained"
+            startIcon={<RefreshRoundedIcon />}
+            sx={{
+              textTransform: "none",
+              fontWeight: 700,
+              fontSize: 13.5,
+              borderRadius: RADIUS.sm,
+              boxShadow: "none",
+              px: 2,
+              height: 36,
+              bgcolor: theme.palette.primary.main,
+              color: theme.palette.primary.contrastText,
+              "&:hover": { boxShadow: "none", bgcolor: theme.palette.primary.dark },
+            }}
+          >
+            Reset
+          </Button>
+        </Stack>
+      </Stack>
+    </GlassPanel>
+  );
+}
+
+ * END DISABLED
+ * --------------------------------------------------------------------- */
+
+/** Lightweight header — title, controls, and actions sit directly on the
+ * page background with no card/border/shadow around them, so they read as
+ * a page heading rather than another panel competing with the content. */
 function DashboardHeader({ config }) {
   const theme = useTheme();
   const [fy, setFy] = useState(config.financialYear);
