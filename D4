@@ -34,7 +34,7 @@ import {
   Tooltip,
 } from "recharts";
 
-import { glass, glassmorphismBaseStyles } from "../../theme/themePrimitives";
+import { glass } from "../../theme/themePrimitives";
 import { fetchDrilldown } from "./dataProvider";
 import defaultDashboardData from "./bankingData.json";
 
@@ -421,8 +421,9 @@ function casaStatus(value) {
 function Gauge({ config }) {
   const theme = useTheme();
   const RADIAN = Math.PI / 180;
-  const cx = 150;
-  const cy = 150;
+  const VIEWBOX = 300;
+  const cx = VIEWBOX * 0.5; // matches the Pie's cx="50%"
+  const cy = VIEWBOX * 0.85; // matches the Pie's cy="85%" — NOT cx/cy * 0.85
   const innerR = 92;
   const GAUGE_SIZE = 240; // fixed + square — see note above
 
@@ -469,18 +470,19 @@ function Gauge({ config }) {
           </PieChart>
         </ResponsiveContainer>
 
-        {/* needle + center readout, overlaid absolutely — aligned because
-            the box above is guaranteed square */}
+        {/* needle + center readout, overlaid absolutely — cx/cy now match
+            the Pie's actual cx="50%" cy="85%" exactly, so the needle's
+            base sits right at the pie center instead of drifting above it */}
         <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-          <svg viewBox="0 0 300 300" width="100%" height="100%">
-            <circle cx={cx} cy={cy * 0.85 + 0} r="6" fill={needleColor} />
+          <svg viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`} width="100%" height="100%">
+            <circle cx={cx} cy={cy} r="7" fill={needleColor} />
             <line
               x1={cx}
-              y1={cy * 0.85}
+              y1={cy}
               x2={cx + (innerR - 6) * Math.cos(needleAngle * RADIAN)}
-              y2={cy * 0.85 - (innerR - 6) * Math.sin(needleAngle * RADIAN)}
+              y2={cy - (innerR - 6) * Math.sin(needleAngle * RADIAN)}
               stroke={needleColor}
-              strokeWidth="3.5"
+              strokeWidth="4"
               strokeLinecap="round"
             />
           </svg>
