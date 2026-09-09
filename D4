@@ -418,6 +418,28 @@ function casaStatus(value) {
   return "high";
 }
 
+// Title + one-line caption shown under the hub, in the same spirit as the
+// reference gauge's "Pathfinder / Leading the Way".
+const CASA_STATUS_COPY = {
+  low: { title: "Needs Attention", caption: "CASA share is running low" },
+  mid: { title: "Improving", caption: "Trending toward a healthier mix" },
+  high: { title: "Well Balanced", caption: "Healthy CASA composition" },
+};
+
+/** Precomputes each band's [startAngle, endAngle, midAngle] along the
+ * 180°→0° sweep, proportional to its width — used for both the Pie's
+ * arc and for placing the curved labels outside it. */
+function casaBandAngles() {
+  let cursor = 180;
+  return CASA_BANDS.map((b) => {
+    const sweep = (b.width / 100) * 180;
+    const start = cursor;
+    const end = cursor - sweep;
+    cursor = end;
+    return { ...b, start, end, mid: (start + end) / 2 };
+  });
+}
+
 function Gauge({ config }) {
   const theme = useTheme();
   const RADIAN = Math.PI / 180;
@@ -425,7 +447,10 @@ function Gauge({ config }) {
   const cx = VIEWBOX * 0.5; // matches the Pie's cx="50%"
   const cy = VIEWBOX * 0.85; // matches the Pie's cy="85%" — NOT cx/cy * 0.85
   const innerR = 92;
-  const GAUGE_SIZE = 240; // fixed + square — see note above
+  const outerR = 130;
+  const hubR = innerR - 6;
+  const labelR = outerR + 16;
+  const GAUGE_SIZE = 260; // fixed + square — see note above
 
   const statusColor = {
     low: theme.palette.error.main,
@@ -433,8 +458,11 @@ function Gauge({ config }) {
     high: theme.palette.success.main,
   };
   const bandData = CASA_BANDS.map((b) => ({ name: b.name, value: b.width }));
+  const bandAngles = casaBandAngles();
   const currentStatus = casaStatus(config.value);
   const needleColor = statusColor[currentStatus];
+  const statusCopy = CASA_STATUS_COPY[currentStatus];
+  const hubColor = theme.palette.grey[900];
 
   const clampedValue = Math.min(Math.max(config.value, 0), 100);
   const needleAngle = 180 - (clampedValue / 100) * 180; // 0..180 -> deg, driven by the actual value
@@ -457,8 +485,8 @@ function Gauge({ config }) {
               cy="85%"
               startAngle={180}
               endAngle={0}
-              innerRadius={92}
-              outerRadius={130}
+              innerRadius={innerR}
+              outerRadius={outerR}
               cornerRadius={4}
               stroke="none"
               isAnimationActive={false}
@@ -470,45 +498,70 @@ function Gauge({ config }) {
           </PieChart>
         </ResponsiveContainer>
 
-        {/* needle + center readout, overlaid absolutely — cx/cy now match
-            the Pie's actual cx="50%" cy="85%" exactly, so the needle's
-            base sits right at the pie center instead of drifting above it */}
+        {/* curved band labels + needle + hub, overlaid absolutely — cx/cy
+            match the Pie's actual cx="50%" cy="85%" exactly */}
         <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
           <svg viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`} width="100%" height="100%">
-            <circle cx={cx} cy={cy} r="7" fill={needleColor} />
+            {bandAngles.map((b) => {
+              const lx = cx + labelR * Math.cos(b.mid * RADIAN);
+              const ly = cy - labelR * Math.sin(b.mid * RADIAN);
+              const rotate = 90 - b.mid;
+              return (
+                <text
+                  key={b.key}
+                  x={lx}
+                  y={ly}
+                  transform={`rotate(${rotate} ${lx} ${ly})`}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize="12"
+                  fontWeight="700"
+                  fontFamily={theme.typography.fontFamily}
+                  fill={statusColor[b.key]}
+                >
+                  {b.name}
+                </text>
+              );
+            })}
+
+            <circle cx={cx} cy={cy} r={hubR} fill={hubColor} />
+            <text
+              x={cx}
+              y={cy - 4}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="26"
+              fontWeight="800"
+              fontFamily={theme.typography.fontFamily}
+              fill="#fff"
+            >
+              {config.value.toFixed(0)}%
+            </text>
+
             <line
               x1={cx}
               y1={cy}
-              x2={cx + (innerR - 6) * Math.cos(needleAngle * RADIAN)}
-              y2={cy - (innerR - 6) * Math.sin(needleAngle * RADIAN)}
+              x2={cx + (hubR - 4) * Math.cos(needleAngle * RADIAN)}
+              y2={cy - (hubR - 4) * Math.sin(needleAngle * RADIAN)}
               stroke={needleColor}
               strokeWidth="4"
               strokeLinecap="round"
             />
+            <circle cx={cx} cy={cy} r="6" fill={needleColor} />
           </svg>
-        </Box>
-
-        <Box sx={{ position: "absolute", left: 0, right: 0, bottom: 6, textAlign: "center" }}>
-          <Typography sx={{ fontSize: 30, fontWeight: 700, lineHeight: 1.1, color: needleColor }}>
-            {config.value.toFixed(1)}%
-          </Typography>
-          <Typography sx={{ ...textSecondarySx, fontSize: 12.5, fontWeight: 500 }}>
-            {config.centerLabel}
-          </Typography>
         </Box>
       </Box>
 
-      <Stack direction="row" spacing={2.5} justifyContent="center" flexWrap="wrap" sx={{ mt: 1.5 }}>
-        {CASA_BANDS.map((b) => (
-          <Stack key={b.key} direction="row" spacing={0.75} alignItems="center">
-            <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: statusColor[b.key] }} />
-            <Typography sx={{ ...textSecondarySx, fontSize: 11.5, fontWeight: 500 }}>{b.name}</Typography>
-          </Stack>
-        ))}
-      </Stack>
+      <Box sx={{ textAlign: "center", mt: -0.5 }}>
+        <Typography sx={{ fontSize: 17, fontWeight: 700, color: needleColor, lineHeight: 1.3 }}>
+          {statusCopy.title}
+        </Typography>
+        <Typography sx={{ ...textSecondarySx, fontSize: 12, fontWeight: 500 }}>{statusCopy.caption}</Typography>
+      </Box>
     </GlassPanel>
   );
 }
+
 
 /* ---------------------------------------------------------------------- */
 /*  Composition mosaic (used for both Deposits and Loans)                  */
