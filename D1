@@ -40,34 +40,26 @@ import defaultDashboardData from "./bankingData.json";
 
 /* ---------------------------------------------------------------------- */
 /*  Theme-derived color helpers                                            */
-/*  The JSON no longer carries any color values — every color used by a    */
-/*  chart, tile, or dot below is pulled live from the MUI theme so the     */
-/*  dashboard automatically re-skins with the theme (light/dark, brand     */
-/*  palette changes, etc). Nothing here is a hardcoded hex.                */
+/*  A restrained, finance-appropriate categorical palette: primary /       */
+/*  secondary / info / success tones only, at their darker and mid         */
+/*  weights. Error / warning are deliberately left out of decorative use   */
+/*  — in a banking UI those hues read as "alert", so they're reserved      */
+/*  for genuine status indicators elsewhere, not category coloring.        */
 /* ---------------------------------------------------------------------- */
 
-/** A fixed-order list of theme tokens used as a categorical palette.
- * Cycling through semantic + tonal variants keeps neighbouring categories
- * visually distinct without ever introducing a color outside the theme. */
 function categoricalPalette(theme) {
   const p = theme.palette;
   return [
-    p.success.main,
-    p.primary.main,
-    p.error.main,
-    p.info.main,
-    p.success.dark,
-    p.secondary.main,
     p.primary.dark,
-    p.warning.main,
-    p.secondary.dark,
     p.info.dark,
-    p.error.dark,
+    p.secondary.dark,
+    p.success.dark,
+    p.primary.main,
+    p.info.main,
+    p.secondary.main,
+    p.success.main,
     p.primary.light,
-    p.success.light,
-    p.warning.dark,
     p.info.light,
-    p.secondary.light,
   ].filter(Boolean);
 }
 
@@ -92,29 +84,28 @@ const textSecondarySx = { color: "text.secondary" };
 
 /* ---------------------------------------------------------------------- */
 /*  Glass primitives                                                       */
+/*  Cards are noticeably more opaque than a typical glass effect so text   */
+/*  and chart data stay crisp against whatever sits behind the page —      */
+/*  translucent enough to read as "glass", solid enough to read as a       */
+/*  serious financial surface rather than a see-through overlay.           */
 /* ---------------------------------------------------------------------- */
 
-/** Reusable glass "card" surface. Every panel in the dashboard sits on one
- * of these — swap the tokens in theme.js and the whole UI re-skins. */
 function GlassPanel({ children, sx, ...props }) {
   const theme = useTheme();
-  const glassStyles = glassmorphismBaseStyles(theme);
-  const gridStroke = alpha(theme.palette.text.primary, 0.08);
 
   return (
     <Paper
       elevation={0}
       sx={{
         p: 2.5,
-        borderRadius: "20px",
+        borderRadius: "18px",
         height: "100%",
-        background: glassStyles.background,
-        backdropFilter: glassStyles.backdropFilter,
-        WebkitBackdropFilter: glassStyles.WebkitBackdropFilter,
-        border: glassStyles.border,
-        boxShadow: glassStyles.boxShadow,
+        background: `linear-gradient(160deg, ${glass.panel(0.6)} 0%, ${glass.panel(0.38)} 100%)`,
+        backdropFilter: "blur(24px) saturate(160%)",
+        WebkitBackdropFilter: "blur(24px) saturate(160%)",
+        border: `1px solid ${glass.border}`,
+        boxShadow: theme.shadows[6],
         transition: "box-shadow 0.25s ease, transform 0.25s ease",
-        "--grid-stroke": gridStroke,
         ...sx,
       }}
       {...props}
@@ -134,22 +125,21 @@ function PanelHeader({ icon: Icon, title, action, iconColor }) {
         {Icon && (
           <Box
             sx={{
-              width: 34,
-              height: 34,
+              width: 36,
+              height: 36,
               borderRadius: "10px",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               bgcolor: alpha(color, 0.14),
               color,
-              backdropFilter: "blur(12px) saturate(160%)",
               flexShrink: 0,
             }}
           >
             <Icon sx={{ fontSize: 19 }} />
           </Box>
         )}
-        <Typography sx={{ ...textPrimarySx, fontWeight: 800, fontSize: 15, letterSpacing: 0.2 }}>
+        <Typography sx={{ ...textPrimarySx, fontWeight: 700, fontSize: 15, letterSpacing: 0.1 }}>
           {title}
         </Typography>
       </Stack>
@@ -171,7 +161,7 @@ function MiniSelect({ options, value, onChange }) {
         fontSize: 13,
         fontWeight: 600,
         borderRadius: "10px",
-        background: glass.panel(0.4),
+        background: glass.panel(0.5),
         backdropFilter: "blur(12px) saturate(160%)",
         "& .MuiOutlinedInput-notchedOutline": { border: `1px solid ${glass.border}` },
         "& .MuiSelect-select": { py: 0.75, pr: 4 },
@@ -186,24 +176,27 @@ function MiniSelect({ options, value, onChange }) {
   );
 }
 
-function SectionTitle({ children }) {
+function SectionTitle({ children, caption }) {
   const theme = useTheme();
 
   return (
-    <Typography
-      sx={{
-        ...textPrimarySx,
-        fontSize: { xs: 17, md: 19 },
-        fontWeight: 800,
-        mb: 1.75,
-        mt: 0.5,
-        pl: 0.5,
-        borderLeft: `4px solid ${theme.palette.primary.main}`,
-        lineHeight: 1.4,
-      }}
-    >
-      &nbsp;{children}
-    </Typography>
+    <Box sx={{ mt: 1, mb: 0.5, pl: 0.5 }}>
+      <Typography
+        sx={{
+          ...textPrimarySx,
+          fontSize: { xs: 16, md: 18 },
+          fontWeight: 700,
+          pl: 1.25,
+          borderLeft: `3px solid ${theme.palette.primary.main}`,
+          lineHeight: 1.4,
+        }}
+      >
+        {children}
+      </Typography>
+      {caption && (
+        <Typography sx={{ ...textSecondarySx, fontSize: 12.5, pl: 1.25, mt: 0.25 }}>{caption}</Typography>
+      )}
+    </Box>
   );
 }
 
@@ -242,13 +235,13 @@ function StatCard({ icon: Icon, label, value, caption, accent }) {
   const color = accent || theme.palette.primary.main;
 
   return (
-    <GlassPanel sx={{ p: 2, borderRadius: "16px" }}>
+    <GlassPanel sx={{ p: 2, borderRadius: "14px" }}>
       <Stack direction="row" spacing={1.5} alignItems="center">
         <Box
           sx={{
-            width: 42,
-            height: 42,
-            borderRadius: "12px",
+            width: 40,
+            height: 40,
+            borderRadius: "11px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -257,17 +250,17 @@ function StatCard({ icon: Icon, label, value, caption, accent }) {
             flexShrink: 0,
           }}
         >
-          <Icon sx={{ fontSize: 22 }} />
+          <Icon sx={{ fontSize: 21 }} />
         </Box>
         <Box sx={{ minWidth: 0 }}>
-          <Typography sx={{ ...textSecondarySx, fontSize: 12, fontWeight: 600, lineHeight: 1.3 }}>
+          <Typography sx={{ ...textSecondarySx, fontSize: 11.5, fontWeight: 600, lineHeight: 1.3 }}>
             {label}
           </Typography>
-          <Typography sx={{ ...textPrimarySx, fontSize: 20, fontWeight: 800, lineHeight: 1.25 }} noWrap>
+          <Typography sx={{ ...textPrimarySx, fontSize: 19, fontWeight: 700, lineHeight: 1.25 }} noWrap>
             {value}
           </Typography>
           {caption && (
-            <Typography sx={{ ...textSecondarySx, fontSize: 11, fontWeight: 600 }}>{caption}</Typography>
+            <Typography sx={{ ...textSecondarySx, fontSize: 10.5, fontWeight: 500 }}>{caption}</Typography>
           )}
         </Box>
       </Stack>
@@ -293,14 +286,14 @@ function StatStrip({ data }) {
       label: "Total Deposits",
       value: `₹ ${totalDeposits.toFixed(2)} T`,
       caption: `${data.depositsComposition.items.length} categories`,
-      accent: theme.palette.success.main,
+      accent: theme.palette.primary.main,
     },
     {
       icon: AccountBalanceWalletRoundedIcon,
       label: "Total Loans",
       value: `₹ ${totalLoans.toFixed(2)} T`,
       caption: `${data.loansComposition.items.length} categories`,
-      accent: theme.palette.primary.main,
+      accent: theme.palette.info.dark,
     },
     {
       icon: PieChartRoundedIcon,
@@ -314,7 +307,7 @@ function StatStrip({ data }) {
       label: "Total Portfolio",
       value: `₹ ${totalPortfolio.toFixed(2)} T`,
       caption: "Deposits + Loans",
-      accent: theme.palette.info.main,
+      accent: theme.palette.success.dark,
     },
   ];
 
@@ -328,6 +321,44 @@ function StatStrip({ data }) {
     >
       {stats.map((s) => (
         <StatCard key={s.label} {...s} />
+      ))}
+    </Box>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Legend — a single reusable row of color-dot + label, wraps cleanly     */
+/*  regardless of how many categories are passed in.                      */
+/* ---------------------------------------------------------------------- */
+
+function LegendGrid({ items }) {
+  const theme = useTheme();
+
+  return (
+    <Box
+      sx={{
+        mt: 2,
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(136px, 1fr))",
+        rowGap: 0.85,
+        columnGap: 1.5,
+      }}
+    >
+      {items.map((l) => (
+        <Stack key={l.name} direction="row" spacing={0.75} alignItems="center">
+          <Box
+            sx={{
+              width: 8,
+              height: 8,
+              borderRadius: "2px",
+              bgcolor: colorForLabel(l.name, theme),
+              flexShrink: 0,
+            }}
+          />
+          <Typography sx={{ ...textSecondarySx, fontSize: 11.5, fontWeight: 500 }} noWrap>
+            {l.name}
+          </Typography>
+        </Stack>
       ))}
     </Box>
   );
@@ -356,9 +387,9 @@ function DrilldownBarChart({ icon, config, onBack }) {
           <BarChart
             data={config.data}
             margin={{ top: 24, right: 10, left: -10, bottom: longLabels ? 60 : 0 }}
-            barCategoryGap="28%"
+            barCategoryGap="30%"
           >
-            <CartesianGrid vertical={false} stroke={gridStrokeColor} />
+            <CartesianGrid vertical={false} stroke={gridStrokeColor} strokeDasharray="3 5" />
             <XAxis
               dataKey="name"
               tick={{ fontSize: longLabels ? 9.5 : 10.5, fill: theme.palette.text.secondary }}
@@ -375,7 +406,7 @@ function DrilldownBarChart({ icon, config, onBack }) {
               tickLine={false}
               width={32}
             />
-            <Bar dataKey="value" radius={[8, 8, 0, 0]} maxBarSize={54}>
+            <Bar dataKey="value" radius={[7, 7, 0, 0]} maxBarSize={48}>
               {config.data.map((d) => (
                 <Cell key={d.name} fill={colorForLabel(d.name, theme)} />
               ))}
@@ -383,7 +414,7 @@ function DrilldownBarChart({ icon, config, onBack }) {
                 dataKey="value"
                 position="top"
                 formatter={(v) => `₹${v < 1 ? v.toFixed(4) : v}T`}
-                style={{ fontSize: 11.5, fontWeight: 800, fill: theme.palette.text.primary }}
+                style={{ fontSize: 11, fontWeight: 700, fill: theme.palette.text.primary }}
               />
             </Bar>
           </BarChart>
@@ -404,9 +435,9 @@ function Gauge({ config }) {
   const cy = 150;
   const innerR = 92;
 
-  // Deliberately neutral/semantic mapping for the gauge: primary for the
-  // "growth" segment, secondary for savings, and a quiet grey for the
-  // catch-all "Others" bucket rather than an alarm color.
+  // Deliberately restrained mapping: primary for the current-account
+  // segment, secondary for savings, and a quiet grey for the catch-all
+  // "Others" bucket rather than an alarm color.
   const segmentColor = (name, i) => {
     if (/current/i.test(name)) return theme.palette.primary.main;
     if (/saving/i.test(name)) return theme.palette.secondary.main;
@@ -437,7 +468,8 @@ function Gauge({ config }) {
               endAngle={0}
               innerRadius={92}
               outerRadius={130}
-              paddingAngle={2}
+              paddingAngle={3}
+              cornerRadius={4}
               stroke="none"
               isAnimationActive={false}
             >
@@ -451,24 +483,24 @@ function Gauge({ config }) {
         {/* needle + center readout, overlaid absolutely */}
         <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
           <svg viewBox="0 0 300 300" width="100%" height="100%">
-            <circle cx={cx} cy={cy * 0.85 + 0} r="7" fill={theme.palette.text.primary} />
+            <circle cx={cx} cy={cy * 0.85 + 0} r="6" fill={theme.palette.text.primary} />
             <line
               x1={cx}
               y1={cy * 0.85}
               x2={cx + (innerR - 6) * Math.cos(needleAngle * RADIAN)}
               y2={cy * 0.85 - (innerR - 6) * Math.sin(needleAngle * RADIAN)}
               stroke={theme.palette.text.primary}
-              strokeWidth="4"
+              strokeWidth="3.5"
               strokeLinecap="round"
             />
           </svg>
         </Box>
 
         <Box sx={{ position: "absolute", left: 0, right: 0, bottom: 6, textAlign: "center" }}>
-          <Typography sx={{ ...textPrimarySx, fontSize: 30, fontWeight: 800, lineHeight: 1.1 }}>
+          <Typography sx={{ ...textPrimarySx, fontSize: 30, fontWeight: 700, lineHeight: 1.1 }}>
             {config.value.toFixed(1)}%
           </Typography>
-          <Typography sx={{ ...textSecondarySx, fontSize: 13, fontWeight: 600 }}>
+          <Typography sx={{ ...textSecondarySx, fontSize: 12.5, fontWeight: 500 }}>
             {config.centerLabel}
           </Typography>
         </Box>
@@ -478,9 +510,9 @@ function Gauge({ config }) {
         {config.segments.map((s, i) => (
           <Stack key={s.name} direction="row" spacing={0.75} alignItems="center">
             <Box
-              sx={{ width: 9, height: 9, borderRadius: "50%", bgcolor: segmentColor(s.name, i) }}
+              sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: segmentColor(s.name, i) }}
             />
-            <Typography sx={{ ...textSecondarySx, fontSize: 12, fontWeight: 600 }}>{s.name}</Typography>
+            <Typography sx={{ ...textSecondarySx, fontSize: 11.5, fontWeight: 500 }}>{s.name}</Typography>
           </Stack>
         ))}
       </Stack>
@@ -490,10 +522,12 @@ function Gauge({ config }) {
 
 /* ---------------------------------------------------------------------- */
 /*  Composition mosaic (used for both Deposits and Loans)                  */
-/*  Mirrors the reference layout: two tall tiles, a stacked pair beside    */
-/*  them, and an even row of the remaining categories underneath. Every    */
-/*  tile is clickable — clicking drills into that category, and only      */
-/*  this panel re-renders; the rest of the dashboard is untouched.        */
+/*  Two tall tiles, a stacked pair beside them, and an even row of the     */
+/*  remaining categories underneath. Tiles are transparent glass cards —   */
+/*  color is used only as a small accent (a dot, a left border, and the    */
+/*  share badge), never as a full-bleed fill, to keep the panel reading    */
+/*  as a serious banking surface rather than a set of colored blocks.      */
+/*  Every tile is clickable — only this panel re-renders on drill-down.   */
 /* ---------------------------------------------------------------------- */
 
 function CompositionMosaic({ config, icon = Inventory2RoundedIcon }) {
@@ -518,39 +552,73 @@ function CompositionMosaic({ config, icon = Inventory2RoundedIcon }) {
         role="button"
         tabIndex={0}
         sx={{
-          borderRadius: "14px",
-          p: dense ? 1.25 : 1.5,
+          position: "relative",
+          borderRadius: "12px",
+          p: dense ? 1.1 : 1.5,
+          pl: dense ? 1.35 : 1.75,
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          bgcolor: alpha(color, 0.92),
-          color: theme.palette.getContrastText(color),
+          background: glass.panel(0.35),
+          backdropFilter: "blur(10px) saturate(140%)",
+          WebkitBackdropFilter: "blur(10px) saturate(140%)",
+          border: `1px solid ${glass.border}`,
+          borderLeft: `3px solid ${color}`,
           minHeight: 68,
           cursor: "pointer",
-          transition: "transform 0.2s ease, box-shadow 0.2s ease",
-          "&:hover": { transform: "translateY(-2px)", boxShadow: `0 10px 24px ${alpha(color, 0.35)}` },
-          "&:focus-visible": { outline: `2px solid ${theme.palette.getContrastText(color)}`, outlineOffset: 2 },
+          transition: "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
+          "&:hover": {
+            transform: "translateY(-2px)",
+            boxShadow: theme.shadows[4],
+            borderColor: alpha(color, 0.6),
+          },
+          "&:focus-visible": { outline: `2px solid ${color}`, outlineOffset: 2 },
           ...sx,
         }}
       >
-        <Typography
-          sx={{
-            fontFamily: theme.typography.fontFamily,
-            fontSize: dense ? 11 : 12.5,
-            fontWeight: 700,
-            opacity: 0.95,
-            lineHeight: 1.2,
-          }}
-        >
-          {item.name}
-        </Typography>
+        <Stack direction="row" spacing={0.75} alignItems="center">
+          <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: color, flexShrink: 0 }} />
+          <Typography
+            sx={{
+              ...textSecondarySx,
+              fontFamily: theme.typography.fontFamily,
+              fontSize: dense ? 10.5 : 12,
+              fontWeight: 600,
+              lineHeight: 1.25,
+            }}
+            noWrap
+          >
+            {item.name}
+          </Typography>
+        </Stack>
         <Box>
-          <Typography sx={{ fontFamily: theme.typography.fontFamily, fontSize: dense ? 14 : 16, fontWeight: 800 }}>
+          <Typography
+            sx={{
+              ...textPrimarySx,
+              fontFamily: theme.typography.fontFamily,
+              fontSize: dense ? 14 : 17,
+              fontWeight: 700,
+              lineHeight: 1.2,
+            }}
+          >
             ₹ {item.value.toFixed(2)} T
           </Typography>
-          <Typography sx={{ fontFamily: theme.typography.fontFamily, fontSize: dense ? 10 : 11, opacity: 0.9 }}>
+          <Box
+            component="span"
+            sx={{
+              display: "inline-block",
+              mt: 0.4,
+              px: 0.7,
+              py: 0.1,
+              borderRadius: "6px",
+              fontSize: dense ? 9.5 : 10.5,
+              fontWeight: 700,
+              bgcolor: alpha(color, 0.14),
+              color,
+            }}
+          >
             {item.share}%
-          </Typography>
+          </Box>
         </Box>
       </Box>
     );
@@ -593,24 +661,7 @@ function CompositionMosaic({ config, icon = Inventory2RoundedIcon }) {
         )}
       </Box>
 
-      <Box sx={{ mt: 2, display: "grid", gridTemplateColumns: "1fr 1fr", rowGap: 0.75, columnGap: 2 }}>
-        {config.legend.map((l) => (
-          <Stack key={l.name} direction="row" spacing={0.75} alignItems="center">
-            <Box
-              sx={{
-                width: 9,
-                height: 9,
-                borderRadius: "3px",
-                bgcolor: colorForLabel(l.name, theme),
-                flexShrink: 0,
-              }}
-            />
-            <Typography sx={{ ...textSecondarySx, fontSize: 11.5, fontWeight: 600 }} noWrap>
-              {l.name}
-            </Typography>
-          </Stack>
-        ))}
-      </Box>
+      <LegendGrid items={config.legend} />
     </GlassPanel>
   );
 }
@@ -618,9 +669,13 @@ function CompositionMosaic({ config, icon = Inventory2RoundedIcon }) {
 /* ---------------------------------------------------------------------- */
 /*  Bar chart panels (Demand / Term deposits, Loans breakdown)             */
 /*  Clicking a bar drills into that item; only this panel swaps content.  */
+/*  `titleOverride` lets a panel show a more specific label than the       */
+/*  source config's title (the composition and breakdown views for loans  */
+/*  share the same underlying "Loans" title in the data, which reads as   */
+/*  ambiguous once both are on screen together).                          */
 /* ---------------------------------------------------------------------- */
 
-function BarPanel({ icon, config }) {
+function BarPanel({ icon, config, titleOverride }) {
   const theme = useTheme();
   const gridStrokeColor = alpha(theme.palette.text.primary, 0.08);
   const hasDropdown = Array.isArray(config.dropdownOptions) && config.dropdownOptions.length > 0;
@@ -646,7 +701,7 @@ function BarPanel({ icon, config }) {
     <GlassPanel>
       <PanelHeader
         icon={icon}
-        title={config.title}
+        title={titleOverride || config.title}
         action={hasDropdown ? <MiniSelect options={config.dropdownOptions} value={option} onChange={setOption} /> : undefined}
       />
       {config.topValue && (
@@ -659,9 +714,9 @@ function BarPanel({ icon, config }) {
           <BarChart
             data={config.data}
             margin={{ top: 24, right: 10, left: -10, bottom: longLabels ? 60 : 0 }}
-            barCategoryGap="28%"
+            barCategoryGap="30%"
           >
-            <CartesianGrid vertical={false} stroke={gridStrokeColor} />
+            <CartesianGrid vertical={false} stroke={gridStrokeColor} strokeDasharray="3 5" />
             <XAxis
               dataKey="name"
               tick={{ fontSize: longLabels ? 9.5 : 10.5, fill: theme.palette.text.secondary }}
@@ -678,7 +733,7 @@ function BarPanel({ icon, config }) {
               tickLine={false}
               width={32}
             />
-            <Bar dataKey="value" radius={[8, 8, 0, 0]} maxBarSize={54}>
+            <Bar dataKey="value" radius={[7, 7, 0, 0]} maxBarSize={48}>
               {config.data.map((d) => (
                 <Cell
                   key={d.name}
@@ -691,7 +746,7 @@ function BarPanel({ icon, config }) {
                 dataKey="value"
                 position="top"
                 formatter={(v) => `₹${v < 1 ? v.toFixed(4) : v}T`}
-                style={{ fontSize: 11.5, fontWeight: 800, fill: theme.palette.text.primary }}
+                style={{ fontSize: 11, fontWeight: 700, fill: theme.palette.text.primary }}
               />
             </Bar>
           </BarChart>
@@ -710,7 +765,7 @@ function DashboardHeader({ config }) {
   const [fy, setFy] = useState(config.financialYear);
 
   return (
-    <GlassPanel sx={{ borderRadius: "20px", mb: 0 }}>
+    <GlassPanel sx={{ borderRadius: "18px", mb: 0 }}>
       <Stack
         direction={{ xs: "column", lg: "row" }}
         alignItems={{ xs: "flex-start", lg: "center" }}
@@ -718,7 +773,7 @@ function DashboardHeader({ config }) {
         spacing={2}
       >
         <Box>
-          <Typography sx={{ ...textPrimarySx, fontSize: { xs: 22, md: 26 }, fontWeight: 800 }}>
+          <Typography sx={{ ...textPrimarySx, fontSize: { xs: 21, md: 25 }, fontWeight: 700 }}>
             {config.title}
           </Typography>
           <Typography sx={{ ...textSecondarySx, fontSize: 13.5, mt: 0.25 }}>{config.subtitle}</Typography>
@@ -734,10 +789,10 @@ function DashboardHeader({ config }) {
 
           <Chip
             icon={<CalendarTodayRoundedIcon sx={{ fontSize: "16px !important" }} />}
-            label={`${config.dateRange.start}  ~  ${config.dateRange.end}`}
+            label={`${config.dateRange.start}  –  ${config.dateRange.end}`}
             sx={{
               ...textPrimarySx,
-              background: glass.panel(0.4),
+              background: glass.panel(0.5),
               backdropFilter: "blur(12px) saturate(160%)",
               border: `1px solid ${glass.border}`,
               fontWeight: 600,
@@ -774,13 +829,25 @@ function DashboardHeader({ config }) {
 
 /* ---------------------------------------------------------------------- */
 /*  Root Dashboard                                                         */
-/*  Layout: header → KPI strip → deposits mosaic + CASA gauge → loans      */
-/*  mosaic → demand/term/loans bar panels. Every column collapses to a     */
-/*  single stack on small screens.                                        */
+/*  Layout: header → KPI strip → deposits mosaic + CASA gauge → demand /   */
+/*  term bar panels → loans mosaic + loan distribution. Every column       */
+/*  collapses to a single stack on small screens. The root also paints     */
+/*  its own calm ambient backdrop (derived from theme tokens only) so the  */
+/*  frosted cards read cleanly regardless of what sits behind the page.    */
 /* ---------------------------------------------------------------------- */
 
 export default function DepositsLoansDashboard({ data }) {
+  const theme = useTheme();
   const dashboardData = data || defaultDashboardData;
+
+  const ambientBackground =
+    theme.palette.mode === "dark"
+      ? `radial-gradient(1100px 550px at 8% -8%, ${alpha(theme.palette.primary.main, 0.22)}, transparent 60%),` +
+        `radial-gradient(900px 500px at 100% 0%, ${alpha(theme.palette.info.main, 0.14)}, transparent 55%),` +
+        `${theme.palette.background.default}`
+      : `radial-gradient(1100px 550px at 8% -8%, ${alpha(theme.palette.primary.light, 0.16)}, transparent 60%),` +
+        `radial-gradient(900px 500px at 100% 0%, ${alpha(theme.palette.info.light, 0.12)}, transparent 55%),` +
+        `${theme.palette.background.default}`;
 
   return (
     <Box
@@ -790,13 +857,14 @@ export default function DepositsLoansDashboard({ data }) {
         flexDirection: "column",
         gap: 2.5,
         minHeight: "100vh",
+        background: ambientBackground,
       }}
     >
       <DashboardHeader config={dashboardData.header} />
 
       <StatStrip data={dashboardData} />
 
-      <SectionTitle>Deposits</SectionTitle>
+      <SectionTitle caption="Composition, tenure, and demand vs. term split">Deposits</SectionTitle>
       <Box
         sx={{
           display: "grid",
@@ -820,7 +888,7 @@ export default function DepositsLoansDashboard({ data }) {
         <BarPanel icon={DescriptionRoundedIcon} config={dashboardData.termDeposits} />
       </Box>
 
-      <SectionTitle>Loans</SectionTitle>
+      <SectionTitle caption="Composition and distribution across loan categories">Loans</SectionTitle>
       <Box
         sx={{
           display: "grid",
@@ -830,7 +898,11 @@ export default function DepositsLoansDashboard({ data }) {
         }}
       >
         <CompositionMosaic config={dashboardData.loansComposition} icon={AccountBalanceWalletRoundedIcon} />
-        <BarPanel icon={TrendingUpRoundedIcon} config={dashboardData.loansBreakdown} />
+        <BarPanel
+          icon={TrendingUpRoundedIcon}
+          config={dashboardData.loansBreakdown}
+          titleOverride="Loan Distribution"
+        />
       </Box>
     </Box>
   );
