@@ -27,6 +27,197 @@
     "activeFilter": "All Deposits",
     "items": [
       { "name": "Term Deposit", "value": 19.0543, "share": 40.4 },
+      { "name": "Saving Bank A/c", "value": 14.9346, "share": 31.7 },
+      { "name": "Current A/c", "value": 5.20, "share": 11.0 },
+      { "name": "Cash Credit Cr Balance", "value": 3.10, "share": 6.6 },
+      { "name": "Special Term Deposit", "value": 2.5434, "share": 5.4 },
+      { "name": "Other Demand Deposit", "value": 2.10, "share": 4.5 },
+      { "name": "Other Term Deposit", "value": 0.1493, "share": 0.3 },
+      { "name": "Certificate of Deposit", "value": 0.0460, "share": 0.1 }
+    ],
+    "legend": [
+      { "name": "Saving Bank A/c" },
+      { "name": "Current A/c" },
+      { "name": "Cash Credit Cr Balance" },
+      { "name": "Other Demand Deposit" },
+      { "name": "Term Deposit" },
+      { "name": "Special Term Deposit" },
+      { "name": "Other Term Deposit" },
+      { "name": "Certificate of Deposit" }
+    ]
+  },
+
+  "demandDeposits": {
+    "title": "Demand Deposits",
+    "unit": "₹ T",
+    "topValue": "₹ 14.9346 T",
+    "data": [
+      { "name": "Saving Bank A/c", "value": 14.9346 },
+      { "name": "Current A/c", "value": 5.20 },
+      { "name": "Cash Credit Cr Balance", "value": 3.10 },
+      { "name": "Other Demand Deposit", "value": 2.10 }
+    ]
+  },
+
+  "termDeposits": {
+    "title": "Term Deposits",
+    "unit": "₹ T",
+    "topValue": "₹ 19.0543 T",
+    "data": [
+      { "name": "Term Deposit", "value": 19.0543 },
+      { "name": "Special Term Deposit", "value": 2.5434 },
+      { "name": "Other Term Deposit", "value": 0.1493 },
+      { "name": "Certificate of Deposit", "value": 0.0460 }
+    ]
+  },
+
+  "loansComposition": {
+    "title": "Loans",
+    "subtitle": "Composition by category (₹ T)",
+    "items": [
+      { "name": "Term Loan", "value": 14.00, "share": 35.0 },
+      { "name": "Cash Credit", "value": 9.00, "share": 22.5 },
+      { "name": "Demand Loan", "value": 6.50, "share": 16.25 },
+      { "name": "Overdraft", "value": 5.00, "share": 12.5 },
+      { "name": "Agri Term Loan", "value": 3.00, "share": 7.5 },
+      { "name": "Agri Cash Credit", "value": 2.00, "share": 5.0 },
+      { "name": "Bills Payable", "value": 0.50, "share": 1.25 }
+    ],
+    "legend": [
+      { "name": "Bills Payable" },
+      { "name": "Demand Loan" },
+      { "name": "Cash Credit" },
+      { "name": "Agri Cash Credit" },
+      { "name": "Overdraft" },
+      { "name": "Term Loan" },
+      { "name": "Agri Term Loan" }
+    ]
+  },
+
+  "loansBreakdown": {
+    "title": "Loans",
+    "unit": "₹ T",
+    "topValue": "₹ 14.00 T",
+    "data": [
+      { "name": "Bills Payable", "value": 0.50 },
+      { "name": "Demand Loan", "value": 6.50 },
+      { "name": "Cash Credit", "value": 9.00 },
+      { "name": "Agri Cash Credit", "value": 2.00 },
+      { "name": "Overdraft", "value": 5.00 },
+      { "name": "Term Loan", "value": 14.00 },
+      { "name": "Agri Term Loan", "value": 3.00 }
+    ]
+  },
+
+  "drilldowns": {
+    "Term Deposit": {
+      "title": "Term Deposit — By Tenure",
+      "subtitle": "Detailed breakdown (₹ T)",
+      "data": [
+        { "name": "0-1 Yr", "value": 6.02 },
+        { "name": "1-3 Yr", "value": 7.50 },
+        { "name": "3-5 Yr", "value": 4.03 },
+        { "name": "5+ Yr", "value": 1.50 }
+      ]
+    },
+    "Saving Bank A/c": {
+      "title": "Saving Bank A/c — By Segment",
+      "subtitle": "Detailed breakdown (₹ T)",
+      "data": [
+        { "name": "Retail", "value": 9.20 },
+        { "name": "Corporate", "value": 3.10 },
+        { "name": "Government", "value": 1.63 },
+        { "name": "NRI", "value": 1.0046 }
+      ]
+    },
+    "Current A/c": {
+      "title": "Current A/c — By Segment",
+      "subtitle": "Detailed breakdown (₹ T)",
+      "data": [
+        { "name": "Retail", "value": 1.80 },
+        { "name": "Corporate", "value": 2.60 },
+        { "name": "Government", "value": 0.80 }
+      ]
+    },
+    "Cash Credit Cr Balance": {
+      "title": "Cash Credit Cr Balance — By Segment",
+      "subtitle": "Detailed breakdown (₹ T)",
+      "data": [
+        { "name": "MSME", "value": 1.50 },
+        { "name": "Corporate", "value": 1.10 },
+        { "name": "Retail", "value": 0.50 }
+      ]
+    },
+    "Special Term Deposit": {
+      "title": "Special Term Deposit — By Scheme",
+      "subtitle": "Detailed breakdown (₹ T)",
+      "data": [
+        { "name": "Senior Citizen", "value": 1.20 },
+        { "name": "Tax Saver", "value": 0.94 },
+        { "name": "Others", "value": 0.4034 }
+      ]
+    },
+    "Other Demand Deposit": {
+      "title": "Other Demand Deposit — By Type",
+      "subtitle": "Detailed breakdown (₹ T)",
+      "data": [
+        { "name": "Escrow", "value": 0.90 },
+        { "name": "EEFC", "value": 0.70 },
+        { "name": "Others", "value": 0.50 }
+      ]
+    },
+    "Other Term Deposit": {
+      "title": "Other Term Deposit — By Type",
+      "subtitle": "Detailed breakdown (₹ T)",
+      "data": [
+        { "name": "Flexi Deposit", "value": 0.09 },
+        { "name": "Recurring Deposit", "value": 0.0593 }
+      ]
+    },
+    "Certificate of Deposit": {
+      "title": "Certificate of Deposit — By Holder",
+      "subtitle": "Detailed breakdown (₹ T)",
+      "data": [
+        { "name": "Bank CDs", "value": 0.0300 },
+        { "name": "Corporate CDs", "value": 0.0160 }
+      ]
+    },
+    "Term Loan": {
+      "title": "Term Loan — By Segment",
+      "subtitle": "Detailed breakdown (₹ T)",
+      "data": [
+        { "name": "Public Sector", "value": 5.50 },
+        { "name": "Private Sector", "value": 4.50 },
+        { "name": "MSME", "value": 2.50 },
+        { "name": "Retail", "value": 1.50 }
+      ]
+    },
+    "Cash Credit": {
+      "title": "Cash Credit — By Segment",
+      "subtitle": "Detailed breakdown (₹ T)",
+      "data": [
+        { "name": "Public Sector", "value": 3.00 },
+        { "name": "Private Sector", "value": 3.50 },
+        { "name": "MSME", "value": 2.50 }
+      ]
+    },
+    "Demand Loan": {
+      "title": "Demand Loan — By Segment",
+      "subtitle": "Detailed breakdown (₹ T)",
+      "data": [
+        { "name": "Corporate", "value": 3.20 },
+        { "name": "Retail", "value": 2.00 },
+        { "name": "MSME", "value": 1.30 }
+      ]
+    },
+    "Overdraft": {
+      "title": "Overdraft — By Segment",
+      "subtitle": "Detailed breakdown (₹ T)",
+      "data": [
+        { "name": "Retail", "value": 2.20 },
+        { "name": "Corporate", "value": 1.80 },
+        { "name": "MSME", "value": 1.00 }
+      ]
     },
     "Agri Term Loan": {
       "title": "Agri Term Loan — By Purpose",
