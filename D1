@@ -613,6 +613,7 @@ function CompositionMosaic({
     const color = colorFor(item.value);
     const fg = theme.palette.getContrastText(color);
     const small = w < 16 || h < 20;
+    const sheen = mixHex(color, "#ffffff", 0.16);
     return (
       <Box
         sx={{
@@ -635,7 +636,7 @@ function CompositionMosaic({
             flexDirection: "column",
             justifyContent: "space-between",
             overflow: "hidden",
-            bgcolor: color,
+            background: `linear-gradient(135deg, ${sheen} 0%, ${color} 55%)`,
             color: fg,
             transition: "transform 0.18s ease, box-shadow 0.18s ease",
             "&:hover": { transform: "scale(1.015)", boxShadow: theme.shadows[6], zIndex: 1 },
@@ -710,7 +711,7 @@ function CompositionMosaic({
         sx={{
           position: "relative",
           width: "100%",
-          aspectRatio: { xs: "4 / 5", sm: "16 / 9", md: "16 / 7" },
+          height: { xs: 300, sm: 340, md: 380 },
         }}
       >
         {layout.map(({ item, x, y, w, h }) => (
@@ -943,7 +944,7 @@ export default function DepositsLoansDashboard({ data }) {
         config={dashboardData.depositsComposition}
         icon={AccountBalanceRoundedIcon}
         filterGroups={depositFilterGroups}
-        gradientDark="#0c2340"
+        gradientDark="#123a63"
         gradientLight="#7dd3fc"
         shareLabel="of deposits"
         panelId="deposits-heatmap"
@@ -985,7 +986,7 @@ export default function DepositsLoansDashboard({ data }) {
       <CompositionMosaic
         config={dashboardData.loansComposition}
         icon={AccountBalanceWalletRoundedIcon}
-        gradientDark="#241a44"
+        gradientDark="#2e2258"
         gradientLight="#efe6fd"
         shareLabel="of loans"
         panelId="loans-heatmap"
