@@ -41,14 +41,20 @@ import defaultDashboardData from "./bankingData.json";
 /* ---------------------------------------------------------------------- */
 /*  Color helpers                                                          */
 /*  Deposit categories use the exact hex palette requested (a deliberate,  */
-/*  fixed brand palette — not theme-derived). Everything else (bar panels, */
-/*  drill-down subcategories) falls back to a theme-derived palette,       */
-/*  assigned BY POSITION so every bar/tile in a given chart is guaranteed  */
-/*  a distinct color.                                                     */
+/*  fixed brand palette — not theme-derived), ordered dark → light to      */
+/*  read as a heatmap by value (the data is already sorted largest to      */
+/*  smallest). Loan categories get an equivalent dark → light purple       */
+/*  gradient, assigned by position for the same heatmap read.              */
+/*  Everything else (bar panels, drill-down subcategories) falls back to   */
+/*  a theme-derived palette, assigned BY POSITION so every bar/tile in a   */
+/*  given chart is guaranteed a distinct color (a name-hash fallback was   */
+/*  tried first but collides for some loan category names).                */
 /* ---------------------------------------------------------------------- */
 
 /** Continuous dark→light interpolation for the heatmap treemap below — a
- * genuine gradient tied to each item's actual value. */
+ * genuine gradient tied to each item's actual value (not a handful of
+ * discrete hex stops), so two tiles with close values get visibly close
+ * colors instead of jumping between unrelated hues. */
 function hexToRgb(hex) {
   const clean = hex.replace("#", "");
   const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
@@ -64,8 +70,8 @@ function mixHex(hexA, hexB, t) {
   return rgbToHex(a.map((v, i) => v + (b[i] - v) * t));
 }
 /** Maps a value into a continuous color between `lightHex` (lowest value
- * in the set) and `darkHex` (highest value) — the heatmap gradient used
- * by the treemap tiles. */
+ * in the set) and `darkHex` (highest value) — the actual heatmap gradient
+ * used by the treemap tiles. */
 function heatColor(value, min, max, darkHex, lightHex) {
   const t = max === min ? 1 : (value - min) / (max - min);
   return mixHex(lightHex, darkHex, t);
@@ -120,16 +126,20 @@ const RADIUS = { lg: "20px", md: "16px", sm: "12px" };
 /*  Glass primitives                                                       */
 /*  Cards are noticeably more opaque than a typical glass effect so text   */
 /*  and chart data stay crisp against whatever sits behind the page.       */
-/*  No click-to-select / highlight border here on purpose — every panel    */
-/*  always uses the same quiet 1px glass border, full stop.                */
+/*                                                                          */
+/*  `selected` / `onClick` add the click-to-highlight interaction used     */
+/*  across every panel: clicking a card selects it (solid black border);   */
+/*  selecting a different card clears the previous one automatically,      */
+/*  since selection is a single value lifted up to the dashboard root.     */
 /* ---------------------------------------------------------------------- */
 
-function GlassPanel({ children, sx, ...props }) {
+function GlassPanel({ children, sx, selected, onClick, ...props }) {
   const theme = useTheme();
 
   return (
     <Paper
       elevation={0}
+      onClick={onClick}
       sx={{
         p: 2.5,
         borderRadius: RADIUS.lg,
@@ -139,7 +149,8 @@ function GlassPanel({ children, sx, ...props }) {
         WebkitBackdropFilter: "blur(24px) saturate(160%)",
         border: `1px solid ${glass.border}`,
         boxShadow: theme.shadows[6],
-        transition: "box-shadow 0.25s ease, transform 0.25s ease",
+        cursor: onClick ? "pointer" : "default",
+        transition: "box-shadow 0.25s ease, transform 0.25s ease, border-color 0.2s ease",
         ...sx,
       }}
       {...props}
@@ -189,6 +200,7 @@ function MiniSelect({ options, value, onChange }) {
     <Select
       size="small"
       value={value}
+      onClick={(e) => e.stopPropagation()}
       onChange={(e) => onChange(e.target.value)}
       sx={{
         ...textPrimarySx,
@@ -211,7 +223,10 @@ function MiniSelect({ options, value, onChange }) {
 }
 
 /** A light section header: a slim colored accent, title + caption, and a
- * fading rule trailing to the right. */
+ * fading rule trailing to the right. No boxed icon chip — kept quiet on
+ * purpose so it doesn't compete with the panels underneath it.
+ * `icon` is accepted for API compatibility with callers but intentionally
+ * unused here. */
 function SectionHeader({ title, caption }) {
   const theme = useTheme();
 
@@ -255,7 +270,10 @@ function BackButton({ onBack }) {
   return (
     <Button
       size="small"
-      onClick={onBack}
+      onClick={(e) => {
+        e.stopPropagation();
+        onBack();
+      }}
       startIcon={<ArrowBackRoundedIcon sx={{ fontSize: 16 }} />}
       sx={{
         textTransform: "none",
@@ -274,7 +292,9 @@ function BackButton({ onBack }) {
 
 /* ---------------------------------------------------------------------- */
 /*  Custom chart tooltip — a small frosted card matching the rest of the   */
-/*  UI, in place of Recharts' unstyled default.                            */
+/*  UI, in place of Recharts' unstyled default. Reads the color straight   */
+/*  off the data point (attached as __color when the chart data is built) */
+/*  so the tooltip swatch always matches the bar/dot exactly.              */
 /* ---------------------------------------------------------------------- */
 
 function ChartTooltip({ active, payload, label, theme }) {
@@ -303,7 +323,8 @@ function ChartTooltip({ active, payload, label, theme }) {
 }
 
 /* ---------------------------------------------------------------------- */
-/*  Reusable drill-down bar chart.                                        */
+/*  Reusable drill-down bar chart — knows nothing about deposits/loans,    */
+/*  just renders whatever { title, subtitle, data } it's handed.          */
 /* ---------------------------------------------------------------------- */
 
 function DrilldownBarChart({ icon, config, onBack }) {
@@ -373,8 +394,7 @@ function DrilldownBarChart({ icon, config, onBack }) {
 /*  CASA Gauge (semi-donut + needle) built with Recharts Pie               */
 /*  Status bands are fixed red / amber / green. The needle angle is        */
 /*  driven directly by config.value, and the needle + reading are tinted   */
-/*  to match whichever band the current ratio falls into. No border/       */
-/*  selection state — this panel just always looks the same.               */
+/*  to match whichever band the current ratio falls into.                  */
 /* ---------------------------------------------------------------------- */
 
 const CASA_BANDS = [
@@ -389,14 +409,14 @@ function casaStatus(value) {
   return "high";
 }
 
-function Gauge({ config }) {
+function Gauge({ config, panelId, selectedPanel, onSelectPanel }) {
   const theme = useTheme();
   const RADIAN = Math.PI / 180;
   const VIEWBOX = 300;
   const cx = VIEWBOX * 0.5; // matches the Pie's cx="50%"
   const cy = VIEWBOX * 0.85; // matches the Pie's cy="85%" — NOT cx/cy * 0.85
   const innerR = 95;
-  const GAUGE_SIZE = 260; // fixed + square so the needle overlay stays aligned with the Pie
+  const GAUGE_SIZE = 280; // fixed + square — see note above
 
   const statusColor = {
     low: theme.palette.error.main,
@@ -411,62 +431,55 @@ function Gauge({ config }) {
   const needleAngle = 180 - (clampedValue / 100) * 180; // 0..180 -> deg, driven by the actual value
 
   return (
-    <GlassPanel sx={{ p: 3 }}>
+    <GlassPanel sx={{ p: 3 }} selected={selectedPanel === panelId} onClick={() => onSelectPanel(panelId)}>
       <PanelHeader icon={PieChartRoundedIcon} title={config.title} />
-      <Typography sx={{ ...textSecondarySx, fontSize: 12.5, mt: -1.5, mb: 1.5 }}>
-        {config.subtitle}
-      </Typography>
 
-      <Box sx={{ display: "flex", justifyContent: "center" }}>
-        <Box sx={{ position: "relative", width: GAUGE_SIZE, height: GAUGE_SIZE, mb: 1 }}>
-          <ResponsiveContainer>
-            <PieChart>
-              <Pie
-                data={bandData}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="85%"
-                startAngle={180}
-                endAngle={0}
-                innerRadius={92}
-                outerRadius={130}
-                paddingAngle={1}
-                cornerRadius={2}
-                stroke="none"
-                isAnimationActive={false}
-              >
-                <Cell fill={statusColor.low} />
-                <Cell fill={statusColor.mid} />
-                <Cell fill={statusColor.high} />
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
+      <Box sx={{ position: "relative", width: GAUGE_SIZE, height: GAUGE_SIZE, mx: "auto", mb: 1 }}>
+        <ResponsiveContainer>
+          <PieChart>
+            <Pie
+              data={bandData}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="85%"
+              startAngle={180}
+              endAngle={0}
+              innerRadius={92}
+              outerRadius={130}
+              cornerRadius={4}
+              stroke="none"
+              isAnimationActive={false}
+            >
+              <Cell fill={statusColor.low} />
+              <Cell fill={statusColor.mid} />
+              <Cell fill={statusColor.high} />
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
 
-          {/* needle + center readout, overlaid absolutely — cx/cy match
-              the Pie's actual cx="50%" cy="85%" exactly, and the box above
-              is a guaranteed square, so the needle stays aligned with the
-              arc instead of drifting off it */}
-          <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-            <svg viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`} width="100%" height="100%">
-              <circle cx={cx} cy={cy} r="7" fill={needleColor} />
-              <line
-                x1={cx}
-                y1={cy}
-                x2={cx + (innerR - 6) * Math.cos(needleAngle * RADIAN)}
-                y2={cy - (innerR - 6) * Math.sin(needleAngle * RADIAN)}
-                stroke={needleColor}
-                strokeWidth="4"
-                strokeLinecap="round"
-              />
-            </svg>
-          </Box>
+        {/* needle + center readout, overlaid absolutely — cx/cy now match
+            the Pie's actual cx="50%" cy="85%" exactly, so the needle's
+            base sits right at the pie center instead of drifting above it */}
+        <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+          <svg viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`} width="100%" height="100%">
+            <circle cx={cx} cy={cy} r="7" fill={needleColor} />
+            <line
+              x1={cx}
+              y1={cy}
+              x2={cx + (innerR - 6) * Math.cos(needleAngle * RADIAN)}
+              y2={cy - (innerR - 6) * Math.sin(needleAngle * RADIAN)}
+              stroke={needleColor}
+              strokeWidth="4"
+              strokeLinecap="round"
+            />
+          </svg>
+        </Box>
 
-          <Box sx={{ position: "absolute", left: 0, right: 0, bottom: 6, textAlign: "center" }}>
-            <Typography sx={{ fontSize: 30, fontWeight: 700, lineHeight: 1, color: needleColor }}>
-              {config.value.toFixed(1)}%
-            </Typography>
-          </Box>
+        <Box sx={{ position: "absolute", left: 0, right: 0, bottom: 6, textAlign: "center" }}>
+          <Typography sx={{ fontSize: 30, fontWeight: 700, lineHeight: 1, color: needleColor }}>
+            {config.value.toFixed(1)}%
+          </Typography>
         </Box>
       </Box>
 
@@ -483,10 +496,12 @@ function Gauge({ config }) {
 }
 
 /* ---------------------------------------------------------------------- */
-/*  Treemap layout — recursive "slice and dice": split the (already        */
+/*  Treemap layout                                                         */
+/*  A simple recursive "slice and dice" treemap: split the (already        */
 /*  value-sorted) list roughly in half by cumulative value, lay that out   */
 /*  as two rectangles side by side (or stacked), and recurse into each     */
-/*  half alternating direction.                                           */
+/*  half alternating direction. This is what actually makes tile SIZE      */
+/*  reflect value — the uniform grid before this didn't.                  */
 /* ---------------------------------------------------------------------- */
 
 function buildTreemap(items, x, y, w, h, horizontal) {
@@ -527,13 +542,21 @@ function buildTreemap(items, x, y, w, h, horizontal) {
 
 /* ---------------------------------------------------------------------- */
 /*  Composition treemap (used for both Deposits and Loans)                 */
-/*  Tile SIZE is proportional to value and tile COLOR is a continuous      */
-/*  dark→light gradient tied to the value itself. Full width, one section  */
-/*  per row. Not clickable — only a subtle hover lift remains. No border/  */
-/*  selection state on the panel itself either.                           */
+/*  Tile SIZE is proportional to value (a real treemap, not a uniform      */
+/*  grid) and tile COLOR is a continuous dark→light gradient tied to the   */
+/*  value itself — the two things that make it read as an actual heatmap  */
+/*  rather than a row of arbitrarily-colored boxes. Full width, one        */
+/*  section per row.                                                      */
+/*                                                                          */
+/*  NOT CLICKABLE: tiles no longer drill down — only a subtle hover lift   */
+/*  remains. Clicking anywhere on the panel (the treemap "card" itself)    */
+/*  still selects it via the same click-to-highlight interaction as every  */
+/*  other panel. The old click-to-drill-down code is commented out below,  */
+/*  not deleted, in case it's wanted again later.                         */
 /*                                                                          */
 /*  `gradientDark` / `gradientLight` set the two gradient endpoints for    */
 /*  this section (deposits = navy→sky, loans = deep purple→lavender).      */
+/*                                                                          */
 /*  `filterGroups`, when provided (used for Deposits), wires the existing  */
 /*  "All / Demand / Term" dropdown up to actually filter which categories  */
 /*  are shown, instead of being purely cosmetic.                          */
@@ -546,10 +569,14 @@ function CompositionMosaic({
   gradientDark,
   gradientLight,
   shareLabel = "of total",
+  panelId,
+  selectedPanel,
+  onSelectPanel,
 }) {
   const theme = useTheme();
   const hasFilter = Array.isArray(config.filterOptions) && config.filterOptions.length > 0;
   const [filter, setFilter] = useState(config.activeFilter || (hasFilter ? config.filterOptions[0] : undefined));
+  // const [drilldown, setDrilldown] = useState(null); // DRILL-DOWN DISABLED — see note below
 
   const items = useMemo(() => {
     const group = filterGroups && filterGroups[filter];
@@ -568,7 +595,19 @@ function CompositionMosaic({
   const maxValue = Math.max(...values);
   const colorFor = (value) => heatColor(value, minValue, maxValue, gradientDark, gradientLight);
 
-  const layout = useMemo(() => buildTreemap(items, 0, 0, 100, 100, true), [items]);
+  const layout = useMemo(
+    () => buildTreemap(items, 0, 0, 100, 85, true),
+    [items]
+  );
+
+  // DRILL-DOWN DISABLED (heatmaps are display-only per request) — kept
+  // ready rather than deleted; wire `onClick={() => handleTileClick(item)}`
+  // back onto the Tile below to re-enable.
+  // const handleTileClick = (item) => {
+  //   fetchDrilldown(item.name).then((result) => {
+  //     if (result) setDrilldown(result);
+  //   });
+  // };
 
   const Tile = ({ item, x, y, w, h }) => {
     const color = colorFor(item.value);
@@ -583,7 +622,9 @@ function CompositionMosaic({
           top: `${y}%`,
           width: `${w}%`,
           height: `${h}%`,
-          p: 0.4,
+          // p: 0,        // ← was probably p: 1 or p: 2
+          // m: 0,        // ← r/emove any margin
+          // borderRadius: 5,
           boxSizing: "border-box",
         }}
       >
@@ -591,8 +632,8 @@ function CompositionMosaic({
           sx={{
             width: "100%",
             height: "100%",
-            borderRadius: RADIUS.sm,
-            p: small ? 1 : 1.75,
+            // borderRadius: RADIUS.sm,
+            p: 1,
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
@@ -645,8 +686,27 @@ function CompositionMosaic({
     );
   };
 
+  /* DRILL-DOWN DISABLED — kept ready, not deleted (see handleTileClick note above).
+  if (drilldown) {
+    return (
+      <GlassPanel sx={{ p: 3 }}>
+        <DrilldownBarChart icon={icon} config={drilldown} onBack={() => setDrilldown(null)} />
+      </GlassPanel>
+    );
+  }
+  */
+
   return (
-    <GlassPanel>
+    // <GlassPanel selected={selectedPanel === panelId} onClick={() => onSelectPanel(panelId)}>
+    <Box 
+      component={Paper} 
+      elevation={6} 
+      sx={{
+        height: { xs: 300, sm: 340, md: 380 },
+        p:2
+      }}
+
+    >
       <PanelHeader
         icon={icon}
         title={config.title}
@@ -656,13 +716,18 @@ function CompositionMosaic({
           ) : undefined
         }
       />
-      <Typography sx={{ ...textSecondarySx, fontSize: 12.5, mt: -1.5, mb: 1.5 }}>{config.subtitle}</Typography>
+      {/* <Typography sx={{ ...textSecondarySx, fontSize: 12.5, mt: -1.5, mb: 1.5 }}>{config.subtitle}</Typography> */}
 
       <Box
         sx={{
+          // m: 4,
           position: "relative",
           width: "100%",
-          height: { xs: 300, sm: 340, md: 380 },
+          height: "100%",
+          alignContent: 'center',
+          justifyContent: 'center',
+          alignItems: 'center'
+
         }}
       >
         {layout.map(({ item, x, y, w, h }) => (
@@ -670,13 +735,15 @@ function CompositionMosaic({
         ))}
       </Box>
 
-      <LegendGrid items={legend} valueItems={items} colorFor={colorFor} />
-    </GlassPanel>
+      {/* <LegendGrid items={legend} valueItems={items} colorFor={colorFor} /> */}
+
+    </Box>
   );
 }
 
 /* ---------------------------------------------------------------------- */
-/*  Legend — a single reusable row of color-dot + label, wraps cleanly.    */
+/*  Legend — a single reusable row of color-dot + label, wraps cleanly     */
+/*  regardless of how many categories are passed in.                      */
 /* ---------------------------------------------------------------------- */
 
 function LegendGrid({ items, valueItems, colorFor }) {
@@ -718,13 +785,17 @@ function LegendGrid({ items, valueItems, colorFor }) {
 
 /* ---------------------------------------------------------------------- */
 /*  Bar chart panels (Demand / Term deposits, Loans breakdown)             */
-/*  Clicking a bar drills into that item. No panel-level border/selection  */
-/*  state — that feature has been removed entirely, per request.          */
+/*  Clicking a bar drills into that item; clicking the panel anywhere      */
+/*  ELSE selects it (black border) via the same interaction every panel    */
+/*  shares. `e.stopPropagation()` on the bar's own click keeps those two   */
+/*  interactions from triggering on the same click ("outside the bars").  */
 /*  `titleOverride` lets a panel show a more specific label than the       */
-/*  source config's title.                                                */
+/*  source config's title (the composition and breakdown views for loans  */
+/*  share the same underlying "Loans" title in the data, which reads as   */
+/*  ambiguous once both are on screen together).                          */
 /* ---------------------------------------------------------------------- */
 
-function BarPanel({ icon, config, titleOverride }) {
+function BarPanel({ icon, config, titleOverride, panelId, selectedPanel, onSelectPanel }) {
   const theme = useTheme();
   const gridStrokeColor = alpha(theme.palette.text.primary, 0.08);
   const hasDropdown = Array.isArray(config.dropdownOptions) && config.dropdownOptions.length > 0;
@@ -752,7 +823,7 @@ function BarPanel({ icon, config, titleOverride }) {
   }
 
   return (
-    <GlassPanel sx={{ p: 3 }}>
+    <GlassPanel sx={{ p: 3 }} selected={selectedPanel === panelId} onClick={() => onSelectPanel(panelId)}>
       <PanelHeader
         icon={icon}
         title={titleOverride || config.title}
@@ -793,7 +864,15 @@ function BarPanel({ icon, config, titleOverride }) {
             />
             <Bar dataKey="value" radius={[7, 7, 0, 0]} maxBarSize={48}>
               {chartData.map((d) => (
-                <Cell key={d.name} fill={d.__color} cursor="pointer" onClick={() => handleBarClick(d)} />
+                <Cell
+                  key={d.name}
+                  fill={d.__color}
+                  cursor="pointer"
+                  onClick={(e) => {
+                    e.stopPropagation(); // keeps bar-click drill-down separate from panel selection
+                    handleBarClick(d);
+                  }}
+                />
               ))}
               <LabelList
                 dataKey="value"
@@ -809,11 +888,10 @@ function BarPanel({ icon, config, titleOverride }) {
   );
 }
 
-/* ---------------------------------------------------------------------- */
-/*  Header — lightweight, no card wrapper.                                 */
-/* ---------------------------------------------------------------------- */
-
 function DashboardHeader({ config }) {
+  const theme = useTheme();
+  const [fy, setFy] = useState(config.financialYear);
+
   return (
     <Stack
       direction={{ xs: "column", lg: "row" }}
@@ -834,14 +912,19 @@ function DashboardHeader({ config }) {
 
 /* ---------------------------------------------------------------------- */
 /*  Root Dashboard                                                         */
-/*  Layout: header → Deposits treemap (full width) → CASA / Demand / Term  */
-/*  in one row → Loans treemap (full width) → Loan Distribution (full      */
+/*  Layout: header → Deposits heatmap (full width) → CASA / Demand / Term  */
+/*  in one row → Loans heatmap (full width) → Loan Distribution (full      */
 /*  width). Every column collapses to a single stack on small screens.    */
-/*  No selection state anywhere — every panel renders identically.        */
+/*                                                                          */
+/*  `selectedPanel` is a single value lifted up here and passed to every   */
+/*  panel — clicking one panel both highlights it and clears whichever     */
+/*  panel was previously selected, since only one id can match at a time. */
 /* ---------------------------------------------------------------------- */
 
 export default function DepositsLoansDashboard({ data }) {
+  const theme = useTheme();
   const dashboardData = data || defaultDashboardData;
+  const [selectedPanel, setSelectedPanel] = useState(null);
 
   const depositFilterGroups = useMemo(
     () => ({
@@ -851,19 +934,29 @@ export default function DepositsLoansDashboard({ data }) {
     [dashboardData]
   );
 
+  const ambientBackground =
+    theme.palette.mode === "dark"
+      ? `radial-gradient(1100px 550px at 8% -8%, ${alpha(theme.palette.primary.main, 0.22)}, transparent 60%),` +
+        `radial-gradient(900px 500px at 100% 0%, ${alpha(theme.palette.info.main, 0.14)}, transparent 55%),` +
+        `${theme.palette.background.default}`
+      : `radial-gradient(1100px 550px at 8% -8%, ${alpha(theme.palette.primary.light, 0.16)}, transparent 60%),` +
+        `radial-gradient(900px 500px at 100% 0%, ${alpha(theme.palette.info.light, 0.12)}, transparent 55%),` +
+        `${theme.palette.background.default}`;
+
   return (
     <Box
       sx={{
-        p: { xs: 1.5, md: 3 },
+        // p: { xs: 1.5, md: 3 },
         display: "flex",
         flexDirection: "column",
         gap: 2.5,
         minHeight: "100vh",
+        // background: ambientBackground,
       }}
     >
-      <DashboardHeader config={dashboardData.header} />
+      {/* <DashboardHeader config={dashboardData.header} /> */}
 
-      {/* Deposits treemap — full width, its own row */}
+      {/* Deposits heatmap — full width, its own row */}
       <CompositionMosaic
         config={dashboardData.depositsComposition}
         icon={AccountBalanceRoundedIcon}
@@ -871,6 +964,9 @@ export default function DepositsLoansDashboard({ data }) {
         gradientDark="#123a63"
         gradientLight="#7dd3fc"
         shareLabel="of deposits"
+        panelId="deposits-heatmap"
+        selectedPanel={selectedPanel}
+        onSelectPanel={setSelectedPanel}
       />
 
       {/* CASA Ratio + Demand Deposits + Term Deposits — one row */}
@@ -881,18 +977,38 @@ export default function DepositsLoansDashboard({ data }) {
           gap: 2.5,
         }}
       >
-        <Gauge config={dashboardData.casaGauge} />
-        <BarPanel icon={DescriptionRoundedIcon} config={dashboardData.demandDeposits} />
-        <BarPanel icon={DescriptionRoundedIcon} config={dashboardData.termDeposits} />
+        <Gauge
+          config={dashboardData.casaGauge}
+          panelId="casa-gauge"
+          selectedPanel={selectedPanel}
+          onSelectPanel={setSelectedPanel}
+        />
+        <BarPanel
+          icon={DescriptionRoundedIcon}
+          config={dashboardData.demandDeposits}
+          panelId="demand-deposits-bar"
+          selectedPanel={selectedPanel}
+          onSelectPanel={setSelectedPanel}
+        />
+        <BarPanel
+          icon={DescriptionRoundedIcon}
+          config={dashboardData.termDeposits}
+          panelId="term-deposits-bar"
+          selectedPanel={selectedPanel}
+          onSelectPanel={setSelectedPanel}
+        />
       </Box>
 
-      {/* Loans treemap — full width, its own row */}
+      {/* Loans heatmap — full width, its own row */}
       <CompositionMosaic
         config={dashboardData.loansComposition}
         icon={AccountBalanceWalletRoundedIcon}
         gradientDark="#2e2258"
         gradientLight="#efe6fd"
         shareLabel="of loans"
+        panelId="loans-heatmap"
+        selectedPanel={selectedPanel}
+        onSelectPanel={setSelectedPanel}
       />
 
       {/* Loan Distribution — full width, its own row (no equivalent gauge to pair it with) */}
@@ -900,6 +1016,9 @@ export default function DepositsLoansDashboard({ data }) {
         icon={TrendingUpRoundedIcon}
         config={dashboardData.loansBreakdown}
         titleOverride="Loan Distribution"
+        panelId="loan-distribution-bar"
+        selectedPanel={selectedPanel}
+        onSelectPanel={setSelectedPanel}
       />
     </Box>
   );
