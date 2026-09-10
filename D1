@@ -1,146 +1,175 @@
 /* ---------------------------------------------------------------------- */
-/*  Gauge.jsx                                                              */
-/*  Semi-donut gauge with a value-driven needle, used for the CASA Ratio.  */
-/*  Status bands are a fixed red/amber/green — a "traffic light" read      */
-/*  rather than category colors — and the needle angle comes directly     */
-/*  from `config.value`, so it always points exactly where the number      */
-/*  says.                                                                  */
+/*  HeatTree.jsx                                                           */
+/*  REUSABLE: a heatmap-style treemap. Tile SIZE is proportional to each   */
+/*  item's value (a real treemap, not a uniform grid) and tile COLOR is a  */
+/*  continuous dark→light gradient tied to the value itself.               */
 /*                                                                          */
-/*  The gauge box is a fixed SQUARE on purpose: the needle is a plain SVG  */
-/*  overlay using a 300×300 coordinate system, which only lines up with    */
-/*  the Pie underneath it when the container is square.                   */
+/*  Currently used only for Deposits (Loans was removed from the dashboard  */
+/*  — the API has no loans data yet) — but stays generic/reusable: nothing  */
+/*  about the component itself is deposits-specific, so it's ready to      */
+/*  render a Loans section again the moment that data exists.              */
+/*                                                                          */
+/*  TreemapTile and Legend are small pieces used only here, so they stay   */
+/*  in this file instead of being split out.                              */
 /* ---------------------------------------------------------------------- */
 
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { Box, Stack, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
-import PieChartRoundedIcon from "@mui/icons-material/PieChartRounded";
-import { GlassPanel, PanelHeader, textSecondarySx } from "./common";
+import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
+import { GlassPanel, PanelHeader, MiniSelect, RADIUS, textSecondarySx } from "./common";
+import { heatColor, mixHex, getColor, buildTreemap, formatAmount } from "./utils";
 
-// Fixed thresholds, pulled out as constants (not inline) so they're easy
-// to move to config/props later if different ratios need different bands.
-const STATUS_BANDS = [
-  { name: "Below 35%", width: 33.3, key: "low" },
-  { name: "35% – 65%", width: 33.3, key: "mid" },
-  { name: "Above 65%", width: 33.3, key: "high" },
-];
-
-function statusFor(value) {
-  if (value < 35) return "low";
-  if (value <= 65) return "mid";
-  return "high";
-}
-
-/**
- * Props:
- *  - config: { title, subtitle, value, centerLabel }
- *  - panelId / selectedPanel / onSelectPanel: optional click-to-highlight
- *    wiring, shared with every other panel (see GlassPanel in common.jsx).
- */
-export default function Gauge({ config, panelId, selectedPanel, onSelectPanel }) {
+/** A single treemap cell. */
+function TreemapTile({ item, x, y, w, h, color, shareLabel, onClick }) {
   const theme = useTheme();
-  const RADIAN = Math.PI / 180;
-  const VIEWBOX = 300;
-  const cx = VIEWBOX * 0.5; // matches the Pie's cx="50%"
-  const cy = VIEWBOX * 0.85; // matches the Pie's cy="85%" — NOT cx/cy * 0.85
-  const innerR = 95;
-  const GAUGE_SIZE = 280; // fixed + square — see note above
-
-  // The API can return casaGauge.value as null (not populated yet). Render
-  // an explicit "not available" state instead of NaN math / a broken needle.
-  const hasValue = typeof config.value === "number" && !Number.isNaN(config.value);
-
-  const statusColor = {
-    low: theme.palette.error.main,
-    mid: theme.palette.warning.main,
-    high: theme.palette.success.main,
-  };
-  const bandData = STATUS_BANDS.map((b) => ({ name: b.name, value: b.width }));
-  const currentStatus = hasValue ? statusFor(config.value) : null;
-  const needleColor = hasValue ? statusColor[currentStatus] : theme.palette.text.disabled;
-
-  const clampedValue = hasValue ? Math.min(Math.max(config.value, 0), 100) : 0;
-  const needleAngle = 180 - (clampedValue / 100) * 180; // 0..180 -> deg, driven by the actual value
+  const fg = theme.palette.getContrastText(color);
+  const small = w < 16 || h < 20;
+  const sheen = mixHex(color, "#ffffff", 0.16);
 
   return (
-    <GlassPanel sx={{ p: 3 }} selected={selectedPanel === panelId} onClick={() => onSelectPanel?.(panelId)}>
-      <PanelHeader icon={PieChartRoundedIcon} title={config.title} />
-
+    <Box sx={{ position: "absolute", left: `${x}%`, top: `${y}%`, width: `${w}%`, height: `${h}%`, p: 0.4, boxSizing: "border-box" }}>
       <Box
+        role={onClick ? "button" : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        onClick={onClick}
         sx={{
-          position: "relative",
-          width: GAUGE_SIZE,
-          height: GAUGE_SIZE,
-          mx: "auto",
-          mb: 1,
-          "& svg:focus, & svg *:focus": { outline: "none" },
+          width: "100%",
+          height: "100%",
+          borderRadius: RADIUS.sm,
+          p: small ? 1 : 1.75,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          overflow: "hidden",
+          cursor: onClick ? "pointer" : "default",
+          background: `linear-gradient(135deg, ${sheen} 0%, ${color} 55%)`,
+          color: fg,
+          transition: "transform 0.18s ease, box-shadow 0.18s ease",
+          "&:hover": { transform: "scale(1.015)", boxShadow: theme.shadows[6], zIndex: 1 },
         }}
       >
-        <ResponsiveContainer>
-          <PieChart>
-            <Pie
-              data={bandData}
-              dataKey="value"
-              nameKey="name"
-              cx="50%"
-              cy="85%"
-              startAngle={180}
-              endAngle={0}
-              innerRadius={92}
-              outerRadius={130}
-              cornerRadius={4}
-              stroke="none"
-              isAnimationActive={false}
-            >
-              <Cell fill={statusColor.low} opacity={hasValue ? 1 : 0.35} />
-              <Cell fill={statusColor.mid} opacity={hasValue ? 1 : 0.35} />
-              <Cell fill={statusColor.high} opacity={hasValue ? 1 : 0.35} />
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-
-        {/* needle + center readout, overlaid absolutely — cx/cy match the
-            Pie's actual cx="50%" cy="85%" exactly, so the needle's base
-            sits right at the pie center instead of drifting off it.
-            No needle at all when there's no value to point to. */}
-        {hasValue && (
-          <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-            <svg viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`} width="100%" height="100%">
-              <circle cx={cx} cy={cy} r="7" fill={needleColor} />
-              <line
-                x1={cx}
-                y1={cy}
-                x2={cx + (innerR - 6) * Math.cos(needleAngle * RADIAN)}
-                y2={cy - (innerR - 6) * Math.sin(needleAngle * RADIAN)}
-                stroke={needleColor}
-                strokeWidth="4"
-                strokeLinecap="round"
-              />
-            </svg>
-          </Box>
-        )}
-
-        <Box sx={{ position: "absolute", left: 0, right: 0, bottom: 6, textAlign: "center" }}>
-          <Typography sx={{ fontSize: 30, fontWeight: 700, lineHeight: 1, color: needleColor }}>
-            {hasValue ? `${config.value.toFixed(1)}%` : "—"}
+        <Typography sx={{ fontFamily: theme.typography.fontFamily, fontSize: small ? 11 : 13, fontWeight: 600, opacity: 0.92, lineHeight: 1.25 }} noWrap>
+          {item.name}
+        </Typography>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography sx={{ fontFamily: theme.typography.fontFamily, fontSize: small ? 13 : 20, fontWeight: 700, lineHeight: 1.2 }} noWrap>
+            {formatAmount(item.value)}
           </Typography>
-          {!hasValue && (
-            <Typography sx={{ ...textSecondarySx, fontSize: 11.5, fontWeight: 500, mt: 0.5 }}>
-              Not available yet
+          {!small && (
+            <Typography sx={{ fontFamily: theme.typography.fontFamily, fontSize: 11.5, opacity: 0.82, mt: 0.25 }}>
+              {item.share}% {shareLabel}
             </Typography>
           )}
         </Box>
       </Box>
+    </Box>
+  );
+}
 
-      <Stack direction="row" spacing={2.5} justifyContent="center" flexWrap="wrap" sx={{ mt: 1.5 }}>
-        {STATUS_BANDS.map((b) => (
-          <Stack key={b.key} direction="row" spacing={0.75} alignItems="center">
-            <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: statusColor[b.key] }} />
-            <Typography sx={{ ...textSecondarySx, fontSize: 11.5, fontWeight: 500 }}>{b.name}</Typography>
+/** Color-dot + label legend row, wraps cleanly regardless of item count. */
+function Legend({ items, valueItems, colorFor }) {
+  const theme = useTheme();
+  return (
+    <Box sx={{ mt: 2, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(136px, 1fr))", rowGap: 0.85, columnGap: 1.5 }}>
+      {items.map((l, i) => {
+        const matched = valueItems && valueItems.find((it) => it.name === l.name);
+        const dotColor = colorFor && matched ? colorFor(matched.value) : getColor(l.name, i, theme);
+        return (
+          <Stack key={l.name} direction="row" spacing={0.75} alignItems="center">
+            <Box sx={{ width: 8, height: 8, borderRadius: "2px", bgcolor: dotColor, flexShrink: 0 }} />
+            <Typography sx={{ ...textSecondarySx, fontSize: 11.5, fontWeight: 500 }} noWrap>
+              {l.name}
+            </Typography>
           </Stack>
+        );
+      })}
+    </Box>
+  );
+}
+
+/**
+ * Props:
+ *  - config: { title, subtitle, items: {name, value, share, type}[], legend: {name}[],
+ *              filterOptions?: string[], activeFilter?: string }
+ *    Each item's `type` (e.g. "Demand Deposit" / "Time Deposit") drives the
+ *    filter dropdown below — `config.filterOptions` (from the API) is the
+ *    dropdown's option list, and `filterOptions[0]` is treated as "show
+ *    everything" (the API labels it "All Deposit"/"All ..."). Selecting any
+ *    other option filters items down to `item.type === selectedOption`.
+ *  - icon: MUI icon component for the panel header
+ *  - gradientDark / gradientLight: hex strings, this section's gradient
+ *    endpoints (e.g. navy→sky for deposits, purple→lavender for loans)
+ *  - shareLabel: string appended after each tile's percentage, e.g.
+ *    "of deposits" / "of loans"
+ *  - onTileClick: optional (item) => void. Tiles are display-only (just a
+ *    hover lift) unless this is provided.
+ *  - panelId / selectedPanel / onSelectPanel: optional click-to-highlight
+ *    wiring, shared with every other panel (see GlassPanel in DashboardPage.jsx).
+ */
+export default function HeatTree({
+  config,
+  icon = Inventory2RoundedIcon,
+  gradientDark,
+  gradientLight,
+  shareLabel = "of total",
+  onTileClick,
+  panelId,
+  selectedPanel,
+  onSelectPanel,
+}) {
+  const hasFilter = Array.isArray(config.filterOptions) && config.filterOptions.length > 0;
+  const [filter, setFilter] = useState(config.activeFilter || (hasFilter ? config.filterOptions[0] : undefined));
+  const showAll = !hasFilter || filter === config.filterOptions[0];
+
+  const items = useMemo(() => {
+    if (showAll) return config.items; // first filter option = "show everything"
+    return config.items.filter((it) => it.type === filter);
+  }, [config.items, filter, showAll]);
+
+  const legend = useMemo(() => {
+    if (showAll) return config.legend;
+    const names = new Set(items.map((it) => it.name));
+    return config.legend.filter((l) => names.has(l.name));
+  }, [config.legend, showAll, items]);
+
+  const colorFor = useMemo(() => {
+    const values = items.map((it) => it.value);
+    const minValue = values.length ? Math.min(...values) : 0;
+    const maxValue = values.length ? Math.max(...values) : 0;
+    return (value) => heatColor(value, minValue, maxValue, gradientDark, gradientLight);
+  }, [items, gradientDark, gradientLight]);
+
+  const layout = useMemo(() => buildTreemap(items, 0, 0, 100, 100, true), [items]);
+
+  return (
+    <GlassPanel selected={selectedPanel === panelId} onClick={() => onSelectPanel?.(panelId)}>
+      <PanelHeader
+        icon={icon}
+        title={config.title}
+        action={hasFilter ? <MiniSelect options={config.filterOptions} value={filter} onChange={setFilter} /> : undefined}
+      />
+      {config.subtitle && (
+        <Typography sx={{ ...textSecondarySx, fontSize: 12.5, mt: -1.5, mb: 1.5 }}>{config.subtitle}</Typography>
+      )}
+
+      <Box sx={{ position: "relative", width: "100%", height: { xs: 300, sm: 340, md: 380 } }}>
+        {layout.map(({ item, x, y, w, h }) => (
+          <TreemapTile
+            key={item.name}
+            item={item}
+            x={x}
+            y={y}
+            w={w}
+            h={h}
+            color={colorFor(item.value)}
+            shareLabel={shareLabel}
+            onClick={onTileClick ? () => onTileClick(item) : undefined}
+          />
         ))}
-      </Stack>
+      </Box>
+
+      <Legend items={legend} valueItems={items} colorFor={colorFor} />
     </GlassPanel>
   );
 }
