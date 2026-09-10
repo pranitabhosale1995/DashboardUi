@@ -1,175 +1,125 @@
 /* ---------------------------------------------------------------------- */
-/*  HeatTree.jsx                                                           */
-/*  REUSABLE: a heatmap-style treemap. Tile SIZE is proportional to each   */
-/*  item's value (a real treemap, not a uniform grid) and tile COLOR is a  */
-/*  continuous dark→light gradient tied to the value itself.               */
+/*  BarChart.jsx                                                           */
+/*  REUSABLE: the ONE place the Recharts bar-chart markup lives. Every     */
+/*  bar panel in the dashboard (Demand Deposits, Term Deposits, Loan       */
+/*  Distribution, and every drill-down) renders through this with         */
+/*  different `data` passed in — nothing is duplicated per section.       */
 /*                                                                          */
-/*  Currently used only for Deposits (Loans was removed from the dashboard  */
-/*  — the API has no loans data yet) — but stays generic/reusable: nothing  */
-/*  about the component itself is deposits-specific, so it's ready to      */
-/*  render a Loans section again the moment that data exists.              */
-/*                                                                          */
-/*  TreemapTile and Legend are small pieces used only here, so they stay   */
-/*  in this file instead of being split out.                              */
+/*  ChartTooltip lives here too: it's only ever used by this chart, so a   */
+/*  separate file for a 20-line component just added another place to     */
+/*  look for something that's really part of this one piece.              */
 /* ---------------------------------------------------------------------- */
 
-import React, { useMemo, useState } from "react";
-import { Box, Stack, Typography } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
-import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
-import { GlassPanel, PanelHeader, MiniSelect, RADIUS, textSecondarySx } from "./common";
-import { heatColor, mixHex, getColor, buildTreemap, formatAmount } from "./utils";
+import React from "react";
+import { Box, Typography } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
+import {
+  Bar,
+  BarChart as RechartsBarChart, // aliased so it doesn't clash with our own component name below
+  CartesianGrid,
+  Cell,
+  LabelList,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { glass } from "../../theme/themePrimitives"; // adjust path to match your project structure
+import { RADIUS } from "./common";
+import { getColor, formatAmount } from "./utils";
 
-/** A single treemap cell. */
-function TreemapTile({ item, x, y, w, h, color, shareLabel, onClick }) {
-  const theme = useTheme();
-  const fg = theme.palette.getContrastText(color);
-  const small = w < 16 || h < 20;
-  const sheen = mixHex(color, "#ffffff", 0.16);
+/** Custom Recharts tooltip content — a small frosted card matching the
+ * rest of the dashboard, in place of Recharts' unstyled default. Reads the
+ * swatch color straight off the hovered data point (`__color`), with a
+ * same-index fallback if it's absent. */
+function ChartTooltip({ active, payload, label, theme }) {
+  if (!active || !payload || !payload.length) return null;
+  const value = payload[0].value;
+  const color = payload[0].payload?.__color || getColor(label, 0, theme);
 
   return (
-    <Box sx={{ position: "absolute", left: `${x}%`, top: `${y}%`, width: `${w}%`, height: `${h}%`, p: 0.4, boxSizing: "border-box" }}>
-      <Box
-        role={onClick ? "button" : undefined}
-        tabIndex={onClick ? 0 : undefined}
-        onClick={onClick}
-        sx={{
-          width: "100%",
-          height: "100%",
-          borderRadius: RADIUS.sm,
-          p: small ? 1 : 1.75,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          overflow: "hidden",
-          cursor: onClick ? "pointer" : "default",
-          background: `linear-gradient(135deg, ${sheen} 0%, ${color} 55%)`,
-          color: fg,
-          transition: "transform 0.18s ease, box-shadow 0.18s ease",
-          "&:hover": { transform: "scale(1.015)", boxShadow: theme.shadows[6], zIndex: 1 },
-        }}
-      >
-        <Typography sx={{ fontFamily: theme.typography.fontFamily, fontSize: small ? 11 : 13, fontWeight: 600, opacity: 0.92, lineHeight: 1.25 }} noWrap>
-          {item.name}
-        </Typography>
-        <Box sx={{ minWidth: 0 }}>
-          <Typography sx={{ fontFamily: theme.typography.fontFamily, fontSize: small ? 13 : 20, fontWeight: 700, lineHeight: 1.2 }} noWrap>
-            {formatAmount(item.value)}
-          </Typography>
-          {!small && (
-            <Typography sx={{ fontFamily: theme.typography.fontFamily, fontSize: 11.5, opacity: 0.82, mt: 0.25 }}>
-              {item.share}% {shareLabel}
-            </Typography>
-          )}
-        </Box>
-      </Box>
-    </Box>
-  );
-}
-
-/** Color-dot + label legend row, wraps cleanly regardless of item count. */
-function Legend({ items, valueItems, colorFor }) {
-  const theme = useTheme();
-  return (
-    <Box sx={{ mt: 2, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(136px, 1fr))", rowGap: 0.85, columnGap: 1.5 }}>
-      {items.map((l, i) => {
-        const matched = valueItems && valueItems.find((it) => it.name === l.name);
-        const dotColor = colorFor && matched ? colorFor(matched.value) : getColor(l.name, i, theme);
-        return (
-          <Stack key={l.name} direction="row" spacing={0.75} alignItems="center">
-            <Box sx={{ width: 8, height: 8, borderRadius: "2px", bgcolor: dotColor, flexShrink: 0 }} />
-            <Typography sx={{ ...textSecondarySx, fontSize: 11.5, fontWeight: 500 }} noWrap>
-              {l.name}
-            </Typography>
-          </Stack>
-        );
-      })}
+    <Box
+      sx={{
+        background: glass.panel(0.92),
+        backdropFilter: "blur(16px) saturate(160%)",
+        border: `1px solid ${glass.border}`,
+        borderRadius: RADIUS.sm,
+        px: 1.5,
+        py: 1,
+        boxShadow: theme.shadows[8],
+      }}
+    >
+      <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: "text.secondary" }}>{label}</Typography>
+      <Typography sx={{ fontSize: 14, fontWeight: 800, color }}>{formatAmount(value)}</Typography>
     </Box>
   );
 }
 
 /**
+ * Renders a { name, value, __color }[] dataset as a bar chart.
+ *
  * Props:
- *  - config: { title, subtitle, items: {name, value, share, type}[], legend: {name}[],
- *              filterOptions?: string[], activeFilter?: string }
- *    Each item's `type` (e.g. "Demand Deposit" / "Time Deposit") drives the
- *    filter dropdown below — `config.filterOptions` (from the API) is the
- *    dropdown's option list, and `filterOptions[0]` is treated as "show
- *    everything" (the API labels it "All Deposit"/"All ..."). Selecting any
- *    other option filters items down to `item.type === selectedOption`.
- *  - icon: MUI icon component for the panel header
- *  - gradientDark / gradientLight: hex strings, this section's gradient
- *    endpoints (e.g. navy→sky for deposits, purple→lavender for loans)
- *  - shareLabel: string appended after each tile's percentage, e.g.
- *    "of deposits" / "of loans"
- *  - onTileClick: optional (item) => void. Tiles are display-only (just a
- *    hover lift) unless this is provided.
- *  - panelId / selectedPanel / onSelectPanel: optional click-to-highlight
- *    wiring, shared with every other panel (see GlassPanel in DashboardPage.jsx).
+ *  - data: { name: string, value: number, __color: string }[]
+ *    `__color` should already be resolved (see utils.getColor) by whoever
+ *    builds this array — this component doesn't know what a "deposit" is.
+ *  - onBarClick: optional (item) => void. When provided, bars become
+ *    clickable (drill-down); when omitted, bars are display-only.
  */
-export default function HeatTree({
-  config,
-  icon = Inventory2RoundedIcon,
-  gradientDark,
-  gradientLight,
-  shareLabel = "of total",
-  onTileClick,
-  panelId,
-  selectedPanel,
-  onSelectPanel,
-}) {
-  const hasFilter = Array.isArray(config.filterOptions) && config.filterOptions.length > 0;
-  const [filter, setFilter] = useState(config.activeFilter || (hasFilter ? config.filterOptions[0] : undefined));
-  const showAll = !hasFilter || filter === config.filterOptions[0];
-
-  const items = useMemo(() => {
-    if (showAll) return config.items; // first filter option = "show everything"
-    return config.items.filter((it) => it.type === filter);
-  }, [config.items, filter, showAll]);
-
-  const legend = useMemo(() => {
-    if (showAll) return config.legend;
-    const names = new Set(items.map((it) => it.name));
-    return config.legend.filter((l) => names.has(l.name));
-  }, [config.legend, showAll, items]);
-
-  const colorFor = useMemo(() => {
-    const values = items.map((it) => it.value);
-    const minValue = values.length ? Math.min(...values) : 0;
-    const maxValue = values.length ? Math.max(...values) : 0;
-    return (value) => heatColor(value, minValue, maxValue, gradientDark, gradientLight);
-  }, [items, gradientDark, gradientLight]);
-
-  const layout = useMemo(() => buildTreemap(items, 0, 0, 100, 100, true), [items]);
+export default function BarChart({ data, onBarClick }) {
+  const theme = useTheme();
+  const gridStrokeColor = alpha(theme.palette.text.primary, 0.08);
+  const longLabels = data.length > 5;
 
   return (
-    <GlassPanel selected={selectedPanel === panelId} onClick={() => onSelectPanel?.(panelId)}>
-      <PanelHeader
-        icon={icon}
-        title={config.title}
-        action={hasFilter ? <MiniSelect options={config.filterOptions} value={filter} onChange={setFilter} /> : undefined}
-      />
-      {config.subtitle && (
-        <Typography sx={{ ...textSecondarySx, fontSize: 12.5, mt: -1.5, mb: 1.5 }}>{config.subtitle}</Typography>
-      )}
-
-      <Box sx={{ position: "relative", width: "100%", height: { xs: 300, sm: 340, md: 380 } }}>
-        {layout.map(({ item, x, y, w, h }) => (
-          <TreemapTile
-            key={item.name}
-            item={item}
-            x={x}
-            y={y}
-            w={w}
-            h={h}
-            color={colorFor(item.value)}
-            shareLabel={shareLabel}
-            onClick={onTileClick ? () => onTileClick(item) : undefined}
+    <Box
+      sx={{
+        width: "100%",
+        height: longLabels ? 320 : 270,
+        // Recharts marks chart elements focusable for accessibility; without
+        // this, clicking a bar leaves a default browser focus outline behind.
+        "& svg:focus, & svg *:focus": { outline: "none" },
+      }}
+    >
+      <ResponsiveContainer>
+        <RechartsBarChart data={data} margin={{ top: 28, right: 16, left: -4, bottom: longLabels ? 70 : 6 }} barCategoryGap="32%">
+          <CartesianGrid vertical={false} stroke={gridStrokeColor} strokeDasharray="3 5" />
+          <XAxis
+            dataKey="name"
+            tick={{ fontSize: longLabels ? 9.5 : 10.5, fill: theme.palette.text.secondary }}
+            axisLine={{ stroke: gridStrokeColor }}
+            tickLine={false}
+            interval={0}
+            angle={longLabels ? -35 : 0}
+            textAnchor={longLabels ? "end" : "middle"}
+            height={longLabels ? 70 : 30}
           />
-        ))}
-      </Box>
-
-      <Legend items={legend} valueItems={items} colorFor={colorFor} />
-    </GlassPanel>
+          <YAxis tick={{ fontSize: 11, fill: theme.palette.text.secondary }} axisLine={false} tickLine={false} width={32} />
+          <Tooltip cursor={{ fill: alpha(theme.palette.text.primary, 0.05) }} content={(props) => <ChartTooltip {...props} theme={theme} />} />
+          <Bar dataKey="value" radius={[7, 7, 0, 0]} maxBarSize={48}>
+            {data.map((d) => (
+              <Cell
+                key={d.name}
+                fill={d.__color}
+                cursor={onBarClick ? "pointer" : "default"}
+                onClick={
+                  onBarClick
+                    ? (e) => {
+                        e.stopPropagation(); // keep bar-click separate from any panel-level click handler
+                        onBarClick(d);
+                      }
+                    : undefined
+                }
+              />
+            ))}
+            <LabelList
+              dataKey="value"
+              position="top"
+              formatter={(v) => formatAmount(v)}
+              style={{ fontSize: 11, fontWeight: 700, fill: theme.palette.text.primary }}
+            />
+          </Bar>
+        </RechartsBarChart>
+      </ResponsiveContainer>
+    </Box>
   );
 }
