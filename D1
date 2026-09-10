@@ -1,125 +1,94 @@
 /* ---------------------------------------------------------------------- */
-/*  BarChart.jsx                                                           */
-/*  REUSABLE: the ONE place the Recharts bar-chart markup lives. Every     */
-/*  bar panel in the dashboard (Demand Deposits, Term Deposits, Loan       */
-/*  Distribution, and every drill-down) renders through this with         */
-/*  different `data` passed in — nothing is duplicated per section.       */
+/*  BarPanel.jsx                                                           */
+/*  REUSABLE: one panel type, used for every bar-chart section in the      */
+/*  dashboard (Demand Deposits, Term Deposits, Loan Distribution) — only   */
+/*  `config`, `icon`, and `titleOverride` differ per call.                 */
 /*                                                                          */
-/*  ChartTooltip lives here too: it's only ever used by this chart, so a   */
-/*  separate file for a 20-line component just added another place to     */
-/*  look for something that's really part of this one piece.              */
+/*  DrilldownBarChart lives in this same file: it's the view BarPanel      */
+/*  swaps to when a bar is clicked, and nothing else ever renders it, so   */
+/*  keeping them apart didn't add clarity — just an extra file to open.    */
 /* ---------------------------------------------------------------------- */
 
-import React from "react";
-import { Box, Typography } from "@mui/material";
-import { alpha, useTheme } from "@mui/material/styles";
-import {
-  Bar,
-  BarChart as RechartsBarChart, // aliased so it doesn't clash with our own component name below
-  CartesianGrid,
-  Cell,
-  LabelList,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import { glass } from "../../theme/themePrimitives"; // adjust path to match your project structure
-import { RADIUS } from "./common";
-import { getColor, formatAmount } from "./utils";
+import React, { useMemo, useState } from "react";
+import { Typography } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import { GlassPanel, PanelHeader, MiniSelect, BackButton, textSecondarySx } from "./common";
+import BarChart from "./BarChart";
+import { getColor } from "./utils";
 
-/** Custom Recharts tooltip content — a small frosted card matching the
- * rest of the dashboard, in place of Recharts' unstyled default. Reads the
- * swatch color straight off the hovered data point (`__color`), with a
- * same-index fallback if it's absent. */
-function ChartTooltip({ active, payload, label, theme }) {
-  if (!active || !payload || !payload.length) return null;
-  const value = payload[0].value;
-  const color = payload[0].payload?.__color || getColor(label, 0, theme);
+/** Renders a drill-down view: a title, optional subtitle, a "Back" button,
+ * and a bar chart for whatever { title, subtitle, data } it's handed.
+ * Knows nothing about deposits/loans specifically. */
+function DrilldownBarChart({ icon, config, onBack }) {
+  const theme = useTheme();
+  const chartData = useMemo(
+    () => config.data.map((d, i) => ({ ...d, __color: getColor(d.name, i, theme) })),
+    [config.data, theme]
+  );
 
   return (
-    <Box
-      sx={{
-        background: glass.panel(0.92),
-        backdropFilter: "blur(16px) saturate(160%)",
-        border: `1px solid ${glass.border}`,
-        borderRadius: RADIUS.sm,
-        px: 1.5,
-        py: 1,
-        boxShadow: theme.shadows[8],
-      }}
-    >
-      <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: "text.secondary" }}>{label}</Typography>
-      <Typography sx={{ fontSize: 14, fontWeight: 800, color }}>{formatAmount(value)}</Typography>
-    </Box>
+    <>
+      <PanelHeader icon={icon} title={config.title} action={<BackButton onBack={onBack} />} />
+      {config.subtitle && (
+        <Typography sx={{ ...textSecondarySx, fontSize: 12.5, mt: -1.5, mb: 1.5 }}>{config.subtitle}</Typography>
+      )}
+      <BarChart data={chartData} />
+    </>
   );
 }
 
 /**
- * Renders a { name, value, __color }[] dataset as a bar chart.
- *
  * Props:
- *  - data: { name: string, value: number, __color: string }[]
- *    `__color` should already be resolved (see utils.getColor) by whoever
- *    builds this array — this component doesn't know what a "deposit" is.
- *  - onBarClick: optional (item) => void. When provided, bars become
- *    clickable (drill-down); when omitted, bars are display-only.
+ *  - config: { title, topValue?, data: {name, value}[], dropdownOptions?, activeOption? }
+ *  - icon: MUI icon component for the panel header
+ *  - titleOverride: optional string shown instead of config.title (two
+ *    configs can share a generic title, e.g. two "Loans" sources)
+ *  - fetchDrilldown: (categoryName: string) => Promise<{title, subtitle, data} | null>
+ *    Injected as a prop, not imported, so this component has no hardcoded
+ *    dependency on a specific data-fetching module — swap it for a real
+ *    API call wherever BarPanel is used. Omit it to disable drill-down.
+ *  - panelId / selectedPanel / onSelectPanel: optional click-to-highlight
+ *    wiring, shared with every other panel (see GlassPanel in common.jsx).
  */
-export default function BarChart({ data, onBarClick }) {
+export default function BarPanel({ icon, config, titleOverride, fetchDrilldown, panelId, selectedPanel, onSelectPanel }) {
   const theme = useTheme();
-  const gridStrokeColor = alpha(theme.palette.text.primary, 0.08);
-  const longLabels = data.length > 5;
+  const hasDropdown = Array.isArray(config.dropdownOptions) && config.dropdownOptions.length > 0;
+  const [option, setOption] = useState(config.activeOption || (hasDropdown ? config.dropdownOptions[0] : undefined));
+  const [drilldown, setDrilldown] = useState(null); // { title, subtitle, data } | null
+
+  const chartData = useMemo(
+    () => config.data.map((d, i) => ({ ...d, __color: getColor(d.name, i, theme) })),
+    [config.data, theme]
+  );
+
+  const handleBarClick = (item) => {
+    if (!fetchDrilldown) return;
+    fetchDrilldown(item.name).then((result) => {
+      if (result) setDrilldown(result);
+    });
+  };
+
+  if (drilldown) {
+    return (
+      <GlassPanel sx={{ p: 3 }}>
+        <DrilldownBarChart icon={icon} config={drilldown} onBack={() => setDrilldown(null)} />
+      </GlassPanel>
+    );
+  }
 
   return (
-    <Box
-      sx={{
-        width: "100%",
-        height: longLabels ? 320 : 270,
-        // Recharts marks chart elements focusable for accessibility; without
-        // this, clicking a bar leaves a default browser focus outline behind.
-        "& svg:focus, & svg *:focus": { outline: "none" },
-      }}
-    >
-      <ResponsiveContainer>
-        <RechartsBarChart data={data} margin={{ top: 28, right: 16, left: -4, bottom: longLabels ? 70 : 6 }} barCategoryGap="32%">
-          <CartesianGrid vertical={false} stroke={gridStrokeColor} strokeDasharray="3 5" />
-          <XAxis
-            dataKey="name"
-            tick={{ fontSize: longLabels ? 9.5 : 10.5, fill: theme.palette.text.secondary }}
-            axisLine={{ stroke: gridStrokeColor }}
-            tickLine={false}
-            interval={0}
-            angle={longLabels ? -35 : 0}
-            textAnchor={longLabels ? "end" : "middle"}
-            height={longLabels ? 70 : 30}
-          />
-          <YAxis tick={{ fontSize: 11, fill: theme.palette.text.secondary }} axisLine={false} tickLine={false} width={32} />
-          <Tooltip cursor={{ fill: alpha(theme.palette.text.primary, 0.05) }} content={(props) => <ChartTooltip {...props} theme={theme} />} />
-          <Bar dataKey="value" radius={[7, 7, 0, 0]} maxBarSize={48}>
-            {data.map((d) => (
-              <Cell
-                key={d.name}
-                fill={d.__color}
-                cursor={onBarClick ? "pointer" : "default"}
-                onClick={
-                  onBarClick
-                    ? (e) => {
-                        e.stopPropagation(); // keep bar-click separate from any panel-level click handler
-                        onBarClick(d);
-                      }
-                    : undefined
-                }
-              />
-            ))}
-            <LabelList
-              dataKey="value"
-              position="top"
-              formatter={(v) => formatAmount(v)}
-              style={{ fontSize: 11, fontWeight: 700, fill: theme.palette.text.primary }}
-            />
-          </Bar>
-        </RechartsBarChart>
-      </ResponsiveContainer>
-    </Box>
+    <GlassPanel sx={{ p: 3 }} selected={selectedPanel === panelId} onClick={() => onSelectPanel?.(panelId)}>
+      <PanelHeader
+        icon={icon}
+        title={titleOverride || config.title}
+        action={hasDropdown ? <MiniSelect options={config.dropdownOptions} value={option} onChange={setOption} /> : undefined}
+      />
+      {config.topValue && (
+        <Typography sx={{ ...textSecondarySx, fontSize: 12.5, mt: -1.5, mb: 2 }}>
+          Largest category: <b>{config.topValue}</b>
+        </Typography>
+      )}
+      <BarChart data={chartData} onBarClick={fetchDrilldown ? handleBarClick : undefined} />
+    </GlassPanel>
   );
 }
