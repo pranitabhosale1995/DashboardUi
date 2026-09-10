@@ -344,7 +344,13 @@ function DrilldownBarChart({ icon, config, onBack }) {
           {config.subtitle}
         </Typography>
       )}
-      <Box sx={{ width: "100%", height: longLabels ? 320 : 270 }}>
+      <Box
+        sx={{
+          width: "100%",
+          height: longLabels ? 320 : 270,
+          "& svg:focus, & svg *:focus": { outline: "none" },
+        }}
+      >
         <ResponsiveContainer>
           <BarChart
             data={chartData}
@@ -434,7 +440,16 @@ function Gauge({ config, panelId, selectedPanel, onSelectPanel }) {
     <GlassPanel sx={{ p: 3 }} selected={selectedPanel === panelId} onClick={() => onSelectPanel(panelId)}>
       <PanelHeader icon={PieChartRoundedIcon} title={config.title} />
 
-      <Box sx={{ position: "relative", width: GAUGE_SIZE, height: GAUGE_SIZE, mx: "auto", mb: 1 }}>
+      <Box
+        sx={{
+          position: "relative",
+          width: GAUGE_SIZE,
+          height: GAUGE_SIZE,
+          mx: "auto",
+          mb: 1,
+          "& svg:focus, & svg *:focus": { outline: "none" },
+        }}
+      >
         <ResponsiveContainer>
           <PieChart>
             <Pie
@@ -834,7 +849,13 @@ function BarPanel({ icon, config, titleOverride, panelId, selectedPanel, onSelec
           Largest category: <b>{config.topValue}</b>
         </Typography>
       )}
-      <Box sx={{ width: "100%", height: longLabels ? 320 : 270 }}>
+      <Box
+        sx={{
+          width: "100%",
+          height: longLabels ? 320 : 270,
+          "& svg:focus, & svg *:focus": { outline: "none" },
+        }}
+      >
         <ResponsiveContainer>
           <BarChart
             data={chartData}
