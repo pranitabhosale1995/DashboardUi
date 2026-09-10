@@ -1,97 +1,146 @@
 /* ---------------------------------------------------------------------- */
-/*  DepositsLoansDashboard.jsx — root component                            */
-/*  Purely presentational/compositional. Every number on screen comes      */
-/*  from the `data` prop, every drill-down from `fetchDrilldown`. Nothing  */
-/*  is imported or hardcoded here — see DashboardPage.jsx for how the real */
-/*  API's response gets mapped into this shape (mapApiToDashboardData.js). */
+/*  Gauge.jsx                                                              */
+/*  Semi-donut gauge with a value-driven needle, used for the CASA Ratio.  */
+/*  Status bands are a fixed red/amber/green — a "traffic light" read      */
+/*  rather than category colors — and the needle angle comes directly     */
+/*  from `config.value`, so it always points exactly where the number      */
+/*  says.                                                                  */
 /*                                                                          */
-/*  NOTE: the Loans section has been removed — the current API response    */
-/*  has no loans data. Re-add a second <HeatTree> + <BarPanel> pair (see    */
-/*  git history / the previous version of this file) once that data        */
-/*  exists; nothing else needs to change.                                 */
+/*  The gauge box is a fixed SQUARE on purpose: the needle is a plain SVG  */
+/*  overlay using a 300×300 coordinate system, which only lines up with    */
+/*  the Pie underneath it when the container is square.                   */
 /* ---------------------------------------------------------------------- */
 
-import React, { useState } from "react";
+import React from "react";
 import { Box, Stack, Typography } from "@mui/material";
-import AccountBalanceRoundedIcon from "@mui/icons-material/AccountBalanceRounded";
-import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
-import { SectionHeader, textPrimarySx, textSecondarySx } from "./common";
-import HeatTree from "./HeatTree";
-import Gauge from "./Gauge";
-import BarPanel from "./BarPanel";
+import { useTheme } from "@mui/material/styles";
+import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
+import PieChartRoundedIcon from "@mui/icons-material/PieChartRounded";
+import { GlassPanel, PanelHeader, textSecondarySx } from "./common";
 
-/** Page title/subtitle. Only used once, kept inline rather than as its
- * own file. */
-function DashboardHeader({ config }) {
-  return (
-    <Stack direction={{ xs: "column", lg: "row" }} alignItems={{ xs: "flex-start", lg: "center" }} justifyContent="space-between" spacing={2} sx={{ px: 0.5 }}>
-      <Box>
-        <Typography sx={{ ...textPrimarySx, fontSize: { xs: 20, md: 24 }, fontWeight: 700 }}>{config.title}</Typography>
-        {config.subtitle && <Typography sx={{ ...textSecondarySx, fontSize: 13, mt: 0.25 }}>{config.subtitle}</Typography>}
-      </Box>
-    </Stack>
-  );
+// Fixed thresholds, pulled out as constants (not inline) so they're easy
+// to move to config/props later if different ratios need different bands.
+const STATUS_BANDS = [
+  { name: "Below 35%", width: 33.3, key: "low" },
+  { name: "35% – 65%", width: 33.3, key: "mid" },
+  { name: "Above 65%", width: 33.3, key: "high" },
+];
+
+function statusFor(value) {
+  if (value < 35) return "low";
+  if (value <= 65) return "mid";
+  return "high";
 }
 
 /**
  * Props:
- *  - data: {
- *      header: { title, subtitle },
- *      casaGauge: { title, subtitle, value: number | null, centerLabel },
- *      depositsComposition: {
- *        title, subtitle,
- *        items: { name, value, share, type }[],
- *        legend: { name }[],
- *        filterOptions?: string[], activeFilter?: string,
- *      },
- *      demandDeposits: { title, topValue, data: { name, value }[] },
- *      termDeposits:   { title, topValue, data: { name, value }[] },
- *    }
- *  - fetchDrilldown: optional (categoryName: string) => Promise<{title, subtitle, data} | null>
- *    Passed straight through to every BarPanel. Omit it to make every bar
- *    chart purely display-only (no drill-down) — there's currently no
- *    drill-down endpoint, so callers should omit this for now.
+ *  - config: { title, subtitle, value, centerLabel }
+ *  - panelId / selectedPanel / onSelectPanel: optional click-to-highlight
+ *    wiring, shared with every other panel (see GlassPanel in common.jsx).
  */
-export default function DepositsLoansDashboard({ data, fetchDrilldown }) {
-  const [selectedPanel, setSelectedPanel] = useState(null);
+export default function Gauge({ config, panelId, selectedPanel, onSelectPanel }) {
+  const theme = useTheme();
+  const RADIAN = Math.PI / 180;
+  const VIEWBOX = 300;
+  const cx = VIEWBOX * 0.5; // matches the Pie's cx="50%"
+  const cy = VIEWBOX * 0.85; // matches the Pie's cy="85%" — NOT cx/cy * 0.85
+  const innerR = 95;
+  const GAUGE_SIZE = 280; // fixed + square — see note above
 
-  if (!data) return null;
+  // The API can return casaGauge.value as null (not populated yet). Render
+  // an explicit "not available" state instead of NaN math / a broken needle.
+  const hasValue = typeof config.value === "number" && !Number.isNaN(config.value);
+
+  const statusColor = {
+    low: theme.palette.error.main,
+    mid: theme.palette.warning.main,
+    high: theme.palette.success.main,
+  };
+  const bandData = STATUS_BANDS.map((b) => ({ name: b.name, value: b.width }));
+  const currentStatus = hasValue ? statusFor(config.value) : null;
+  const needleColor = hasValue ? statusColor[currentStatus] : theme.palette.text.disabled;
+
+  const clampedValue = hasValue ? Math.min(Math.max(config.value, 0), 100) : 0;
+  const needleAngle = 180 - (clampedValue / 100) * 180; // 0..180 -> deg, driven by the actual value
 
   return (
-    <Box sx={{ p: { xs: 1.5, md: 3 }, display: "flex", flexDirection: "column", gap: 2.5, minHeight: "100vh" }}>
-      <DashboardHeader config={data.header} />
+    <GlassPanel sx={{ p: 3 }} selected={selectedPanel === panelId} onClick={() => onSelectPanel?.(panelId)}>
+      <PanelHeader icon={PieChartRoundedIcon} title={config.title} />
 
-      <SectionHeader title="Deposits" caption="Composition, tenure, and demand vs. term split" />
-      <HeatTree
-        config={data.depositsComposition}
-        icon={AccountBalanceRoundedIcon}
-        gradientDark="#123a63"
-        gradientLight="#7dd3fc"
-        shareLabel="of deposits"
-        panelId="deposits-treemap"
-        selectedPanel={selectedPanel}
-        onSelectPanel={setSelectedPanel}
-      />
+      <Box
+        sx={{
+          position: "relative",
+          width: GAUGE_SIZE,
+          height: GAUGE_SIZE,
+          mx: "auto",
+          mb: 1,
+          "& svg:focus, & svg *:focus": { outline: "none" },
+        }}
+      >
+        <ResponsiveContainer>
+          <PieChart>
+            <Pie
+              data={bandData}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="85%"
+              startAngle={180}
+              endAngle={0}
+              innerRadius={92}
+              outerRadius={130}
+              cornerRadius={4}
+              stroke="none"
+              isAnimationActive={false}
+            >
+              <Cell fill={statusColor.low} opacity={hasValue ? 1 : 0.35} />
+              <Cell fill={statusColor.mid} opacity={hasValue ? 1 : 0.35} />
+              <Cell fill={statusColor.high} opacity={hasValue ? 1 : 0.35} />
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
 
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr", lg: "1fr 1fr 1fr" }, gap: 2.5 }}>
-        <Gauge config={data.casaGauge} panelId="casa-gauge" selectedPanel={selectedPanel} onSelectPanel={setSelectedPanel} />
-        <BarPanel
-          icon={DescriptionRoundedIcon}
-          config={data.demandDeposits}
-          fetchDrilldown={fetchDrilldown}
-          panelId="demand-deposits-bar"
-          selectedPanel={selectedPanel}
-          onSelectPanel={setSelectedPanel}
-        />
-        <BarPanel
-          icon={DescriptionRoundedIcon}
-          config={data.termDeposits}
-          fetchDrilldown={fetchDrilldown}
-          panelId="term-deposits-bar"
-          selectedPanel={selectedPanel}
-          onSelectPanel={setSelectedPanel}
-        />
+        {/* needle + center readout, overlaid absolutely — cx/cy match the
+            Pie's actual cx="50%" cy="85%" exactly, so the needle's base
+            sits right at the pie center instead of drifting off it.
+            No needle at all when there's no value to point to. */}
+        {hasValue && (
+          <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+            <svg viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`} width="100%" height="100%">
+              <circle cx={cx} cy={cy} r="7" fill={needleColor} />
+              <line
+                x1={cx}
+                y1={cy}
+                x2={cx + (innerR - 6) * Math.cos(needleAngle * RADIAN)}
+                y2={cy - (innerR - 6) * Math.sin(needleAngle * RADIAN)}
+                stroke={needleColor}
+                strokeWidth="4"
+                strokeLinecap="round"
+              />
+            </svg>
+          </Box>
+        )}
+
+        <Box sx={{ position: "absolute", left: 0, right: 0, bottom: 6, textAlign: "center" }}>
+          <Typography sx={{ fontSize: 30, fontWeight: 700, lineHeight: 1, color: needleColor }}>
+            {hasValue ? `${config.value.toFixed(1)}%` : "—"}
+          </Typography>
+          {!hasValue && (
+            <Typography sx={{ ...textSecondarySx, fontSize: 11.5, fontWeight: 500, mt: 0.5 }}>
+              Not available yet
+            </Typography>
+          )}
+        </Box>
       </Box>
-    </Box>
+
+      <Stack direction="row" spacing={2.5} justifyContent="center" flexWrap="wrap" sx={{ mt: 1.5 }}>
+        {STATUS_BANDS.map((b) => (
+          <Stack key={b.key} direction="row" spacing={0.75} alignItems="center">
+            <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: statusColor[b.key] }} />
+            <Typography sx={{ ...textSecondarySx, fontSize: 11.5, fontWeight: 500 }}>{b.name}</Typography>
+          </Stack>
+        ))}
+      </Stack>
+    </GlassPanel>
   );
 }
