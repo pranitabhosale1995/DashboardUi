@@ -41,13 +41,14 @@ import defaultDashboardData from "./bankingData.json";
 /* ---------------------------------------------------------------------- */
 /*  Color helpers                                                          */
 /*  Deposit categories use the exact hex palette requested (a deliberate,  */
-/*  fixed brand palette — not theme-derived). Everything else (loan        */
-/*  categories, drill-down subcategories, etc.) falls back to a            */
-/*  theme-derived palette, assigned BY POSITION within whichever list is   */
-/*  being rendered so every bar/tile in a given chart is guaranteed a      */
-/*  distinct color (a name-hash fallback was tried first but produces      */
-/*  collisions for some loan category names — e.g. "Term Loan" and         */
-/*  "Bills Payable" hashed to the same slot).                              */
+/*  fixed brand palette — not theme-derived), ordered dark → light to      */
+/*  read as a heatmap by value (the data is already sorted largest to      */
+/*  smallest). Loan categories get an equivalent dark → light purple       */
+/*  gradient, assigned by position for the same heatmap read.              */
+/*  Everything else (bar panels, drill-down subcategories) falls back to   */
+/*  a theme-derived palette, assigned BY POSITION so every bar/tile in a   */
+/*  given chart is guaranteed a distinct color (a name-hash fallback was   */
+/*  tried first but collides for some loan category names).                */
 /* ---------------------------------------------------------------------- */
 
 const FIXED_DEPOSIT_COLORS = {
@@ -60,6 +61,10 @@ const FIXED_DEPOSIT_COLORS = {
   "Other Term Deposit": "#5cbdb9",
   "Certificate of Deposit": "#7dd3fc",
 };
+
+// Dark → light purple, mirroring the deposit palette's heatmap read, for
+// the Loans composition grid (which has no fixed per-name colors).
+const LOAN_HEATMAP = ["#241a44", "#3e2a7a", "#5847c9", "#7c63e6", "#9c85ef", "#b8a5f4", "#d4c5f9", "#efe6fd"];
 
 function fallbackPalette(theme) {
   const p = theme.palette;
@@ -98,17 +103,21 @@ const RADIUS = { lg: "20px", md: "16px", sm: "12px" };
 /* ---------------------------------------------------------------------- */
 /*  Glass primitives                                                       */
 /*  Cards are noticeably more opaque than a typical glass effect so text   */
-/*  and chart data stay crisp against whatever sits behind the page —      */
-/*  translucent enough to read as "glass", solid enough to read as a       */
-/*  serious financial surface rather than a see-through overlay.           */
+/*  and chart data stay crisp against whatever sits behind the page.       */
+/*                                                                          */
+/*  `selected` / `onClick` add the click-to-highlight interaction used     */
+/*  across every panel: clicking a card selects it (solid black border);   */
+/*  selecting a different card clears the previous one automatically,      */
+/*  since selection is a single value lifted up to the dashboard root.     */
 /* ---------------------------------------------------------------------- */
 
-function GlassPanel({ children, sx, ...props }) {
+function GlassPanel({ children, sx, selected, onClick, ...props }) {
   const theme = useTheme();
 
   return (
     <Paper
       elevation={0}
+      onClick={onClick}
       sx={{
         p: 2.5,
         borderRadius: RADIUS.lg,
@@ -116,9 +125,10 @@ function GlassPanel({ children, sx, ...props }) {
         background: `linear-gradient(160deg, ${glass.panel(0.6)} 0%, ${glass.panel(0.38)} 100%)`,
         backdropFilter: "blur(24px) saturate(160%)",
         WebkitBackdropFilter: "blur(24px) saturate(160%)",
-        border: `1px solid ${glass.border}`,
+        border: selected ? `2px solid ${theme.palette.common.black}` : `1px solid ${glass.border}`,
         boxShadow: theme.shadows[6],
-        transition: "box-shadow 0.25s ease, transform 0.25s ease",
+        cursor: onClick ? "pointer" : "default",
+        transition: "box-shadow 0.25s ease, transform 0.25s ease, border-color 0.2s ease",
         ...sx,
       }}
       {...props}
@@ -168,6 +178,7 @@ function MiniSelect({ options, value, onChange }) {
     <Select
       size="small"
       value={value}
+      onClick={(e) => e.stopPropagation()}
       onChange={(e) => onChange(e.target.value)}
       sx={{
         ...textPrimarySx,
@@ -237,7 +248,10 @@ function BackButton({ onBack }) {
   return (
     <Button
       size="small"
-      onClick={onBack}
+      onClick={(e) => {
+        e.stopPropagation();
+        onBack();
+      }}
       startIcon={<ArrowBackRoundedIcon sx={{ fontSize: 16 }} />}
       sx={{
         textTransform: "none",
@@ -251,44 +265,6 @@ function BackButton({ onBack }) {
     >
       Back
     </Button>
-  );
-}
-
-/* ---------------------------------------------------------------------- */
-/*  Legend — a single reusable row of color-dot + label, wraps cleanly     */
-/*  regardless of how many categories are passed in.                      */
-/* ---------------------------------------------------------------------- */
-
-function LegendGrid({ items }) {
-  const theme = useTheme();
-
-  return (
-    <Box
-      sx={{
-        mt: 2,
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(136px, 1fr))",
-        rowGap: 0.85,
-        columnGap: 1.5,
-      }}
-    >
-      {items.map((l, i) => (
-        <Stack key={l.name} direction="row" spacing={0.75} alignItems="center">
-          <Box
-            sx={{
-              width: 8,
-              height: 8,
-              borderRadius: "2px",
-              bgcolor: getColor(l.name, i, theme),
-              flexShrink: 0,
-            }}
-          />
-          <Typography sx={{ ...textSecondarySx, fontSize: 11.5, fontWeight: 500 }} noWrap>
-            {l.name}
-          </Typography>
-        </Stack>
-      ))}
-    </Box>
   );
 }
 
@@ -394,63 +370,31 @@ function DrilldownBarChart({ icon, config, onBack }) {
 
 /* ---------------------------------------------------------------------- */
 /*  CASA Gauge (semi-donut + needle) built with Recharts Pie               */
-/*  The arc is now three fixed, proportionally-sized status bands —        */
-/*  red below 30%, amber 30–50%, green above 50% — rather than a          */
-/*  composition breakdown. The needle angle is driven directly by         */
-/*  config.value, and the needle + reading are tinted to match whichever  */
-/*  band the current ratio falls into.                                    */
-/*                                                                          */
-/*  The gauge box is a fixed SQUARE (not width:"100%"): the needle is a    */
-/*  plain SVG overlay using a 300×300 coordinate system, which only lines  */
-/*  up with the Pie underneath it when the container is square. A         */
-/*  non-square container is what causes the needle to drift off the arc.  */
+/*  Status bands are fixed red / amber / green. The needle angle is        */
+/*  driven directly by config.value, and the needle + reading are tinted   */
+/*  to match whichever band the current ratio falls into.                  */
 /* ---------------------------------------------------------------------- */
 
 const CASA_BANDS = [
-  { name: "Below 30%", width: 30, key: "low" },
-  { name: "30% – 50%", width: 20, key: "mid" },
-  { name: "Above 50%", width: 50, key: "high" },
+  { name: "Below 35%", width: 33.3, key: "low" },
+  { name: "35% – 65%", width: 33.3, key: "mid" },
+  { name: "Above 65%", width: 33.3, key: "high" },
 ];
 
 function casaStatus(value) {
-  if (value < 30) return "low";
-  if (value <= 50) return "mid";
+  if (value < 35) return "low";
+  if (value <= 65 && value >= 35) return "mid";
   return "high";
 }
 
-// Title + one-line caption shown under the hub, in the same spirit as the
-// reference gauge's "Pathfinder / Leading the Way".
-const CASA_STATUS_COPY = {
-  low: { title: "Needs Attention", caption: "CASA share is running low" },
-  mid: { title: "Improving", caption: "Trending toward a healthier mix" },
-  high: { title: "Well Balanced", caption: "Healthy CASA composition" },
-};
-
-/** Precomputes each band's [startAngle, endAngle, midAngle] along the
- * 180°→0° sweep, proportional to its width — used for both the Pie's
- * arc and for placing the curved labels outside it. */
-function casaBandAngles() {
-  let cursor = 180;
-  return CASA_BANDS.map((b) => {
-    const sweep = (b.width / 100) * 180;
-    const start = cursor;
-    const end = cursor - sweep;
-    cursor = end;
-    return { ...b, start, end, mid: (start + end) / 2 };
-  });
-}
-
-function Gauge({ config }) {
+function Gauge({ config, panelId, selectedPanel, onSelectPanel }) {
   const theme = useTheme();
   const RADIAN = Math.PI / 180;
   const VIEWBOX = 300;
   const cx = VIEWBOX * 0.5; // matches the Pie's cx="50%"
   const cy = VIEWBOX * 0.85; // matches the Pie's cy="85%" — NOT cx/cy * 0.85
-  const innerR = 92;
-  const outerR = 130;
-  const hubR = innerR - 6;
-  const labelR = outerR + 16;
-  const GAUGE_SIZE = 260; // fixed + square — see note above
+  const innerR = 95;
+  const GAUGE_SIZE = 280; // fixed + square — see note above
 
   const statusColor = {
     low: theme.palette.error.main,
@@ -458,21 +402,15 @@ function Gauge({ config }) {
     high: theme.palette.success.main,
   };
   const bandData = CASA_BANDS.map((b) => ({ name: b.name, value: b.width }));
-  const bandAngles = casaBandAngles();
   const currentStatus = casaStatus(config.value);
   const needleColor = statusColor[currentStatus];
-  const statusCopy = CASA_STATUS_COPY[currentStatus];
-  const hubColor = theme.palette.grey[900];
 
   const clampedValue = Math.min(Math.max(config.value, 0), 100);
   const needleAngle = 180 - (clampedValue / 100) * 180; // 0..180 -> deg, driven by the actual value
 
   return (
-    <GlassPanel sx={{ p: 3 }}>
+    <GlassPanel sx={{ p: 3 }} selected={selectedPanel === panelId} onClick={() => onSelectPanel(panelId)}>
       <PanelHeader icon={PieChartRoundedIcon} title={config.title} />
-      <Typography sx={{ ...textSecondarySx, fontSize: 12.5, mt: -1.5, mb: 1.5 }}>
-        {config.subtitle}
-      </Typography>
 
       <Box sx={{ position: "relative", width: GAUGE_SIZE, height: GAUGE_SIZE, mx: "auto", mb: 1 }}>
         <ResponsiveContainer>
@@ -485,8 +423,8 @@ function Gauge({ config }) {
               cy="85%"
               startAngle={180}
               endAngle={0}
-              innerRadius={innerR}
-              outerRadius={outerR}
+              innerRadius={92}
+              outerRadius={130}
               cornerRadius={4}
               stroke="none"
               isAnimationActive={false}
@@ -498,89 +436,79 @@ function Gauge({ config }) {
           </PieChart>
         </ResponsiveContainer>
 
-        {/* curved band labels + needle + hub, overlaid absolutely — cx/cy
-            match the Pie's actual cx="50%" cy="85%" exactly */}
+        {/* needle + center readout, overlaid absolutely — cx/cy now match
+            the Pie's actual cx="50%" cy="85%" exactly, so the needle's
+            base sits right at the pie center instead of drifting above it */}
         <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
           <svg viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`} width="100%" height="100%">
-            {bandAngles.map((b) => {
-              const lx = cx + labelR * Math.cos(b.mid * RADIAN);
-              const ly = cy - labelR * Math.sin(b.mid * RADIAN);
-              const rotate = 90 - b.mid;
-              return (
-                <text
-                  key={b.key}
-                  x={lx}
-                  y={ly}
-                  transform={`rotate(${rotate} ${lx} ${ly})`}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fontSize="12"
-                  fontWeight="700"
-                  fontFamily={theme.typography.fontFamily}
-                  fill={statusColor[b.key]}
-                >
-                  {b.name}
-                </text>
-              );
-            })}
-
-            <circle cx={cx} cy={cy} r={hubR} fill={hubColor} />
-            <text
-              x={cx}
-              y={cy - 4}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize="26"
-              fontWeight="800"
-              fontFamily={theme.typography.fontFamily}
-              fill="#fff"
-            >
-              {config.value.toFixed(0)}%
-            </text>
-
+            <circle cx={cx} cy={cy} r="7" fill={needleColor} />
             <line
               x1={cx}
               y1={cy}
-              x2={cx + (hubR - 4) * Math.cos(needleAngle * RADIAN)}
-              y2={cy - (hubR - 4) * Math.sin(needleAngle * RADIAN)}
+              x2={cx + (innerR - 6) * Math.cos(needleAngle * RADIAN)}
+              y2={cy - (innerR - 6) * Math.sin(needleAngle * RADIAN)}
               stroke={needleColor}
               strokeWidth="4"
               strokeLinecap="round"
             />
-            <circle cx={cx} cy={cy} r="6" fill={needleColor} />
           </svg>
+        </Box>
+
+        <Box sx={{ position: "absolute", left: 0, right: 0, bottom: 6, textAlign: "center" }}>
+          <Typography sx={{ fontSize: 30, fontWeight: 700, lineHeight: 1, color: needleColor }}>
+            {config.value.toFixed(1)}%
+          </Typography>
         </Box>
       </Box>
 
-      <Box sx={{ textAlign: "center", mt: -0.5 }}>
-        <Typography sx={{ fontSize: 17, fontWeight: 700, color: needleColor, lineHeight: 1.3 }}>
-          {statusCopy.title}
-        </Typography>
-        <Typography sx={{ ...textSecondarySx, fontSize: 12, fontWeight: 500 }}>{statusCopy.caption}</Typography>
-      </Box>
+      <Stack direction="row" spacing={2.5} justifyContent="center" flexWrap="wrap" sx={{ mt: 1.5 }}>
+        {CASA_BANDS.map((b) => (
+          <Stack key={b.key} direction="row" spacing={0.75} alignItems="center">
+            <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: statusColor[b.key] }} />
+            <Typography sx={{ ...textSecondarySx, fontSize: 11.5, fontWeight: 500 }}>{b.name}</Typography>
+          </Stack>
+        ))}
+      </Stack>
     </GlassPanel>
   );
 }
 
-
 /* ---------------------------------------------------------------------- */
-/*  Composition mosaic (used for both Deposits and Loans)                  */
-/*  Two tall tiles, a stacked pair beside them, and an even row of the     */
-/*  remaining categories underneath — each tile a solid, full-box color    */
-/*  (the fixed hex for deposit categories, a theme color for everything    */
-/*  else). Every tile is clickable — clicking drills into that category,  */
-/*  and only this panel re-renders.                                       */
+/*  Composition heatmap (used for both Deposits and Loans)                 */
+/*  A single uniform grid of solid, full-box tiles — every tile the same   */
+/*  size, colored dark → light by value rank (the JSON is already sorted   */
+/*  largest to smallest) so the grid reads as a heatmap at a glance. Full  */
+/*  width, one section per row.                                           */
+/*                                                                          */
+/*  NOT CLICKABLE: tiles no longer drill down — only a subtle hover lift   */
+/*  remains. Clicking anywhere on the panel (the heatmap "card" itself)    */
+/*  still selects it via the same click-to-highlight interaction as every  */
+/*  other panel. The old click-to-drill-down code is commented out below,  */
+/*  not deleted, in case it's wanted again later.                         */
+/*                                                                          */
+/*  `heatmapPalette`, when provided (used for Loans), overrides the        */
+/*  per-name fixed deposit colors with a plain dark→light array assigned   */
+/*  by position instead.                                                  */
 /*                                                                          */
 /*  `filterGroups`, when provided (used for Deposits), wires the existing  */
 /*  "All / Demand / Term" dropdown up to actually filter which categories  */
 /*  are shown, instead of being purely cosmetic.                          */
 /* ---------------------------------------------------------------------- */
 
-function CompositionMosaic({ config, icon = Inventory2RoundedIcon, filterGroups }) {
+function CompositionMosaic({
+  config,
+  icon = Inventory2RoundedIcon,
+  filterGroups,
+  heatmapPalette,
+  shareLabel = "of total",
+  panelId,
+  selectedPanel,
+  onSelectPanel,
+}) {
   const theme = useTheme();
   const hasFilter = Array.isArray(config.filterOptions) && config.filterOptions.length > 0;
   const [filter, setFilter] = useState(config.activeFilter || (hasFilter ? config.filterOptions[0] : undefined));
-  const [drilldown, setDrilldown] = useState(null); // { title, subtitle, data } | null
+  // const [drilldown, setDrilldown] = useState(null); // DRILL-DOWN DISABLED — see note below
 
   const items = useMemo(() => {
     const group = filterGroups && filterGroups[filter];
@@ -594,42 +522,37 @@ function CompositionMosaic({ config, icon = Inventory2RoundedIcon, filterGroups 
     return config.legend.filter((l) => names.has(l.name));
   }, [config.legend, filterGroups, filter, items]);
 
-  const [big1, big2, stackTop, stackBottom, ...rest] = items;
+  // DRILL-DOWN DISABLED (heatmaps are display-only per request) — kept
+  // ready rather than deleted; wire `onClick={() => handleTileClick(item)}`
+  // back onto the Tile below to re-enable.
+  // const handleTileClick = (item) => {
+  //   fetchDrilldown(item.name).then((result) => {
+  //     if (result) setDrilldown(result);
+  //   });
+  // };
 
-  const handleTileClick = (item) => {
-    fetchDrilldown(item.name).then((result) => {
-      if (result) setDrilldown(result);
-    });
-  };
-
-  const Tile = ({ item, index, sx, dense }) => {
-    const color = getColor(item.name, index, theme);
+  const Tile = ({ item, index }) => {
+    const color = heatmapPalette ? heatmapPalette[index % heatmapPalette.length] : getColor(item.name, index, theme);
     const fg = theme.palette.getContrastText(color);
     return (
       <Box
-        onClick={() => handleTileClick(item)}
-        role="button"
-        tabIndex={0}
         sx={{
           borderRadius: RADIUS.sm,
-          p: dense ? 1.1 : 1.5,
+          p: 1.75,
+          minHeight: 132,
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
           bgcolor: color,
           color: fg,
-          minHeight: 68,
-          cursor: "pointer",
           transition: "transform 0.18s ease, box-shadow 0.18s ease",
-          "&:hover": { transform: "translateY(-2px)", boxShadow: theme.shadows[6] },
-          "&:focus-visible": { outline: `2px solid ${fg}`, outlineOffset: 2 },
-          ...sx,
+          "&:hover": { transform: "translateY(-3px)", boxShadow: theme.shadows[6] },
         }}
       >
         <Typography
           sx={{
             fontFamily: theme.typography.fontFamily,
-            fontSize: dense ? 10.5 : 12,
+            fontSize: 13,
             fontWeight: 600,
             opacity: 0.92,
             lineHeight: 1.25,
@@ -639,56 +562,32 @@ function CompositionMosaic({ config, icon = Inventory2RoundedIcon, filterGroups 
           {item.name}
         </Typography>
         <Box>
-          <Stack direction="row" alignItems="baseline" justifyContent="space-between" spacing={1}>
-            <Typography
-              sx={{
-                fontFamily: theme.typography.fontFamily,
-                fontSize: dense ? 14 : 17,
-                fontWeight: 700,
-                lineHeight: 1.2,
-              }}
-            >
-              ₹ {item.value.toFixed(2)} T
-            </Typography>
-            <Box
-              component="span"
-              sx={{
-                flexShrink: 0,
-                px: 0.7,
-                py: 0.1,
-                borderRadius: "6px",
-                fontSize: dense ? 9.5 : 10.5,
-                fontWeight: 700,
-                bgcolor: alpha(fg, 0.22),
-              }}
-            >
-              {item.share}%
-            </Box>
-          </Stack>
-          <Box
+          <Typography
             sx={{
-              mt: 0.6,
-              height: 4,
-              borderRadius: "999px",
-              bgcolor: alpha(fg, 0.25),
-              overflow: "hidden",
+              fontFamily: theme.typography.fontFamily,
+              fontSize: 20,
+              fontWeight: 700,
+              lineHeight: 1.2,
             }}
           >
-            <Box
-              sx={{
-                height: "100%",
-                width: `${Math.min(item.share, 100)}%`,
-                bgcolor: fg,
-                opacity: 0.9,
-                borderRadius: "999px",
-              }}
-            />
-          </Box>
+            ₹ {item.value.toFixed(2)} T
+          </Typography>
+          <Typography
+            sx={{
+              fontFamily: theme.typography.fontFamily,
+              fontSize: 11.5,
+              opacity: 0.82,
+              mt: 0.25,
+            }}
+          >
+            {item.share}% {shareLabel}
+          </Typography>
         </Box>
       </Box>
     );
   };
 
+  /* DRILL-DOWN DISABLED — kept ready, not deleted (see handleTileClick note above).
   if (drilldown) {
     return (
       <GlassPanel sx={{ p: 3 }}>
@@ -696,51 +595,89 @@ function CompositionMosaic({ config, icon = Inventory2RoundedIcon, filterGroups 
       </GlassPanel>
     );
   }
+  */
 
   return (
-    <GlassPanel>
+    <GlassPanel selected={selectedPanel === panelId} onClick={() => onSelectPanel(panelId)}>
       <PanelHeader
         icon={icon}
         title={config.title}
-        action={hasFilter ? <MiniSelect options={config.filterOptions} value={filter} onChange={setFilter} /> : undefined}
+        action={
+          hasFilter ? (
+            <MiniSelect options={config.filterOptions} value={filter} onChange={setFilter} />
+          ) : undefined
+        }
       />
       <Typography sx={{ ...textSecondarySx, fontSize: 12.5, mt: -1.5, mb: 1.5 }}>{config.subtitle}</Typography>
 
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-        <Box sx={{ display: "flex", gap: 1, height: 190 }}>
-          {big1 && <Tile item={big1} index={0} sx={{ flex: 1.3 }} />}
-          {big2 && <Tile item={big2} index={1} sx={{ flex: 1.1 }} />}
-          {(stackTop || stackBottom) && (
-            <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 1 }}>
-              {stackTop && <Tile item={stackTop} index={2} dense sx={{ flex: 1 }} />}
-              {stackBottom && <Tile item={stackBottom} index={3} dense sx={{ flex: 1 }} />}
-            </Box>
-          )}
-        </Box>
-        {rest.length > 0 && (
-          <Box sx={{ display: "flex", gap: 1, height: 84 }}>
-            {rest.map((r, i) => (
-              <Tile key={r.name} item={r} index={i + 4} dense sx={{ flex: 1 }} />
-            ))}
-          </Box>
-        )}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+          gap: 1.25,
+        }}
+      >
+        {items.map((item, i) => (
+          <Tile key={item.name} item={item} index={i} />
+        ))}
       </Box>
 
-      <LegendGrid items={legend} />
+      <LegendGrid items={legend} heatmapPalette={heatmapPalette} />
     </GlassPanel>
   );
 }
 
 /* ---------------------------------------------------------------------- */
+/*  Legend — a single reusable row of color-dot + label, wraps cleanly     */
+/*  regardless of how many categories are passed in.                      */
+/* ---------------------------------------------------------------------- */
+
+function LegendGrid({ items, heatmapPalette }) {
+  const theme = useTheme();
+
+  return (
+    <Box
+      sx={{
+        mt: 2,
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(136px, 1fr))",
+        rowGap: 0.85,
+        columnGap: 1.5,
+      }}
+    >
+      {items.map((l, i) => (
+        <Stack key={l.name} direction="row" spacing={0.75} alignItems="center">
+          <Box
+            sx={{
+              width: 8,
+              height: 8,
+              borderRadius: "2px",
+              bgcolor: heatmapPalette ? heatmapPalette[i % heatmapPalette.length] : getColor(l.name, i, theme),
+              flexShrink: 0,
+            }}
+          />
+          <Typography sx={{ ...textSecondarySx, fontSize: 11.5, fontWeight: 500 }} noWrap>
+            {l.name}
+          </Typography>
+        </Stack>
+      ))}
+    </Box>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
 /*  Bar chart panels (Demand / Term deposits, Loans breakdown)             */
-/*  Clicking a bar drills into that item; only this panel swaps content.  */
+/*  Clicking a bar drills into that item; clicking the panel anywhere      */
+/*  ELSE selects it (black border) via the same interaction every panel    */
+/*  shares. `e.stopPropagation()` on the bar's own click keeps those two   */
+/*  interactions from triggering on the same click ("outside the bars").  */
 /*  `titleOverride` lets a panel show a more specific label than the       */
 /*  source config's title (the composition and breakdown views for loans  */
 /*  share the same underlying "Loans" title in the data, which reads as   */
 /*  ambiguous once both are on screen together).                          */
 /* ---------------------------------------------------------------------- */
 
-function BarPanel({ icon, config, titleOverride }) {
+function BarPanel({ icon, config, titleOverride, panelId, selectedPanel, onSelectPanel }) {
   const theme = useTheme();
   const gridStrokeColor = alpha(theme.palette.text.primary, 0.08);
   const hasDropdown = Array.isArray(config.dropdownOptions) && config.dropdownOptions.length > 0;
@@ -768,7 +705,7 @@ function BarPanel({ icon, config, titleOverride }) {
   }
 
   return (
-    <GlassPanel sx={{ p: 3 }}>
+    <GlassPanel sx={{ p: 3 }} selected={selectedPanel === panelId} onClick={() => onSelectPanel(panelId)}>
       <PanelHeader
         icon={icon}
         title={titleOverride || config.title}
@@ -809,7 +746,15 @@ function BarPanel({ icon, config, titleOverride }) {
             />
             <Bar dataKey="value" radius={[7, 7, 0, 0]} maxBarSize={48}>
               {chartData.map((d) => (
-                <Cell key={d.name} fill={d.__color} cursor="pointer" onClick={() => handleBarClick(d)} />
+                <Cell
+                  key={d.name}
+                  fill={d.__color}
+                  cursor="pointer"
+                  onClick={(e) => {
+                    e.stopPropagation(); // keeps bar-click drill-down separate from panel selection
+                    handleBarClick(d);
+                  }}
+                />
               ))}
               <LabelList
                 dataKey="value"
@@ -825,89 +770,6 @@ function BarPanel({ icon, config, titleOverride }) {
   );
 }
 
-/* ---------------------------------------------------------------------- */
-/*  Header                                                                  */
-/* ---------------------------------------------------------------------- */
-
-/* ------------------------------------------------------------------------
- * DISABLED — the boxed/glass header below is kept for reference only.
- * Feedback was that wrapping the title + controls in a full GlassPanel
- * card made the header feel too heavy. To bring it back, delete this
- * comment wrapper and remove the lightweight DashboardHeader that follows.
-
-function DashboardHeaderBoxed({ config }) {
-  const theme = useTheme();
-  const [fy, setFy] = useState(config.financialYear);
-
-  return (
-    <GlassPanel sx={{ borderRadius: RADIUS.lg, mb: 0 }}>
-      <Stack
-        direction={{ xs: "column", lg: "row" }}
-        alignItems={{ xs: "flex-start", lg: "center" }}
-        justifyContent="space-between"
-        spacing={2}
-      >
-        <Box>
-          <Typography sx={{ ...textPrimarySx, fontSize: { xs: 21, md: 25 }, fontWeight: 700 }}>
-            {config.title}
-          </Typography>
-          <Typography sx={{ ...textSecondarySx, fontSize: 13.5, mt: 0.25 }}>{config.subtitle}</Typography>
-        </Box>
-
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems="center" flexWrap="wrap">
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Typography sx={{ ...textSecondarySx, fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
-              Financial Year
-            </Typography>
-            <MiniSelect options={config.financialYearOptions} value={fy} onChange={setFy} />
-          </Stack>
-
-          <Chip
-            icon={<CalendarTodayRoundedIcon sx={{ fontSize: "16px !important" }} />}
-            label={`${config.dateRange.start}  –  ${config.dateRange.end}`}
-            sx={{
-              ...textPrimarySx,
-              background: glass.panel(0.5),
-              backdropFilter: "blur(12px) saturate(160%)",
-              border: `1px solid ${glass.border}`,
-              fontWeight: 600,
-              fontSize: 12.5,
-              px: 0.5,
-              height: 36,
-              borderRadius: RADIUS.sm,
-            }}
-          />
-
-          <Button
-            variant="contained"
-            startIcon={<RefreshRoundedIcon />}
-            sx={{
-              textTransform: "none",
-              fontWeight: 700,
-              fontSize: 13.5,
-              borderRadius: RADIUS.sm,
-              boxShadow: "none",
-              px: 2,
-              height: 36,
-              bgcolor: theme.palette.primary.main,
-              color: theme.palette.primary.contrastText,
-              "&:hover": { boxShadow: "none", bgcolor: theme.palette.primary.dark },
-            }}
-          >
-            Reset
-          </Button>
-        </Stack>
-      </Stack>
-    </GlassPanel>
-  );
-}
-
- * END DISABLED
- * --------------------------------------------------------------------- */
-
-/** Lightweight header — title, controls, and actions sit directly on the
- * page background with no card/border/shadow around them, so they read as
- * a page heading rather than another panel competing with the content. */
 function DashboardHeader({ config }) {
   const theme = useTheme();
   const [fy, setFy] = useState(config.financialYear);
@@ -926,61 +788,25 @@ function DashboardHeader({ config }) {
         </Typography>
         <Typography sx={{ ...textSecondarySx, fontSize: 13, mt: 0.25 }}>{config.subtitle}</Typography>
       </Box>
-
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems="center" flexWrap="wrap">
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Typography sx={{ ...textSecondarySx, fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap" }}>
-            Financial Year
-          </Typography>
-          <MiniSelect options={config.financialYearOptions} value={fy} onChange={setFy} />
-        </Stack>
-
-        <Chip
-          icon={<CalendarTodayRoundedIcon sx={{ fontSize: "15px !important" }} />}
-          label={`${config.dateRange.start}  –  ${config.dateRange.end}`}
-          size="small"
-          sx={{
-            ...textSecondarySx,
-            background: glass.panel(0.4),
-            border: `1px solid ${glass.border}`,
-            fontWeight: 600,
-            fontSize: 12,
-            height: 30,
-            borderRadius: RADIUS.sm,
-          }}
-        />
-
-        <Button
-          size="small"
-          startIcon={<RefreshRoundedIcon sx={{ fontSize: 16 }} />}
-          sx={{
-            textTransform: "none",
-            fontWeight: 700,
-            fontSize: 12.5,
-            borderRadius: RADIUS.sm,
-            color: theme.palette.primary.main,
-            bgcolor: alpha(theme.palette.primary.main, 0.1),
-            "&:hover": { bgcolor: alpha(theme.palette.primary.main, 0.18) },
-          }}
-        >
-          Reset
-        </Button>
-      </Stack>
     </Stack>
   );
 }
 
 /* ---------------------------------------------------------------------- */
 /*  Root Dashboard                                                         */
-/*  Layout: header → deposits mosaic + CASA gauge → demand/term bar        */
-/*  panels → loans mosaic + loan distribution. Every column collapses to   */
-/*  a single stack on small screens, and the root paints its own calm      */
-/*  ambient backdrop from theme tokens only.                               */
+/*  Layout: header → Deposits heatmap (full width) → CASA / Demand / Term  */
+/*  in one row → Loans heatmap (full width) → Loan Distribution (full      */
+/*  width). Every column collapses to a single stack on small screens.    */
+/*                                                                          */
+/*  `selectedPanel` is a single value lifted up here and passed to every   */
+/*  panel — clicking one panel both highlights it and clears whichever     */
+/*  panel was previously selected, since only one id can match at a time. */
 /* ---------------------------------------------------------------------- */
 
 export default function DepositsLoansDashboard({ data }) {
   const theme = useTheme();
   const dashboardData = data || defaultDashboardData;
+  const [selectedPanel, setSelectedPanel] = useState(null);
 
   const depositFilterGroups = useMemo(
     () => ({
@@ -1007,55 +833,72 @@ export default function DepositsLoansDashboard({ data }) {
         flexDirection: "column",
         gap: 2.5,
         minHeight: "100vh",
-        background: ambientBackground,
+        //background: ambientBackground,
       }}
     >
       <DashboardHeader config={dashboardData.header} />
 
-      <SectionHeader title="Deposits" caption="Composition, tenure, and demand vs. term split" />
+      {/* Deposits heatmap — full width, its own row */}
+      <CompositionMosaic
+        config={dashboardData.depositsComposition}
+        icon={AccountBalanceRoundedIcon}
+        filterGroups={depositFilterGroups}
+        shareLabel="of deposits"
+        panelId="deposits-heatmap"
+        selectedPanel={selectedPanel}
+        onSelectPanel={setSelectedPanel}
+      />
+
+      {/* CASA Ratio + Demand Deposits + Term Deposits — one row */}
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", lg: "2fr 1fr" },
+          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr", lg: "1fr 1fr 1fr" },
           gap: 2.5,
-          alignItems: "stretch",
         }}
       >
-        <CompositionMosaic
-          config={dashboardData.depositsComposition}
-          icon={AccountBalanceRoundedIcon}
-          filterGroups={depositFilterGroups}
+        <Gauge
+          config={dashboardData.casaGauge}
+          panelId="casa-gauge"
+          selectedPanel={selectedPanel}
+          onSelectPanel={setSelectedPanel}
         />
-        <Gauge config={dashboardData.casaGauge} />
-      </Box>
-
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-          gap: 2.5,
-        }}
-      >
-        <BarPanel icon={DescriptionRoundedIcon} config={dashboardData.demandDeposits} />
-        <BarPanel icon={DescriptionRoundedIcon} config={dashboardData.termDeposits} />
-      </Box>
-
-      <SectionHeader title="Loans" caption="Composition and distribution across loan categories" />
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", lg: "2fr 1fr" },
-          gap: 2.5,
-          alignItems: "stretch",
-        }}
-      >
-        <CompositionMosaic config={dashboardData.loansComposition} icon={AccountBalanceWalletRoundedIcon} />
         <BarPanel
-          icon={TrendingUpRoundedIcon}
-          config={dashboardData.loansBreakdown}
-          titleOverride="Loan Distribution"
+          icon={DescriptionRoundedIcon}
+          config={dashboardData.demandDeposits}
+          panelId="demand-deposits-bar"
+          selectedPanel={selectedPanel}
+          onSelectPanel={setSelectedPanel}
+        />
+        <BarPanel
+          icon={DescriptionRoundedIcon}
+          config={dashboardData.termDeposits}
+          panelId="term-deposits-bar"
+          selectedPanel={selectedPanel}
+          onSelectPanel={setSelectedPanel}
         />
       </Box>
+
+      {/* Loans heatmap — full width, its own row */}
+      <CompositionMosaic
+        config={dashboardData.loansComposition}
+        icon={AccountBalanceWalletRoundedIcon}
+        heatmapPalette={LOAN_HEATMAP}
+        shareLabel="of loans"
+        panelId="loans-heatmap"
+        selectedPanel={selectedPanel}
+        onSelectPanel={setSelectedPanel}
+      />
+
+      {/* Loan Distribution — full width, its own row (no equivalent gauge to pair it with) */}
+      <BarPanel
+        icon={TrendingUpRoundedIcon}
+        config={dashboardData.loansBreakdown}
+        titleOverride="Loan Distribution"
+        panelId="loan-distribution-bar"
+        selectedPanel={selectedPanel}
+        onSelectPanel={setSelectedPanel}
+      />
     </Box>
   );
 }
