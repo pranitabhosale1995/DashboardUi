@@ -1,104 +1,97 @@
 /* ---------------------------------------------------------------------- */
-/*  mapApiToDashboardData.js                                               */
-/*  Translates ONE `staticDashboardData[i]` section from the real API      */
-/*  response into the exact shape <DepositsLoansDashboard data={...} />    */
-/*  expects. This is the ONLY place that needs to change if the API        */
-/*  response shape changes — no component touches the raw API shape.       */
+/*  DepositsLoansDashboard.jsx — root component                            */
+/*  Purely presentational/compositional. Every number on screen comes      */
+/*  from the `data` prop, every drill-down from `fetchDrilldown`. Nothing  */
+/*  is imported or hardcoded here — see DashboardPage.jsx for how the real */
+/*  API's response gets mapped into this shape (mapApiToDashboardData.js). */
 /*                                                                          */
-/*  Values NOT present in the API are calculated here, never hardcoded:    */
-/*   - `share` (% of total) per deposit item                              */
-/*   - `topValue` (largest category, formatted) per bar panel             */
-/*                                                                          */
-/*  The Loans section has been removed entirely — the API response has no  */
-/*  loans data (per your confirmation). The CASA gauge's `value` comes     */
-/*  back as `null` when the API hasn't populated it yet (also confirmed)   */
-/*  — Gauge.jsx renders an explicit "not available" state for that case.   */
+/*  NOTE: the Loans section has been removed — the current API response    */
+/*  has no loans data. Re-add a second <HeatTree> + <BarPanel> pair (see    */
+/*  git history / the previous version of this file) once that data        */
+/*  exists; nothing else needs to change.                                 */
 /* ---------------------------------------------------------------------- */
 
-import { formatAmount, normalizeDepositName } from "./utils";
+import React, { useState } from "react";
+import { Box, Stack, Typography } from "@mui/material";
+import AccountBalanceRoundedIcon from "@mui/icons-material/AccountBalanceRounded";
+import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
+import { SectionHeader, textPrimarySx, textSecondarySx } from "./common";
+import HeatTree from "./HeatTree";
+import Gauge from "./Gauge";
+import BarPanel from "./BarPanel";
 
-function mapItems(rawItems) {
-  if (!Array.isArray(rawItems)) return [];
-  return rawItems.map((it) => ({
-    name: normalizeDepositName(it.name),
-    type: String(it.type || "").trim(),
-    value: Number(it.value) || 0,
-  }));
-}
-
-/** Adds a `share` (% of the group's total, one decimal place) to each item —
- * not provided by the API, calculated here. */
-function withShare(items) {
-  const total = items.reduce((sum, it) => sum + it.value, 0);
-  return items.map((it) => ({
-    ...it,
-    share: total > 0 ? Number(((it.value / total) * 100).toFixed(1)) : 0,
-  }));
-}
-
-/** "Largest category" summary line shown on the bar panels — not provided
- * by the API, calculated here from whatever data came back. */
-function topValueOf(items) {
-  if (!items.length) return undefined;
-  return formatAmount(Math.max(...items.map((it) => it.value)));
+/** Page title/subtitle. Only used once, kept inline rather than as its
+ * own file. */
+function DashboardHeader({ config }) {
+  return (
+    <Stack direction={{ xs: "column", lg: "row" }} alignItems={{ xs: "flex-start", lg: "center" }} justifyContent="space-between" spacing={2} sx={{ px: 0.5 }}>
+      <Box>
+        <Typography sx={{ ...textPrimarySx, fontSize: { xs: 20, md: 24 }, fontWeight: 700 }}>{config.title}</Typography>
+        {config.subtitle && <Typography sx={{ ...textSecondarySx, fontSize: 13, mt: 0.25 }}>{config.subtitle}</Typography>}
+      </Box>
+    </Stack>
+  );
 }
 
 /**
- * @param {object} section — one entry from `response.data.staticDashboardData`
- * @returns the `data` prop shape DepositsLoansDashboard expects, or null if
- *          `section` is missing/empty.
+ * Props:
+ *  - data: {
+ *      header: { title, subtitle },
+ *      casaGauge: { title, subtitle, value: number | null, centerLabel },
+ *      depositsComposition: {
+ *        title, subtitle,
+ *        items: { name, value, share, type }[],
+ *        legend: { name }[],
+ *        filterOptions?: string[], activeFilter?: string,
+ *      },
+ *      demandDeposits: { title, topValue, data: { name, value }[] },
+ *      termDeposits:   { title, topValue, data: { name, value }[] },
+ *    }
+ *  - fetchDrilldown: optional (categoryName: string) => Promise<{title, subtitle, data} | null>
+ *    Passed straight through to every BarPanel. Omit it to make every bar
+ *    chart purely display-only (no drill-down) — there's currently no
+ *    drill-down endpoint, so callers should omit this for now.
  */
-export default function mapApiToDashboardData(section) {
-  if (!section) return null;
+export default function DepositsLoansDashboard({ data, fetchDrilldown }) {
+  const [selectedPanel, setSelectedPanel] = useState(null);
 
-  const depositsRaw = section.deposits || {};
-  const demandRaw = section.demanddeposits || {};
-  const timeRaw = section.timedeposits || {};
-  const casaRaw = section.casaratio || {};
+  if (!data) return null;
 
-  const depositItems = withShare(mapItems(depositsRaw.data));
-  const demandItems = mapItems(demandRaw.data);
-  const timeItems = mapItems(timeRaw.data);
+  return (
+    <Box sx={{ p: { xs: 1.5, md: 3 }, display: "flex", flexDirection: "column", gap: 2.5, minHeight: "100vh" }}>
+      <DashboardHeader config={data.header} />
 
-  return {
-    // Not present in the API — static page copy, not a business figure, so
-    // this is the one place left as plain text rather than derived data.
-    header: {
-      title: "Deposits Dashboard",
-      subtitle: "Portfolio overview by category",
-    },
+      <SectionHeader title="Deposits" caption="Composition, tenure, and demand vs. term split" />
+      <HeatTree
+        config={data.depositsComposition}
+        icon={AccountBalanceRoundedIcon}
+        gradientDark="#123a63"
+        gradientLight="#7dd3fc"
+        shareLabel="of deposits"
+        panelId="deposits-treemap"
+        selectedPanel={selectedPanel}
+        onSelectPanel={setSelectedPanel}
+      />
 
-    casaGauge: {
-      title: casaRaw.title || "CASA Ratio",
-      subtitle: casaRaw.subtitle || undefined,
-      // API currently returns data: null — Gauge.jsx shows an explicit
-      // "not available yet" state whenever this is null/undefined.
-      value: typeof casaRaw.data === "number" ? casaRaw.data : null,
-      centerLabel: casaRaw.title || "CASA Ratio",
-    },
-
-    depositsComposition: {
-      title: depositsRaw.title,
-      subtitle: depositsRaw.subtitle || undefined,
-      // Filter dropdown options + default come straight from the API, not
-      // hardcoded. Filtering itself is by each item's `type` field — see
-      // HeatTree.jsx.
-      filterOptions: Array.isArray(depositsRaw.filterOptions) ? depositsRaw.filterOptions : undefined,
-      activeFilter: depositsRaw.filterOptions?.[0],
-      items: depositItems,
-      legend: depositItems.map((it) => ({ name: it.name })),
-    },
-
-    demandDeposits: {
-      title: demandRaw.title,
-      topValue: topValueOf(demandItems),
-      data: demandItems,
-    },
-
-    termDeposits: {
-      title: timeRaw.title,
-      topValue: topValueOf(timeItems),
-      data: timeItems,
-    },
-  };
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr", lg: "1fr 1fr 1fr" }, gap: 2.5 }}>
+        <Gauge config={data.casaGauge} panelId="casa-gauge" selectedPanel={selectedPanel} onSelectPanel={setSelectedPanel} />
+        <BarPanel
+          icon={DescriptionRoundedIcon}
+          config={data.demandDeposits}
+          fetchDrilldown={fetchDrilldown}
+          panelId="demand-deposits-bar"
+          selectedPanel={selectedPanel}
+          onSelectPanel={setSelectedPanel}
+        />
+        <BarPanel
+          icon={DescriptionRoundedIcon}
+          config={data.termDeposits}
+          fetchDrilldown={fetchDrilldown}
+          panelId="term-deposits-bar"
+          selectedPanel={selectedPanel}
+          onSelectPanel={setSelectedPanel}
+        />
+      </Box>
+    </Box>
+  );
 }
