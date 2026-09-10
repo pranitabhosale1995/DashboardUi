@@ -1,76 +1,104 @@
 /* ---------------------------------------------------------------------- */
-/*  DashboardPage.jsx — main entry point / the ONE place the real API      */
-/*  gets wired in.                                                        */
-/*  Uses the project's existing `useApi` hook to fetch the dashboard data  */
-/*  once on mount, maps the raw response into the shape                    */
-/*  <DepositsLoansDashboard /> expects (mapApiToDashboardData.js), and     */
-/*  handles loading / error / empty states. No component under             */
-/*  DepositsLoansDashboard knows an API exists — this is the only file     */
-/*  that needs to change if the endpoint, auth, or response shape changes. */
-/*  Mount this file directly as your route/page component.                */
+/*  mapApiToDashboardData.js                                               */
+/*  Translates ONE `staticDashboardData[i]` section from the real API      */
+/*  response into the exact shape <DepositsLoansDashboard data={...} />    */
+/*  expects. This is the ONLY place that needs to change if the API        */
+/*  response shape changes — no component touches the raw API shape.       */
+/*                                                                          */
+/*  Values NOT present in the API are calculated here, never hardcoded:    */
+/*   - `share` (% of total) per deposit item                              */
+/*   - `topValue` (largest category, formatted) per bar panel             */
+/*                                                                          */
+/*  The Loans section has been removed entirely — the API response has no  */
+/*  loans data (per your confirmation). The CASA gauge's `value` comes     */
+/*  back as `null` when the API hasn't populated it yet (also confirmed)   */
+/*  — Gauge.jsx renders an explicit "not available" state for that case.   */
 /* ---------------------------------------------------------------------- */
 
-import React, { useEffect, useMemo } from "react";
-import { Box, Button, CircularProgress, Typography } from "@mui/material";
-import useApi from "../../hooks/useApi"; // adjust path to match your project structure
-import DepositsLoansDashboard from "./DepositsLoansDashboard";
-import mapApiToDashboardData from "./mapApiToDashboardData";
-import { textSecondarySx } from "./common";
+import { formatAmount, normalizeDepositName } from "./utils";
 
-const DASHBOARD_ENDPOINT = "/DS/dashboard/getdashboarddata";
+function mapItems(rawItems) {
+  if (!Array.isArray(rawItems)) return [];
+  return rawItems.map((it) => ({
+    name: normalizeDepositName(it.name),
+    type: String(it.type || "").trim(),
+    value: Number(it.value) || 0,
+  }));
+}
 
-export default function DashboardPage() {
-  const { data: apiResponse, error, loading, callApi } = useApi();
+/** Adds a `share` (% of the group's total, one decimal place) to each item —
+ * not provided by the API, calculated here. */
+function withShare(items) {
+  const total = items.reduce((sum, it) => sum + it.value, 0);
+  return items.map((it) => ({
+    ...it,
+    share: total > 0 ? Number(((it.value / total) * 100).toFixed(1)) : 0,
+  }));
+}
 
-  useEffect(() => {
-    callApi(DASHBOARD_ENDPOINT).catch(() => {
-      // Swallow here — `error` from useApi already captures it below, and
-      // callApi's own catch already logs the underlying error.
-    });
-    // Only fetch once on mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+/** "Largest category" summary line shown on the bar panels — not provided
+ * by the API, calculated here from whatever data came back. */
+function topValueOf(items) {
+  if (!items.length) return undefined;
+  return formatAmount(Math.max(...items.map((it) => it.value)));
+}
 
-  // The actual dashboard content is nested one level in:
-  // response.data.staticDashboardData[0]. mapApiToDashboardData does all
-  // the shape translation + derived calculations (share %, topValue, ...).
-  const dashboardData = useMemo(() => {
-    const section = apiResponse?.data?.staticDashboardData?.[0];
-    return mapApiToDashboardData(section);
-  }, [apiResponse]);
+/**
+ * @param {object} section — one entry from `response.data.staticDashboardData`
+ * @returns the `data` prop shape DepositsLoansDashboard expects, or null if
+ *          `section` is missing/empty.
+ */
+export default function mapApiToDashboardData(section) {
+  if (!section) return null;
 
-  if (loading && !dashboardData) {
-    return (
-      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "60vh", gap: 2 }}>
-        <CircularProgress />
-        <Typography sx={textSecondarySx}>Loading dashboard…</Typography>
-      </Box>
-    );
-  }
+  const depositsRaw = section.deposits || {};
+  const demandRaw = section.demanddeposits || {};
+  const timeRaw = section.timedeposits || {};
+  const casaRaw = section.casaratio || {};
 
-  if (error) {
-    return (
-      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "60vh", gap: 2, textAlign: "center", px: 3 }}>
-        <Typography sx={{ fontWeight: 700 }}>Couldn't load the dashboard</Typography>
-        <Typography sx={textSecondarySx}>
-          {error?.response?.data?.message || error?.message || "Something went wrong while fetching data."}
-        </Typography>
-        <Button variant="contained" onClick={() => callApi(DASHBOARD_ENDPOINT)}>
-          Retry
-        </Button>
-      </Box>
-    );
-  }
+  const depositItems = withShare(mapItems(depositsRaw.data));
+  const demandItems = mapItems(demandRaw.data);
+  const timeItems = mapItems(timeRaw.data);
 
-  if (!dashboardData) {
-    return (
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
-        <Typography sx={textSecondarySx}>No dashboard data available.</Typography>
-      </Box>
-    );
-  }
+  return {
+    // Not present in the API — static page copy, not a business figure, so
+    // this is the one place left as plain text rather than derived data.
+    header: {
+      title: "Deposits Dashboard",
+      subtitle: "Portfolio overview by category",
+    },
 
-  // No `fetchDrilldown` passed — there's currently no drill-down endpoint,
-  // so every bar renders display-only until one exists (see BarPanel.jsx).
-  return <DepositsLoansDashboard data={dashboardData} />;
+    casaGauge: {
+      title: casaRaw.title || "CASA Ratio",
+      subtitle: casaRaw.subtitle || undefined,
+      // API currently returns data: null — Gauge.jsx shows an explicit
+      // "not available yet" state whenever this is null/undefined.
+      value: typeof casaRaw.data === "number" ? casaRaw.data : null,
+      centerLabel: casaRaw.title || "CASA Ratio",
+    },
+
+    depositsComposition: {
+      title: depositsRaw.title,
+      subtitle: depositsRaw.subtitle || undefined,
+      // Filter dropdown options + default come straight from the API, not
+      // hardcoded. Filtering itself is by each item's `type` field — see
+      // HeatTree.jsx.
+      filterOptions: Array.isArray(depositsRaw.filterOptions) ? depositsRaw.filterOptions : undefined,
+      activeFilter: depositsRaw.filterOptions?.[0],
+      items: depositItems,
+      legend: depositItems.map((it) => ({ name: it.name })),
+    },
+
+    demandDeposits: {
+      title: demandRaw.title,
+      topValue: topValueOf(demandItems),
+      data: demandItems,
+    },
+
+    termDeposits: {
+      title: timeRaw.title,
+      topValue: topValueOf(timeItems),
+      data: timeItems,
+    },
+  };
 }
