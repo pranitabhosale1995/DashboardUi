@@ -165,13 +165,59 @@ function applyMinimumShare(nodes, perItemMinShare = 0.05) {
   });
 }
 
-/** Renders one "equal value" bundle (from groupEqualValueItems) as a
- * perfectly even grid inside the box the treemap allocated to it — every
- * cell gets the exact same width AND height (via CSS grid `1fr` tracks),
- * so equal amounts always look the same at first glance. */
+/* ------------------------------------------------------------------------
+ * NEW: merge a too-small group into the dominant one instead of just
+ * resizing it.
+ *
+ * applyMinimumShare (above) helps, but boosting a tiny group's own box
+ * still leaves it as a SEPARATE, narrow strip next to the big block — with
+ * an 8-item mix like "six ₹100 items + two ₹10 items", that strip is
+ * still cramped. Instead: when one group clearly dominates and everything
+ * else is individually too small to stand on its own, fold ALL of the
+ * small items into the dominant group's grid. The whole thing then
+ * renders as ONE evenly-sized grid (via UniformGroupTile) — the small
+ * items end up sitting as ordinary cells right next to the large ones,
+ * every cell the same comfortable size, nothing squeezed.
+ * ---------------------------------------------------------------------- */
+
+/** Only merges in the degenerate case that actually causes the unreadable-
+ * sliver problem: one node holding >= 50% of the total, with every other
+ * node individually under `mergeThreshold`. Two comparably-sized groups
+ * (e.g. a 60/40 split) are left as separate, properly-proportioned boxes
+ * — this only fires for "one huge group + tiny leftovers". */
+function consolidateSmallGroups(nodes, mergeThreshold = 0.15) {
+  if (nodes.length < 2) return nodes;
+  const total = nodes.reduce((sum, n) => sum + n.value, 0);
+  if (total <= 0) return nodes;
+
+  const sorted = [...nodes].sort((a, b) => b.value - a.value);
+  const [dominant, ...rest] = sorted;
+  const dominantIsBigEnough = dominant.value / total >= 0.5;
+  const restAreAllTooSmall = rest.every((n) => n.value / total < mergeThreshold);
+  if (!dominantIsBigEnough || !restAreAllTooSmall) return nodes;
+
+  const dominantItems = dominant.__group || [dominant];
+  const restItems = rest.flatMap((n) => n.__group || [n]);
+  return [{ value: total, __group: [...dominantItems, ...restItems] }];
+}
+
+/** Picks column/row counts for `n` cells, biased toward WIDER grids (a
+ * dashboard card is wide, not tall) instead of a plain square-root split.
+ * e.g. n=8 -> 4 cols x 2 rows (clean, no empty cells) instead of the
+ * naive ceil(sqrt(8))=3 cols x 3 rows, which leaves one cell empty. */
+function bestGridDims(n) {
+  const cols = Math.min(4, Math.max(1, Math.ceil(Math.sqrt(n) * 1.3)));
+  const rows = Math.ceil(n / cols);
+  return { cols, rows };
+}
+
+/** Renders one "equal value" bundle (from groupEqualValueItems, possibly
+ * merged further by consolidateSmallGroups below) as a perfectly even
+ * grid inside the box the treemap allocated to it — every cell gets the
+ * exact same width AND height (via CSS grid `1fr` tracks), so items in
+ * the same bundle always look consistent, never squeezed unreadable. */
 function UniformGroupTile({ group, x, y, w, h, colorFor, shareLabel, onTileClick }) {
-  const cols = Math.ceil(Math.sqrt(group.length));
-  const rows = Math.ceil(group.length / cols);
+  const { cols, rows } = bestGridDims(group.length);
   // Approximate per-cell % of the overall container, just so TreemapTile's
   // own "small" text-density threshold still makes a sensible choice.
   const cellW = w / cols;
@@ -296,10 +342,18 @@ export default function HeatTree({
   // mismatched shapes.
   const treemapNodes = useMemo(() => groupEqualValueItems(sortedItems), [sortedItems]);
 
-  // NEW: give every node a dynamic minimum size floor (see
-  // applyMinimumShare above) so a small group never shrinks into an
-  // unreadable sliver next to much larger ones.
-  const layoutNodes = useMemo(() => applyMinimumShare(treemapNodes), [treemapNodes]);
+  // NEW: fold any group that's too small to stand on its own into the
+  // dominant group (see consolidateSmallGroups above) — this is the fix
+  // for the "unreadable sliver" problem: small items become ordinary
+  // cells in the SAME even grid as the large ones, instead of a separate,
+  // cramped strip.
+  const consolidatedNodes = useMemo(() => consolidateSmallGroups(treemapNodes), [treemapNodes]);
+
+  // Minimum size floor still applies for whatever's LEFT after
+  // consolidation — e.g. if there are two comparably-large groups plus
+  // one small one, consolidation may not fire (no single dominant group),
+  // so this still guards against that small group being unreadable.
+  const layoutNodes = useMemo(() => applyMinimumShare(consolidatedNodes), [consolidatedNodes]);
 
   const layout = useMemo(() => buildTreemap(layoutNodes, 0, 0, 100, 100, true), [layoutNodes]);
 
