@@ -129,6 +129,42 @@ function groupEqualValueItems(items) {
   return nodes;
 }
 
+/* ------------------------------------------------------------------------
+ * NEW: minimum-size floor so a small node never shrinks into an
+ * unreadable sliver.
+ *
+ * Pure value-proportional sizing is "correct" but not always usable — if
+ * one group of items is worth 600 and another is worth only 20, the 20
+ * group gets squeezed down to ~3% of the width, which isn't enough room
+ * to show anything at all (this is exactly the bug in your screenshot:
+ * the 2-item "10 each" group had no visible label at all).
+ * ---------------------------------------------------------------------- */
+
+/** Gives every top-level layout node a DYNAMIC minimum share of the total
+ * — scaled by how many real items it represents (`__group.length`, or 1
+ * for a single item), since a 2-item group needs more room to stay
+ * legible than a single tile does. Only ever BOOSTS a node that's below
+ * its floor; nodes already bigger than their floor are untouched, so
+ * genuinely large items are never shrunk to make room.
+ *
+ * Returns `{ value, __original }[]` — `value` is the (possibly boosted)
+ * number used ONLY for layout math; `__original` is the real item/group
+ * to render, so the displayed amount is never affected by the boost.
+ *
+ * `perItemMinShare` (default 5%) is the tuning knob: raise it if small
+ * groups still look too cramped, lower it if large items are losing too
+ * much space to small ones. */
+function applyMinimumShare(nodes, perItemMinShare = 0.05) {
+  const total = nodes.reduce((sum, n) => sum + n.value, 0);
+  if (total <= 0) return nodes.map((n) => ({ value: n.value, __original: n }));
+
+  return nodes.map((n) => {
+    const itemCount = n.__group ? n.__group.length : 1;
+    const floor = total * perItemMinShare * itemCount;
+    return { value: Math.max(n.value, floor), __original: n };
+  });
+}
+
 /** Renders one "equal value" bundle (from groupEqualValueItems) as a
  * perfectly even grid inside the box the treemap allocated to it — every
  * cell gets the exact same width AND height (via CSS grid `1fr` tracks),
@@ -260,7 +296,12 @@ export default function HeatTree({
   // mismatched shapes.
   const treemapNodes = useMemo(() => groupEqualValueItems(sortedItems), [sortedItems]);
 
-  const layout = useMemo(() => buildTreemap(treemapNodes, 0, 0, 100, 100, true), [treemapNodes]);
+  // NEW: give every node a dynamic minimum size floor (see
+  // applyMinimumShare above) so a small group never shrinks into an
+  // unreadable sliver next to much larger ones.
+  const layoutNodes = useMemo(() => applyMinimumShare(treemapNodes), [treemapNodes]);
+
+  const layout = useMemo(() => buildTreemap(layoutNodes, 0, 0, 100, 100, true), [layoutNodes]);
 
   return (
     <GlassPanel selected={selectedPanel === panelId} onClick={() => onSelectPanel?.(panelId)}>
@@ -274,13 +315,15 @@ export default function HeatTree({
       )}
 
       <Box sx={{ position: "relative", width: "100%", height: { xs: 300, sm: 340, md: 380 }, overflow: "hidden" }}>
-        {layout.map(({ item, x, y, w, h }) =>
-          // NEW: a bundled "equal value" node (see groupEqualValueItems)
-          // renders as an even grid; everything else is unchanged.
-          item.__group ? (
+        {layout.map(({ item, x, y, w, h }) => {
+          // NEW: unwrap back to the real item/group — `item` here is the
+          // { value, __original } wrapper applyMinimumShare produced for
+          // layout math only, not the actual data to render.
+          const node = item.__original;
+          return node.__group ? (
             <UniformGroupTile
-              key={item.__group.map((g) => g.name).join("|")}
-              group={item.__group}
+              key={node.__group.map((g) => g.name).join("|")}
+              group={node.__group}
               x={x}
               y={y}
               w={w}
@@ -291,18 +334,18 @@ export default function HeatTree({
             />
           ) : (
             <TreemapTile
-              key={item.name}
-              item={item}
+              key={node.name}
+              item={node}
               x={x}
               y={y}
               w={w}
               h={h}
-              color={colorFor(item.value)}
+              color={colorFor(node.value)}
               shareLabel={shareLabel}
-              onClick={onTileClick ? () => onTileClick(item) : undefined}
+              onClick={onTileClick ? () => onTileClick(node) : undefined}
             />
-          )
-        )}
+          );
+        })}
       </Box>
 
       <Legend items={legend} valueItems={items} colorFor={colorFor} />
