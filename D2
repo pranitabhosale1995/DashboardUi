@@ -1,16 +1,28 @@
 /* ---------------------------------------------------------------------- */
 /*  HeatTree.jsx                                                           */
-/*  REUSABLE: a heatmap-style treemap. Tile SIZE is proportional to each   */
-/*  item's value (a real treemap, not a uniform grid) and tile COLOR is a  */
-/*  continuous dark→light gradient tied to the value itself.               */
+/*  REUSABLE: a heatmap-style tile grid. Tile SIZE reflects each item's    */
+/*  value relative to the largest item, and tile COLOR is a continuous     */
+/*  dark→light gradient tied to the value itself.                          */
 /*                                                                          */
-/*  Currently used only for Deposits (Loans was removed from the dashboard  */
-/*  — the API has no loans data yet) — but stays generic/reusable: nothing  */
-/*  about the component itself is deposits-specific, so it's ready to      */
-/*  render a Loans section again the moment that data exists.              */
+/*  REDESIGNED LAYOUT ENGINE — read this before touching sizing again.     */
+/*  The previous version computed exact x/y/w/h percentages by hand (a     */
+/*  recursive "treemap split"), which kept hitting new edge cases as real  */
+/*  data came in: boxes overflowing the card, unreadable slivers for       */
+/*  small values, forced merging that made everything the same size. This */
+/*  version uses CSS Grid with a small number of SIZE TIERS instead:       */
+/*   - every item's value is compared to the largest value in the set to   */
+/*     pick a tier (hero / wide / normal / compact)                       */
+/*   - a tier maps to a fixed grid column/row SPAN — so two items with     */
+/*     the EXACT SAME value always land in the exact same tier and render */
+/*     at the exact same size, and a much smaller value always renders    */
+/*     visibly smaller.                                                   */
+/*   - CSS Grid (`grid-auto-flow: dense`) handles placement/packing        */
+/*     itself — no manual math, no overflow risk, and if the tiers don't   */
+/*     perfectly tile the card, that's fine: a little unused space beats   */
+/*     an unreadable box.                                                 */
 /*                                                                          */
-/*  TreemapTile and Legend are small pieces used only here, so they stay   */
-/*  in this file instead of being split out.                              */
+/*  Tile and Legend are small pieces used only here, so they stay in this  */
+/*  file instead of being split out.                                      */
 /* ---------------------------------------------------------------------- */
 
 import React, { useMemo, useState } from "react";
@@ -18,238 +30,73 @@ import { Box, Stack, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
 import { GlassPanel, PanelHeader, MiniSelect, RADIUS, textSecondarySx } from "./common";
-import { heatColor, mixHex, getColor, buildTreemap, formatAmount } from "./utils";
+import { heatColor, mixHex, getColor, formatAmount } from "./utils";
 
-/** A single treemap cell.
- *  `absolute` (default true) controls the outer wrapper's positioning:
- *   - true  -> positions itself with left/top/width/height % (normal use,
- *              placed directly by the treemap layout).
- *   - false -> just fills 100% of its parent (used when this tile is one
- *              cell inside a UniformGroupTile's even grid, below). */
-function TreemapTile({ item, x, y, w, h, color, shareLabel, onClick, absolute = true }) {
+/* ---- Size tiers ---------------------------------------------------------
+ * `ratio` = item.value / largest value in the current set (always 0-1).
+ * Adjust the thresholds/spans here to make tiers bigger/smaller overall —
+ * nothing else in the file needs to change. */
+const SIZE_TIERS = [
+  { minRatio: 0.5, colSpan: 2, rowSpan: 2, dense: false }, // hero — clearly the biggest
+  { minRatio: 0.2, colSpan: 2, rowSpan: 1, dense: false }, // wide
+  { minRatio: 0.05, colSpan: 1, rowSpan: 1, dense: false }, // normal
+  { minRatio: 0, colSpan: 1, rowSpan: 1, dense: true }, // compact — same grid cell, tighter/smaller text
+];
+
+function tierFor(ratio) {
+  return SIZE_TIERS.find((t) => ratio >= t.minRatio) || SIZE_TIERS[SIZE_TIERS.length - 1];
+}
+
+/** A single tile. Sized purely by CSS Grid column/row span (from its
+ * tier) — no percentage/position math, so it can never overflow its
+ * grid cell(s). */
+function Tile({ item, color, shareLabel, colSpan, rowSpan, dense, onClick }) {
   const theme = useTheme();
   const fg = theme.palette.getContrastText(color);
-  const small = w < 16 || h < 20;
   const sheen = mixHex(color, "#ffffff", 0.16);
 
   return (
     <Box
-      sx={
-        absolute
-          ? { position: "absolute", left: `${x}%`, top: `${y}%`, width: `${w}%`, height: `${h}%`, p: 0.4, boxSizing: "border-box" }
-          : {
-              width: "100%",
-              height: "100%",
-              p: 0.4,
-              boxSizing: "border-box",
-              // FIX (overflow bug): without these, a CSS Grid cell won't
-              // shrink below its content's natural (un-wrapped) width —
-              // a narrow cell in a lopsided equal-value group was being
-              // forced wide enough to fit its full text, spilling out
-              // past the card's edge. minWidth/minHeight: 0 removes that
-              // default; overflow: hidden clips anything still too big.
-              minWidth: 0,
-              minHeight: 0,
-              overflow: "hidden",
-            }
-      }
-    >
-      <Box
-        role={onClick ? "button" : undefined}
-        tabIndex={onClick ? 0 : undefined}
-        onClick={onClick}
-        sx={{
-          width: "100%",
-          height: "100%",
-          borderRadius: RADIUS.sm,
-          p: small ? 1 : 1.75,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          overflow: "hidden",
-          cursor: onClick ? "pointer" : "default",
-          background: `linear-gradient(135deg, ${sheen} 0%, ${color} 55%)`,
-          color: fg,
-          transition: "transform 0.18s ease, box-shadow 0.18s ease",
-          "&:hover": { transform: "scale(1.015)", boxShadow: theme.shadows[6], zIndex: 1 },
-        }}
-      >
-        <Typography sx={{ fontFamily: theme.typography.fontFamily, fontSize: small ? 11 : 13, fontWeight: 600, opacity: 0.92, lineHeight: 1.25 }} noWrap>
-          {item.name}
-        </Typography>
-        <Box sx={{ minWidth: 0 }}>
-          <Typography sx={{ fontFamily: theme.typography.fontFamily, fontSize: small ? 13 : 20, fontWeight: 700, lineHeight: 1.2 }} noWrap>
-            {formatAmount(item.value)}
-          </Typography>
-          {!small && (
-            <Typography sx={{ fontFamily: theme.typography.fontFamily, fontSize: 11.5, opacity: 0.82, mt: 0.25 }}>
-              {item.share}% {shareLabel}
-            </Typography>
-          )}
-        </Box>
-      </Box>
-    </Box>
-  );
-}
-
-/* ------------------------------------------------------------------------
- * NEW: equal-value grouping so tiles with the SAME amount look visually
- * identical, not just mathematically equal-area.
- *
- * Why this is needed: the treemap algorithm already gives two items with
- * identical values the exact same AREA — but depending on where they land
- * in the recursive split, one could end up as a tall/narrow rectangle and
- * the other as a short/wide one. Equal area, different shape — a user
- * can't tell at a glance that they're the same. Grouping same-value items
- * and rendering them as an even grid (identical width AND height per
- * cell) fixes that.
- * ---------------------------------------------------------------------- */
-
-/** Bundles items that share the exact same `value` into a single synthetic
- * node (`{ value: combinedValue, __group: [...items] }`) so the treemap
- * sizes that whole bundle as ONE block. Items with a unique value pass
- * through unchanged. Feed the RETURNED array into buildTreemap instead of
- * the raw items list. */
-function groupEqualValueItems(items) {
-  const buckets = new Map(); // value -> items sharing that exact value
-  items.forEach((it) => {
-    const key = it.value;
-    if (!buckets.has(key)) buckets.set(key, []);
-    buckets.get(key).push(it);
-  });
-
-  const nodes = [];
-  buckets.forEach((groupItems, value) => {
-    if (groupItems.length > 1) {
-      nodes.push({ value: value * groupItems.length, __group: groupItems });
-    } else {
-      nodes.push(groupItems[0]);
-    }
-  });
-  return nodes;
-}
-
-/* ------------------------------------------------------------------------
- * NEW: minimum-size floor so a small node never shrinks into an
- * unreadable sliver.
- *
- * Pure value-proportional sizing is "correct" but not always usable — if
- * one group of items is worth 600 and another is worth only 20, the 20
- * group gets squeezed down to ~3% of the width, which isn't enough room
- * to show anything at all (this is exactly the bug in your screenshot:
- * the 2-item "10 each" group had no visible label at all).
- * ---------------------------------------------------------------------- */
-
-/** Gives every top-level layout node a DYNAMIC minimum share of the total
- * — scaled by how many real items it represents (`__group.length`, or 1
- * for a single item), since a 2-item group needs more room to stay
- * legible than a single tile does. Only ever BOOSTS a node that's below
- * its floor; nodes already bigger than their floor are untouched, so
- * genuinely large items are never shrunk to make room.
- *
- * Returns `{ value, __original }[]` — `value` is the (possibly boosted)
- * number used ONLY for layout math; `__original` is the real item/group
- * to render, so the displayed amount is never affected by the boost.
- *
- * `perItemMinShare` (default 5%) is the tuning knob: raise it if small
- * groups still look too cramped, lower it if large items are losing too
- * much space to small ones. */
-function applyMinimumShare(nodes, perItemMinShare = 0.05) {
-  const total = nodes.reduce((sum, n) => sum + n.value, 0);
-  if (total <= 0) return nodes.map((n) => ({ value: n.value, __original: n }));
-
-  return nodes.map((n) => {
-    const itemCount = n.__group ? n.__group.length : 1;
-    const floor = total * perItemMinShare * itemCount;
-    return { value: Math.max(n.value, floor), __original: n };
-  });
-}
-
-/* ------------------------------------------------------------------------
- * NEW: merge a too-small group into the dominant one instead of just
- * resizing it.
- *
- * applyMinimumShare (above) helps, but boosting a tiny group's own box
- * still leaves it as a SEPARATE, narrow strip next to the big block — with
- * an 8-item mix like "six ₹100 items + two ₹10 items", that strip is
- * still cramped. Instead: when one group clearly dominates and everything
- * else is individually too small to stand on its own, fold ALL of the
- * small items into the dominant group's grid. The whole thing then
- * renders as ONE evenly-sized grid (via UniformGroupTile) — the small
- * items end up sitting as ordinary cells right next to the large ones,
- * every cell the same comfortable size, nothing squeezed.
- * ---------------------------------------------------------------------- */
-
-/** Only merges in the degenerate case that actually causes the unreadable-
- * sliver problem: one node holding >= 50% of the total, with every other
- * node individually under `mergeThreshold`. Two comparably-sized groups
- * (e.g. a 60/40 split) are left as separate, properly-proportioned boxes
- * — this only fires for "one huge group + tiny leftovers". */
-function consolidateSmallGroups(nodes, mergeThreshold = 0.15) {
-  if (nodes.length < 2) return nodes;
-  const total = nodes.reduce((sum, n) => sum + n.value, 0);
-  if (total <= 0) return nodes;
-
-  const sorted = [...nodes].sort((a, b) => b.value - a.value);
-  const [dominant, ...rest] = sorted;
-  const dominantIsBigEnough = dominant.value / total >= 0.5;
-  const restAreAllTooSmall = rest.every((n) => n.value / total < mergeThreshold);
-  if (!dominantIsBigEnough || !restAreAllTooSmall) return nodes;
-
-  const dominantItems = dominant.__group || [dominant];
-  const restItems = rest.flatMap((n) => n.__group || [n]);
-  return [{ value: total, __group: [...dominantItems, ...restItems] }];
-}
-
-/** Picks column/row counts for `n` cells, biased toward WIDER grids (a
- * dashboard card is wide, not tall) instead of a plain square-root split.
- * e.g. n=8 -> 4 cols x 2 rows (clean, no empty cells) instead of the
- * naive ceil(sqrt(8))=3 cols x 3 rows, which leaves one cell empty. */
-function bestGridDims(n) {
-  const cols = Math.min(4, Math.max(1, Math.ceil(Math.sqrt(n) * 1.3)));
-  const rows = Math.ceil(n / cols);
-  return { cols, rows };
-}
-
-/** Renders one "equal value" bundle (from groupEqualValueItems, possibly
- * merged further by consolidateSmallGroups below) as a perfectly even
- * grid inside the box the treemap allocated to it — every cell gets the
- * exact same width AND height (via CSS grid `1fr` tracks), so items in
- * the same bundle always look consistent, never squeezed unreadable. */
-function UniformGroupTile({ group, x, y, w, h, colorFor, shareLabel, onTileClick }) {
-  const { cols, rows } = bestGridDims(group.length);
-  // Approximate per-cell % of the overall container, just so TreemapTile's
-  // own "small" text-density threshold still makes a sensible choice.
-  const cellW = w / cols;
-  const cellH = h / rows;
-
-  return (
-    <Box
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
       sx={{
-        position: "absolute",
-        left: `${x}%`,
-        top: `${y}%`,
-        width: `${w}%`,
-        height: `${h}%`,
-        display: "grid",
-        gridTemplateColumns: `repeat(${cols}, 1fr)`,
-        gridTemplateRows: `repeat(${rows}, 1fr)`,
-        gap: 0,
-        overflow: "hidden", // defensive — the minWidth:0 fix in TreemapTile is the real fix, this just clips anything unexpected
+        gridColumn: `span ${colSpan}`,
+        gridRow: `span ${rowSpan}`,
+        minWidth: 0, // grid items default to min-width:auto, which can force a cell wider than its track to fit un-wrapped text — this is what actually prevents overflow
+        minHeight: 0,
+        borderRadius: RADIUS.sm,
+        p: dense ? 1 : 1.5,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        overflow: "hidden",
+        cursor: onClick ? "pointer" : "default",
+        background: `linear-gradient(135deg, ${sheen} 0%, ${color} 55%)`,
+        color: fg,
+        transition: "transform 0.18s ease, box-shadow 0.18s ease",
+        "&:hover": { transform: "scale(1.02)", boxShadow: theme.shadows[6], zIndex: 1 },
       }}
     >
-      {group.map((item) => (
-        <TreemapTile
-          key={item.name}
-          item={item}
-          w={cellW}
-          h={cellH}
-          color={colorFor(item.value)}
-          shareLabel={shareLabel}
-          onClick={onTileClick ? () => onTileClick(item) : undefined}
-          absolute={false} // fill the grid cell instead of positioning itself
-        />
-      ))}
+      <Typography
+        sx={{ fontFamily: theme.typography.fontFamily, fontSize: dense ? 11 : 13, fontWeight: 600, opacity: 0.92, lineHeight: 1.25 }}
+        noWrap
+      >
+        {item.name}
+      </Typography>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography
+          sx={{ fontFamily: theme.typography.fontFamily, fontSize: dense ? 13 : 20, fontWeight: 700, lineHeight: 1.2 }}
+          noWrap
+        >
+          {formatAmount(item.value)}
+        </Typography>
+        {!dense && (
+          <Typography sx={{ fontFamily: theme.typography.fontFamily, fontSize: 11.5, opacity: 0.82, mt: 0.25 }}>
+            {item.share}% {shareLabel}
+          </Typography>
+        )}
+      </Box>
     </Box>
   );
 }
@@ -282,8 +129,8 @@ function Legend({ items, valueItems, colorFor }) {
  *    Each item's `type` (e.g. "Demand Deposit" / "Time Deposit") drives the
  *    filter dropdown below — `config.filterOptions` (from the API) is the
  *    dropdown's option list, and `filterOptions[0]` is treated as "show
- *    everything" (the API labels it "All Deposit"/"All ..."). Selecting any
- *    other option filters items down to `item.type === selectedOption`.
+ *    everything". Selecting any other option filters items down to
+ *    `item.type === selectedOption`.
  *  - icon: MUI icon component for the panel header
  *  - gradientDark / gradientLight: hex strings, this section's gradient
  *    endpoints (e.g. navy→sky for deposits, purple→lavender for loans)
@@ -327,35 +174,12 @@ export default function HeatTree({
     return (value) => heatColor(value, minValue, maxValue, gradientDark, gradientLight);
   }, [items, gradientDark, gradientLight]);
 
-  // Sort largest → smallest before laying out. The treemap math already
-  // gives every tile an area exactly proportional to its value regardless
-  // of input order — but with real API values (some 800x bigger than
-  // others), an unsorted order scattered the big/small tiles around in a
-  // way that made the size differences hard to actually read as
-  // "value-based" at a glance. Sorting puts the largest tile first and
-  // fans everything else out from there, so size-by-amount is obvious.
+  // Largest → smallest, purely for a natural reading order — CSS Grid's
+  // `dense` packing (below) places everything correctly regardless of
+  // input order, this just makes the biggest tile appear first.
   const sortedItems = useMemo(() => [...items].sort((a, b) => b.value - a.value), [items]);
 
-  // NEW: bundle items that share the exact same value into one combined
-  // node before laying out (see groupEqualValueItems above) — this is what
-  // makes equal amounts render as a uniform grid instead of possibly
-  // mismatched shapes.
-  const treemapNodes = useMemo(() => groupEqualValueItems(sortedItems), [sortedItems]);
-
-  // NEW: fold any group that's too small to stand on its own into the
-  // dominant group (see consolidateSmallGroups above) — this is the fix
-  // for the "unreadable sliver" problem: small items become ordinary
-  // cells in the SAME even grid as the large ones, instead of a separate,
-  // cramped strip.
-  const consolidatedNodes = useMemo(() => consolidateSmallGroups(treemapNodes), [treemapNodes]);
-
-  // Minimum size floor still applies for whatever's LEFT after
-  // consolidation — e.g. if there are two comparably-large groups plus
-  // one small one, consolidation may not fire (no single dominant group),
-  // so this still guards against that small group being unreadable.
-  const layoutNodes = useMemo(() => applyMinimumShare(consolidatedNodes), [consolidatedNodes]);
-
-  const layout = useMemo(() => buildTreemap(layoutNodes, 0, 0, 100, 100, true), [layoutNodes]);
+  const maxValue = sortedItems.length ? sortedItems[0].value : 0;
 
   return (
     <GlassPanel selected={selectedPanel === panelId} onClick={() => onSelectPanel?.(panelId)}>
@@ -368,35 +192,28 @@ export default function HeatTree({
         <Typography sx={{ ...textSecondarySx, fontSize: 12.5, mt: -1.5, mb: 1.5 }}>{config.subtitle}</Typography>
       )}
 
-      <Box sx={{ position: "relative", width: "100%", height: { xs: 300, sm: 340, md: 380 }, overflow: "hidden" }}>
-        {layout.map(({ item, x, y, w, h }) => {
-          // NEW: unwrap back to the real item/group — `item` here is the
-          // { value, __original } wrapper applyMinimumShare produced for
-          // layout math only, not the actual data to render.
-          const node = item.__original;
-          return node.__group ? (
-            <UniformGroupTile
-              key={node.__group.map((g) => g.name).join("|")}
-              group={node.__group}
-              x={x}
-              y={y}
-              w={w}
-              h={h}
-              colorFor={colorFor}
+      <Box
+        sx={{
+          display: "grid",
+          gridAutoFlow: "dense",
+          gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+          gridAutoRows: 84,
+          gap: 1,
+        }}
+      >
+        {sortedItems.map((item) => {
+          const ratio = maxValue > 0 ? item.value / maxValue : 0;
+          const { colSpan, rowSpan, dense } = tierFor(ratio);
+          return (
+            <Tile
+              key={item.name}
+              item={item}
+              color={colorFor(item.value)}
               shareLabel={shareLabel}
-              onTileClick={onTileClick}
-            />
-          ) : (
-            <TreemapTile
-              key={node.name}
-              item={node}
-              x={x}
-              y={y}
-              w={w}
-              h={h}
-              color={colorFor(node.value)}
-              shareLabel={shareLabel}
-              onClick={onTileClick ? () => onTileClick(node) : undefined}
+              colSpan={colSpan}
+              rowSpan={rowSpan}
+              dense={dense}
+              onClick={onTileClick ? () => onTileClick(item) : undefined}
             />
           );
         })}
