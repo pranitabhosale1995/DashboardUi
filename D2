@@ -1,28 +1,31 @@
 /* ---------------------------------------------------------------------- */
 /*  HeatTree.jsx                                                           */
-/*  REUSABLE: a heatmap-style treemap. Tile SIZE is continuously           */
-/*  proportional to each item's value (not a few fixed size buckets —      */
-/*  every distinct value gets a distinct size) and tile COLOR is a         */
-/*  continuous dark→light gradient tied to the value itself.               */
+/*  A heatmap-style tile layout. Tile SIZE (both WIDTH and HEIGHT,         */
+/*  independently, not sharing a dimension with neighbors) grows with the  */
+/*  item's value, and tile COLOR is a continuous dark→light gradient tied  */
+/*  to the value itself.                                                  */
 /*                                                                          */
 /*  SIZING MODEL — read this before touching sizing again.                 */
-/*  Area is proportional to sqrt(value), not the raw value. This is a      */
-/*  standard treemap technique for skewed data: it keeps the ordering      */
-/*  strictly monotonic (bigger value ALWAYS gets a bigger box, smaller     */
-/*  value ALWAYS gets a smaller box, so "more data = bigger + darker,      */
-/*  less data = smaller + lighter" always holds) while compressing how     */
-/*  extreme the size gap gets — e.g. a value 7x bigger than another gets   */
-/*  roughly 2.6x the area (sqrt(7)) instead of a literal 7x, which is      */
-/*  what was squeezing small-but-not-tiny items into unreadable slivers.   */
-/*  (An EARLIER version tried fixed size "tiers" instead — that made       */
-/*  several different values look identically sized, which is wrong; this */
-/*  version is back to continuous sizing, just smarter about the curve.)  */
+/*  Earlier versions used an actual "treemap" (recursive area-filling      */
+/*  split, like D3/Excel/Power BI treemaps). A real treemap MUST share one */
+/*  dimension between items in the same row/column — that's not a bug,    */
+/*  it's the geometry required to fill 100% of the area with no gaps or    */
+/*  overlaps. Per explicit request, this version drops that constraint:    */
+/*  every tile gets its own independent width AND height, computed only    */
+/*  from its own value — so two items never have to "share" a row height  */
+/*  or column width. The tradeoff (accepted per request): tiles are laid  */
+/*  out with CSS flex-wrap, so there can be leftover empty space at the    */
+/*  end of a row instead of a perfectly filled rectangle.                 */
 /*                                                                          */
-/*  Items that share the EXACT same value still render as an identically-  */
-/*  sized/shaped group (via UniformGroupTile below), since sqrt(same       */
-/*  value) is still the same number — equal data always looks equal.      */
+/*  Both width and height are computed as sqrt(value) — not value itself. */
+/*  With BOTH dimensions scaling by sqrt(value), the tile's AREA ends up   */
+/*  proportional to value (since side² ∝ (√value)² = value), which is the */
+/*  mathematically correct way to make a 2D shape's size represent a      */
+/*  1D number — the same reasoning bubble charts use for bubble radius.   */
 /*                                                                          */
-/*  Tile, UniformGroupTile, and Legend are small pieces used only here.    */
+/*  Because size is a pure function of value, two items with the exact    */
+/*  same value automatically get the exact same size — no special-case    */
+/*  grouping logic needed for that anymore.                               */
 /* ---------------------------------------------------------------------- */
 
 import React, { useMemo, useState } from "react";
@@ -30,166 +33,82 @@ import { Box, Stack, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
 import { GlassPanel, PanelHeader, MiniSelect, RADIUS, textSecondarySx } from "./common";
-import { heatColor, mixHex, getColor, buildTreemap, formatAmount } from "./utils";
+import { heatColor, mixHex, getColor, formatAmount } from "./utils";
 
-/** A single treemap cell.
- *  `absolute` (default true) controls the outer wrapper's positioning:
- *   - true  -> positions itself with left/top/width/height % (normal use,
- *              placed directly by the treemap layout).
- *   - false -> just fills 100% of its parent (used when this tile is one
- *              cell inside a UniformGroupTile's even grid, below). */
-function Tile({ item, x, y, w, h, color, shareLabel, onClick, absolute = true }) {
+/* ---- Size formula --------------------------------------------------------
+ * Tune these two numbers to make the smallest/largest tiles bigger or
+ * smaller overall — nothing else needs to change.
+ *   MIN_SIZE  = size (px) for the smallest value in the set — the floor,
+ *               so a tiny value never becomes an unreadable sliver.
+ *   MAX_EXTRA = how much bigger the largest value's tile gets on top of
+ *               MIN_SIZE (so the largest tile is MIN_SIZE + MAX_EXTRA). */
+const MIN_SIZE = 96;
+const MAX_EXTRA = 150;
+
+function sizeForRatio(ratio) {
+  return MIN_SIZE + ratio * MAX_EXTRA;
+}
+
+/** A single tile. `size` is an explicit pixel width AND height — this
+ * tile doesn't know or care what its neighbors are sized. */
+function Tile({ item, size, color, shareLabel, onClick }) {
   const theme = useTheme();
   const fg = theme.palette.getContrastText(color);
-  const small = w < 16 || h < 20;
+  const dense = size < 130; // smaller tiles use tighter text so content still fits
   const sheen = mixHex(color, "#ffffff", 0.16);
 
   return (
     <Box
-      sx={
-        absolute
-          ? { position: "absolute", left: `${x}%`, top: `${y}%`, width: `${w}%`, height: `${h}%`, p: 0.4, boxSizing: "border-box" }
-          : {
-              width: "100%",
-              height: "100%",
-              p: 0.4,
-              boxSizing: "border-box",
-              // Without these two, a CSS Grid cell won't shrink below its
-              // un-wrapped text's natural width — it'll force the cell
-              // (and the whole tile) wider than its track, spilling out
-              // past the card. Only relevant in the absolute=false (grid
-              // cell) case; position:absolute tiles aren't affected.
-              minWidth: 0,
-              minHeight: 0,
-              overflow: "hidden",
-            }
-      }
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      sx={{
+        width: size,
+        height: size,
+        flexShrink: 0,
+        borderRadius: RADIUS.sm,
+        p: dense ? 1 : 1.5,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        overflow: "hidden",
+        cursor: onClick ? "pointer" : "default",
+        background: `linear-gradient(135deg, ${sheen} 0%, ${color} 55%)`,
+        color: fg,
+        transition: "transform 0.18s ease, box-shadow 0.18s ease",
+        "&:hover": { transform: "scale(1.03)", boxShadow: theme.shadows[6], zIndex: 1 },
+      }}
     >
-      <Box
-        role={onClick ? "button" : undefined}
-        tabIndex={onClick ? 0 : undefined}
-        onClick={onClick}
-        sx={{
-          width: "100%",
-          height: "100%",
-          borderRadius: RADIUS.sm,
-          p: small ? 1 : 1.75,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          overflow: "hidden",
-          cursor: onClick ? "pointer" : "default",
-          background: `linear-gradient(135deg, ${sheen} 0%, ${color} 55%)`,
-          color: fg,
-          transition: "transform 0.18s ease, box-shadow 0.18s ease",
-          "&:hover": { transform: "scale(1.015)", boxShadow: theme.shadows[6], zIndex: 1 },
-        }}
-      >
-        <Typography sx={{ fontFamily: theme.typography.fontFamily, fontSize: small ? 11 : 13, fontWeight: 600, opacity: 0.92, lineHeight: 1.25 }} noWrap>
-          {item.name}
+      <Typography sx={{ fontFamily: theme.typography.fontFamily, fontSize: dense ? 11 : 13, fontWeight: 600, opacity: 0.92, lineHeight: 1.25 }} noWrap>
+        {item.name}
+      </Typography>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography sx={{ fontFamily: theme.typography.fontFamily, fontSize: dense ? 13 : 19, fontWeight: 700, lineHeight: 1.2 }} noWrap>
+          {formatAmount(item.value)}
         </Typography>
-        <Box sx={{ minWidth: 0 }}>
-          <Typography sx={{ fontFamily: theme.typography.fontFamily, fontSize: small ? 13 : 20, fontWeight: 700, lineHeight: 1.2 }} noWrap>
-            {formatAmount(item.value)}
+        {!dense && (
+          <Typography sx={{ fontFamily: theme.typography.fontFamily, fontSize: 11.5, opacity: 0.82, mt: 0.25 }}>
+            {item.share}% {shareLabel}
           </Typography>
-          {!small && (
-            <Typography sx={{ fontFamily: theme.typography.fontFamily, fontSize: 11.5, opacity: 0.82, mt: 0.25 }}>
-              {item.share}% {shareLabel}
-            </Typography>
-          )}
-        </Box>
+        )}
       </Box>
     </Box>
   );
 }
 
-/** Bundles items that share the exact same `value` into a single synthetic
- * node (`{ value: combinedValue, __group: [...items] }`) so the treemap
- * sizes that whole bundle as ONE block, then splits it into an even grid
- * below — equal data always looks equal (same size AND shape), not just
- * equal area that could end up an oddly different shape. */
-function groupEqualValueItems(items) {
-  const buckets = new Map();
-  items.forEach((it) => {
-    const key = it.value;
-    if (!buckets.has(key)) buckets.set(key, []);
-    buckets.get(key).push(it);
-  });
-
-  const nodes = [];
-  buckets.forEach((groupItems, value) => {
-    if (groupItems.length > 1) {
-      nodes.push({ value: value * groupItems.length, __group: groupItems });
-    } else {
-      nodes.push(groupItems[0]);
-    }
-  });
-  return nodes;
-}
-
-/** Picks column/row counts for `n` cells, biased toward WIDER grids (a
- * dashboard card is wide, not tall). */
-function bestGridDims(n) {
-  const cols = Math.min(4, Math.max(1, Math.ceil(Math.sqrt(n) * 1.3)));
-  const rows = Math.ceil(n / cols);
-  return { cols, rows };
-}
-
-/** Renders one "equal value" bundle (from groupEqualValueItems) as a
- * perfectly even grid inside the box the treemap allocated to it. */
-function UniformGroupTile({ group, x, y, w, h, colorFor, shareLabel, onTileClick }) {
-  const { cols, rows } = bestGridDims(group.length);
-  const cellW = w / cols;
-  const cellH = h / rows;
-
-  return (
-    <Box
-      sx={{
-        position: "absolute",
-        left: `${x}%`,
-        top: `${y}%`,
-        width: `${w}%`,
-        height: `${h}%`,
-        display: "grid",
-        gridTemplateColumns: `repeat(${cols}, 1fr)`,
-        gridTemplateRows: `repeat(${rows}, 1fr)`,
-        gap: 0,
-        overflow: "hidden", // defensive — Tile's own minWidth:0 fix is the real fix
-      }}
-    >
-      {group.map((item) => (
-        <Tile
-          key={item.name}
-          item={item}
-          w={cellW}
-          h={cellH}
-          color={colorFor(item.value)}
-          shareLabel={shareLabel}
-          onClick={onTileClick ? () => onTileClick(item) : undefined}
-          absolute={false}
-        />
-      ))}
-    </Box>
-  );
-}
-
 /** Color-dot + label legend row, wraps cleanly regardless of item count. */
-function Legend({ items, valueItems, colorFor }) {
+function Legend({ items, colorFor }) {
   const theme = useTheme();
   return (
     <Box sx={{ mt: 2, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(136px, 1fr))", rowGap: 0.85, columnGap: 1.5 }}>
-      {items.map((l, i) => {
-        const matched = valueItems && valueItems.find((it) => it.name === l.name);
-        const dotColor = colorFor && matched ? colorFor(matched.value) : getColor(l.name, i, theme);
-        return (
-          <Stack key={l.name} direction="row" spacing={0.75} alignItems="center">
-            <Box sx={{ width: 8, height: 8, borderRadius: "2px", bgcolor: dotColor, flexShrink: 0 }} />
-            <Typography sx={{ ...textSecondarySx, fontSize: 11.5, fontWeight: 500 }} noWrap>
-              {l.name}
-            </Typography>
-          </Stack>
-        );
-      })}
+      {items.map((l, i) => (
+        <Stack key={l.name} direction="row" spacing={0.75} alignItems="center">
+          <Box sx={{ width: 8, height: 8, borderRadius: "2px", bgcolor: colorFor ? colorFor(l.name) : getColor(l.name, i, theme), flexShrink: 0 }} />
+          <Typography sx={{ ...textSecondarySx, fontSize: 11.5, fontWeight: 500 }} noWrap>
+            {l.name}
+          </Typography>
+        </Stack>
+      ))}
     </Box>
   );
 }
@@ -237,8 +156,6 @@ export default function HeatTree({
     return config.legend.filter((l) => names.has(l.name));
   }, [config.legend, showAll, items]);
 
-  // Color still tracks the REAL value directly (dark = high, light = low)
-  // — only the layout math below uses a transformed number.
   const colorFor = useMemo(() => {
     const values = items.map((it) => it.value);
     const minValue = values.length ? Math.min(...values) : 0;
@@ -246,25 +163,15 @@ export default function HeatTree({
     return (value) => heatColor(value, minValue, maxValue, gradientDark, gradientLight);
   }, [items, gradientDark, gradientLight]);
 
+  // Legend needs a color BY NAME (it doesn't have each item's value handy),
+  // so look the real value up before calling colorFor.
+  const legendColorFor = useMemo(() => {
+    const byName = new Map(items.map((it) => [it.name, it.value]));
+    return (name) => (byName.has(name) ? colorFor(byName.get(name)) : undefined);
+  }, [items, colorFor]);
+
   const sortedItems = useMemo(() => [...items].sort((a, b) => b.value - a.value), [items]);
-
-  // Same-value items become one grouped node so they render identically
-  // (see groupEqualValueItems above).
-  const treemapNodes = useMemo(() => groupEqualValueItems(sortedItems), [sortedItems]);
-
-  // THE ACTUAL SIZING FIX: lay out using sqrt(value) instead of value
-  // itself. Ordering stays exactly the same (sqrt is monotonic — bigger
-  // real value is always a bigger sqrt, so size and color always agree),
-  // but the size GAP between a big and a small value is compressed, which
-  // is what keeps small-but-real values from being squeezed unreadable
-  // next to much larger ones. `__original` carries the real item/group
-  // through so the displayed amount is never affected by this transform.
-  const layoutNodes = useMemo(
-    () => treemapNodes.map((n) => ({ value: Math.sqrt(Math.max(n.value, 0)), __original: n })),
-    [treemapNodes]
-  );
-
-  const layout = useMemo(() => buildTreemap(layoutNodes, 0, 0, 100, 100, true), [layoutNodes]);
+  const maxValue = sortedItems.length ? sortedItems[0].value : 0;
 
   return (
     <GlassPanel selected={selectedPanel === panelId} onClick={() => onSelectPanel?.(panelId)}>
@@ -277,38 +184,26 @@ export default function HeatTree({
         <Typography sx={{ ...textSecondarySx, fontSize: 12.5, mt: -1.5, mb: 1.5 }}>{config.subtitle}</Typography>
       )}
 
-      <Box sx={{ position: "relative", width: "100%", height: { xs: 300, sm: 340, md: 380 }, overflow: "hidden" }}>
-        {layout.map(({ item, x, y, w, h }) => {
-          const node = item.__original; // unwrap back to the real item/group
-          return node.__group ? (
-            <UniformGroupTile
-              key={node.__group.map((g) => g.name).join("|")}
-              group={node.__group}
-              x={x}
-              y={y}
-              w={w}
-              h={h}
-              colorFor={colorFor}
-              shareLabel={shareLabel}
-              onTileClick={onTileClick}
-            />
-          ) : (
+      {/* flex-wrap, not a treemap grid: every tile gets its own independent
+          width/height, so rows can end with leftover empty space instead
+          of every tile in a row being forced to share one height. */}
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+        {sortedItems.map((item) => {
+          const ratio = maxValue > 0 ? Math.sqrt(item.value) / Math.sqrt(maxValue) : 0;
+          return (
             <Tile
-              key={node.name}
-              item={node}
-              x={x}
-              y={y}
-              w={w}
-              h={h}
-              color={colorFor(node.value)}
+              key={item.name}
+              item={item}
+              size={sizeForRatio(ratio)}
+              color={colorFor(item.value)}
               shareLabel={shareLabel}
-              onClick={onTileClick ? () => onTileClick(node) : undefined}
+              onClick={onTileClick ? () => onTileClick(item) : undefined}
             />
           );
         })}
       </Box>
 
-      <Legend items={legend} valueItems={items} colorFor={colorFor} />
+      <Legend items={legend} colorFor={legendColorFor} />
     </GlassPanel>
   );
 }
